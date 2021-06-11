@@ -1,6 +1,6 @@
-# Contribute to the GPU Operator Project
+# Contribute to the DCGM Golang Bindings
 
-Want to hack on the NVIDIA Container Toolkit Project? Awesome!
+Want to hack on the NVIDIA DCGM Golang Bindings Project? Awesome!
 We only require you to sign your work, the below section describes this!
 
 ## Sign your work
