@@ -1,10 +1,9 @@
 package handlers
 
 import (
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"net/http"
-
-	"github.com/NVIDIA/go-dcgm"
 )
 
 // map of uuids and device id

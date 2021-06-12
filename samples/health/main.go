@@ -1,14 +1,13 @@
 package main
 
 import (
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"text/template"
 	"time"
-
-	"github.com/NVIDIA/go-dcgm"
 )
 
 const (
