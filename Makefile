@@ -18,7 +18,7 @@ GOLANG_VERSION := 1.14.2
 all: binary test-main check-format
 
 binary:
-	go build
+	go build ./pkg/dcgm
 	cd samples/deviceInfo; go build
 	cd samples/dmon; go build
 	cd samples/health; go build
@@ -29,7 +29,7 @@ binary:
 	cd samples/topology; go build
 
 test-main:
-	go test
+	go test ./tests
 
 check-format:
 	test $$(gofmt -l . | tee /dev/stderr | wc -l) -eq 0

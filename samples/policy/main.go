@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
-
-	"github.com/NVIDIA/go-dcgm"
 )
 
 // dcgmi group -c "name" --default

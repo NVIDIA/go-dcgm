@@ -2,12 +2,11 @@ package main
 
 import (
 	"flag"
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"os"
 	"text/template"
 	"time"
-
-	"github.com/NVIDIA/go-dcgm"
 )
 
 const (

@@ -20,10 +20,10 @@ package dcgm
 #cgo linux LDFLAGS: -ldl -Wl,--unresolved-symbols=ignore-in-object-files
 #cgo darwin LDFLAGS: -ldl -Wl,-undefined,dynamic_lookup
 
-
 #include <dlfcn.h>
-#include "include/dcgm_agent.h"
-#include "include/dcgm_structs.h"
+#include "../../internal/include/dcgm_agent.h"
+#include "../../internal/include/dcgm_structs.h"
+
 */
 import "C"
 import (

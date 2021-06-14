@@ -3,13 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"math"
 	"net/http"
 	"strconv"
 	"text/template"
-
-	"github.com/NVIDIA/go-dcgm"
 )
 
 const (

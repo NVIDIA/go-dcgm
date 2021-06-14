@@ -1,6 +1,7 @@
-package dcgm
+package tests
 
 import (
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"math"
 	"strconv"
 	"strings"
@@ -16,11 +17,11 @@ func check(err error, t *testing.T) {
 }
 
 func TestDeviceCount(t *testing.T) {
-	cleanup, err := Init(Embedded)
+	cleanup, err := dcgm.Init(dcgm.Embedded)
 	check(err, t)
 	defer cleanup()
 
-	count, err := GetAllDeviceCount()
+	count, err := dcgm.GetAllDeviceCount()
 	check(err, t)
 
 	query := "count"
@@ -32,19 +33,19 @@ func TestDeviceCount(t *testing.T) {
 }
 
 func BenchmarkDeviceCount1(b *testing.B) {
-	Init(Embedded)
+	dcgm.Init(dcgm.Embedded)
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
-		GetAllDeviceCount()
+		dcgm.GetAllDeviceCount()
 	}
 	b.StopTimer()
 
-	Shutdown()
+	dcgm.Shutdown()
 }
 
 func TestDeviceInfo(t *testing.T) {
-	cleanup, err := Init(Embedded)
+	cleanup, err := dcgm.Init(dcgm.Embedded)
 	check(err, t)
 	defer cleanup()
 
@@ -59,11 +60,11 @@ func TestDeviceInfo(t *testing.T) {
 		"power.limit",
 	}
 
-	gpus, err := GetSupportedDevices()
+	gpus, err := dcgm.GetSupportedDevices()
 	check(err, t)
 
 	for _, gpu := range gpus {
-		info, err := GetDeviceInfo(gpu)
+		info, err := dcgm.GetDeviceInfo(gpu)
 		check(err, t)
 
 		id := strconv.FormatUint(uint64(gpu), 10)
@@ -114,24 +115,24 @@ func TestDeviceInfo(t *testing.T) {
 }
 
 func BenchmarkDeviceInfo1(b *testing.B) {
-	Init(Embedded)
+	dcgm.Init(dcgm.Embedded)
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
 		// assuming there will be atleast 1 GPU attached
-		GetDeviceInfo(uint(0))
+		dcgm.GetDeviceInfo(uint(0))
 	}
 	b.StopTimer()
 
-	Shutdown()
+	dcgm.Shutdown()
 }
 
 func TestDeviceStatus(t *testing.T) {
-	cleanup, err := Init(Embedded)
+	cleanup, err := dcgm.Init(dcgm.Embedded)
 	check(err, t)
 	defer cleanup()
 
-	gpus, err := GetSupportedDevices()
+	gpus, err := dcgm.GetSupportedDevices()
 	check(err, t)
 
 	fields := []string{
@@ -145,7 +146,7 @@ func TestDeviceStatus(t *testing.T) {
 	}
 
 	for _, gpu := range gpus {
-		status, err := GetDeviceStatus(gpu)
+		status, err := dcgm.GetDeviceStatus(gpu)
 		check(err, t)
 
 		id := strconv.FormatUint(uint64(gpu), 10)

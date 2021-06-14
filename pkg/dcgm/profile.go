@@ -1,8 +1,8 @@
 package dcgm
 
 /*
-#include "include/dcgm_agent.h"
-#include "include/dcgm_structs.h"
+#include "../../internal/include/dcgm_agent.h"
+#include "../../internal/include/dcgm_structs.h"
 */
 import "C"
 import (

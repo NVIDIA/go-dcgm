@@ -1,12 +1,12 @@
 package handlers
 
 import (
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"math"
 	"net/http"
 	"time"
 
-	"github.com/NVIDIA/go-dcgm"
 	"github.com/gorilla/mux"
 )
 
