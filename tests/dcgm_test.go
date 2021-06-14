@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml/nvsmi"
 )
 
 func check(err error, t *testing.T) {
@@ -25,7 +23,7 @@ func TestDeviceCount(t *testing.T) {
 	check(err, t)
 
 	query := "count"
-	c := nvsmi.DeviceCount(query)
+	c := DeviceCount(query)
 
 	if c != count {
 		t.Errorf("Device Count from dcgm is wrong, got %d, want: %d", count, c)
@@ -71,7 +69,7 @@ func TestDeviceInfo(t *testing.T) {
 
 		for _, val := range fields {
 			var msg, output string
-			res := nvsmi.Query(id, val)
+			res := Query(id, val)
 
 			switch val {
 			case "driver_version":
@@ -153,7 +151,7 @@ func TestDeviceStatus(t *testing.T) {
 
 		for _, val := range fields {
 			var msg, output string
-			res := nvsmi.Query(id, val)
+			res := Query(id, val)
 
 			switch val {
 			case "power.draw":
