@@ -10,15 +10,13 @@ pipeline {
         stage('Compile') {
             steps {
                 // Run on an agent where we want to use Go
-                node {
-                    // Ensure the desired Go version is installed
-                    def root = tool type: 'go', name: 'go-1.16'
+                // Ensure the desired Go version is installed
+                def root = tool type: 'go', name: 'go-1.16'
 
-                    // Export environment variables pointing to the directory where Go was installed
-                    withEnv(["GOROOT=${root}", "PATH+GO=${root}/bin"]) {
-                         sh 'go version'
-                         make binary
-                    }
+                // Export environment variables pointing to the directory where Go was installed
+                withEnv(["GOROOT=${root}", "PATH+GO=${root}/bin"]) {
+                     sh 'go version'
+                     make binary
                 }
             }
         }
