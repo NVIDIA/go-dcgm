@@ -4,27 +4,9 @@ pipeline {
         go 'go-1.16'
     }
  
-    options {
-        ansiColor('xterm')
-        timestamps()
-        timeout(time: 1, unit: 'HOURS')
-    }
- 
-    environment {
-        HOME="${WORKSPACE}"
-        PYTHONUNBUFFERED=1
-    }
- 
-    parameters {
-        string(name: 'REF', defaultValue: '\${gitlabBranch}', description: 'Commit to build')
-    }
- 
     stages {
         stage('Compile') {
             steps {
-                echo "Runs in ${WORKSPACE}"
-                sh "pwd"
- 
                 make binary
             }
         }
