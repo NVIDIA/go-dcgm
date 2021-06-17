@@ -3,7 +3,9 @@ pipeline {
     tools {
         go 'go-1.16'
     }
- 
+    environment {
+        GO116MODULE = 'on'
+    }
     stages {
         stage('Compile') {
             steps {
