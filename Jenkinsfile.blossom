@@ -1,5 +1,8 @@
 pipeline {
-    agent { docker { image 'golang' } }
+    agent any
+    tools {
+        go 'go-1.16'
+    }
  
     options {
         ansiColor('xterm')
