@@ -34,3 +34,12 @@ test-main:
 check-format:
 	test $$(gofmt -l . | tee /dev/stderr | wc -l) -eq 0
 
+clean:
+	rm -f samples/deviceInfo/deviceInfo
+	rm -f samples/dmon/dmon
+	rm -f samples/health/health
+	rm -f samples/hostengineStatus/hostengineStatus
+	rm -f samples/policy/policy
+	rm -f samples/processInfo/processInfo
+	rm -f samples/restApi/restApi
+	rm -f samples/topology/topology
