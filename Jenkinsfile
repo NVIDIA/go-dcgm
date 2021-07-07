@@ -1,7 +1,14 @@
 @Library(['shared-libs']) _
  
 pipeline {
-    agent { docker { image 'golang' } }
+
+    agent {
+        dockerfile {
+            label 'docker'
+            filename 'Dockerfile'
+            args '-v /etc/passwd:/etc/passwd:ro -v /var/run/docker.sock:/var/run/docker.sock:rw'
+        }
+    }
  
     options {
         ansiColor('xterm')
@@ -30,10 +37,8 @@ pipeline {
         }
         stage('Compile') {
             steps {
-                echo "Runs in ${WORKSPACE}"
-                sh "pwd"
- 
-                make binary
+                echo "building"
+                sh "make binary"
             }
         }
 	stage('Test') {
@@ -41,7 +46,7 @@ pipeline {
                 echo "Running tests"
 		// Tests require supported GPU
                 // make test-main
-                make check-format
+                sh "make check-format"
             }
         }
     }
