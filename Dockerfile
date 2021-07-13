@@ -1,5 +1,4 @@
-FROM nvcr.io/nvidia/cuda:11.3.1-base-ubuntu20.04
-LABEL io.k8s.display-name="NVIDIA DCGM"
+FROM nvidia/cuda:11.3.1-base-ubuntu20.04
 
 ARG DCGM_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
