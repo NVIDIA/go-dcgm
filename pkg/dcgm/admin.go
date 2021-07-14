@@ -141,7 +141,7 @@ func connectStandalone(args ...string) (err error) {
 	addr := C.CString(args[0])
 	defer freeCString(addr)
 	var connectParams C.dcgmConnectV2Params_t
-	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
+	connectParams.version = makeVersion1(unsafe.Sizeof(connectParams))
 
 	sck, err := strconv.ParseUint(args[1], 10, 32)
 	if err != nil {
