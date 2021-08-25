@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	updateFreq     = 1000000 // usec
-	maxKeepAge     = 300     // sec
-	maxKeepSamples = 0       // nolimit
+	defaultUpdateFreq     = 30000000 // usec
+	defaultMaxKeepAge     = 0        // sec
+	defaultMaxKeepSamples = 1        // Keep one sample by default since we only ask for latest
 )
 
 type FieldMeta struct {
@@ -65,7 +65,7 @@ func WatchFields(gpuId uint, fieldsGroup FieldHandle, groupName string) (groupId
 		return
 	}
 
-	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle, C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
+	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle, C.longlong(defaultUpdateFreq), C.double(defaultMaxKeepAge), C.int(defaultMaxKeepSamples))
 	if err = errorString(result); err != nil {
 		return groupId, fmt.Errorf("Error watching fields: %s", err)
 	}
@@ -74,7 +74,7 @@ func WatchFields(gpuId uint, fieldsGroup FieldHandle, groupName string) (groupId
 	return group, nil
 }
 
-func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
+func WatchFieldsWithGroupEx(fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) error {
 	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
 		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
 
@@ -87,6 +87,10 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 	}
 
 	return nil
+}
+
+func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
+	return WatchFieldsWithGroupEx(fieldsGroup, group, defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
 }
 
 func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error) {

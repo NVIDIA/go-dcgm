@@ -84,7 +84,7 @@ func watchPidFields(gpus ...uint) (groupId GroupHandle, err error) {
 
 	}
 
-	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
+	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(defaultUpdateFreq), C.double(defaultMaxKeepAge), C.int(defaultMaxKeepSamples))
 
 	if err = errorString(result); err != nil {
 		return groupId, fmt.Errorf("Error watching process fields: %s", err)
