@@ -140,8 +140,8 @@ func connectStandalone(args ...string) (err error) {
 	var cHandle C.dcgmHandle_t
 	addr := C.CString(args[0])
 	defer freeCString(addr)
-	var connectParams C.dcgmConnectV2Params_t
-	connectParams.version = makeVersion1(unsafe.Sizeof(connectParams))
+	var connectParams C.dcgmConnectV2Params_v2
+	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
 
 	sck, err := strconv.ParseUint(args[1], 10, 32)
 	if err != nil {
@@ -212,7 +212,7 @@ func startHostengine() (err error) {
 	}
 
 	var cHandle C.dcgmHandle_t
-	var connectParams C.dcgmConnectV2Params_t
+	var connectParams C.dcgmConnectV2Params_v2
 	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
 	isSocket := C.uint(1)
 	connectParams.addressIsUnixSocket = isSocket
