@@ -22,8 +22,8 @@ Energy Consumed (Joules)     : {{or .ProcessUtilization.EnergyConsumed "N/A"}}
 Max GPU Memory Used (bytes)  : {{or .Memory.GlobalUsed "N/A"}}
 Avg SM Clock (MHz)           : {{or .Clocks.Cores "N/A"}}
 Avg Memory Clock (MHz)       : {{or .Clocks.Memory "N/A"}}
-Avg SM Utilization (%)       : {{or .GpuUtilization.Memory "N/A"}}
-Avg Memory Utilization (%)   : {{or .GpuUtilization.GPU "N/A"}}
+Avg SM Utilization (%)       : {{or .GpuUtilization.GPU "N/A"}}
+Avg Memory Utilization (%)   : {{or .GpuUtilization.Memory "N/A"}}
 Avg PCIe Rx Bandwidth (MB)   : {{or .PCI.Throughput.Rx "N/A"}}
 Avg PCIe Tx Bandwidth (MB)   : {{or .PCI.Throughput.Tx "N/A"}}
 ----------Event Stats-------------------------------------------------

@@ -28,8 +28,6 @@ Bus ID                 : {{.PCI.BusID}}
 BAR1 (MB)              : {{or .PCI.BAR1 "N/A"}}
 FrameBuffer Memory (MB): {{or .PCI.FBTotal "N/A"}}
 Bandwidth (MB/s)       : {{or .PCI.Bandwidth "N/A"}}
-Cores (MHz)            : {{or .Clocks.Cores "N/A"}}
-Memory (MHz)           : {{or .Clocks.Memory "N/A"}}
 Power (W)              : {{or .Power "N/A"}}
 CPUAffinity            : {{or .CPUAffinity "N/A"}}
 P2P Available          : {{if not .Topology}}None{{else}}{{range .Topology}}
