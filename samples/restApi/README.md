@@ -74,6 +74,13 @@ $ curl localhost:8070/dcgm/device/status/uuid/$UUID/json
 # Query GPU process info
 
 # Run CUDA nbody sample and get its PID
+# NOTE: The "WatchPidFields()" function must be initially called (as root) BEFORE starting the process to be monitored:
+# 1. Run as root, for enabling health watches
+$ sudo dcgmi stats -e
+# 2. Start process to be monitored
+$ nbody -benchmark -numbodies=1000192
+# 3. Start restApi
+$ go build && ./restApi
 $ PID=$(pgrep nbody)
 
 $ curl localhost:8070/dcgm/process/info/pid/$PID
