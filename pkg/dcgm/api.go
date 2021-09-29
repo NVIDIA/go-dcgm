@@ -79,7 +79,7 @@ func GetDeviceTopology(gpuId uint) ([]P2PLink, error) {
 // WatchPidFields lets DCGM start recording stats for GPU process
 // It needs to be called before calling GetProcessInfo
 func WatchPidFields() (GroupHandle, error) {
-	return watchPidFields()
+	return watchPidFields(defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
 }
 
 // GetProcessInfo provides detailed per GPU stats for this process
