@@ -61,7 +61,13 @@ type ProcessInfo struct {
 	XIDErrors          XIDErrorInfo
 }
 
-func watchPidFields(gpus ...uint) (groupId GroupHandle, err error) {
+// WatchPidFieldsEx is the same as WatchPidFields, but allows for modifying the update frequency, max samples, max
+// sample age, and the GPUs on which to enable watches.
+func WatchPidFieldsEx(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (GroupHandle, error) {
+	return watchPidFields(updateFreq, maxKeepAge, maxKeepSamples, gpus...)
+}
+
+func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
 	groupName := fmt.Sprintf("watchPids%d", rand.Uint64())
 	group, err := CreateGroup(groupName)
 	if err != nil {
@@ -84,7 +90,7 @@ func watchPidFields(gpus ...uint) (groupId GroupHandle, err error) {
 
 	}
 
-	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(defaultUpdateFreq), C.double(defaultMaxKeepAge), C.int(defaultMaxKeepSamples))
+	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(updateFreq.Microseconds()), C.double(maxKeepAge.Seconds()), C.int(maxKeepSamples))
 
 	if err = errorString(result); err != nil {
 		return groupId, fmt.Errorf("Error watching process fields: %s", err)
