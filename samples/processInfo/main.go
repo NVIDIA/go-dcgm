@@ -46,10 +46,12 @@ Avg Memory Utilization (%)   : {{or .ProcessUtilization.MemUtil "N/A"}}
 
 var process = flag.Uint("pid", 0, "Provide pid to get this process information.")
 
-// run as root, for enabling health watches
-// dcgmi stats -e
-// dcgmi stats --pid ENTERPID -v
-// sample: sudo ./processInfo -pid PID
+// NOTE: The "WatchPidFields()" function must be initially called (as root) BEFORE starting the process to be monitored:
+// 1. Run as root, for enabling health watches
+//   sudo dcgmi stats -e
+// 2. Start process to be monitored
+// 3. Run processInfo. This is equivalent to "dcgmi stats --pid ENTERPID -v"
+//   go build && ./processInfo -pid PID
 func main() {
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	if err != nil {
