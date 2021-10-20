@@ -21,8 +21,8 @@ package dcgm
 #cgo darwin LDFLAGS: -ldl -Wl,-undefined,dynamic_lookup
 
 #include <dlfcn.h>
-#include "../../internal/include/dcgm_agent.h"
-#include "../../internal/include/dcgm_structs.h"
+#include "dcgm_agent.h"
+#include "dcgm_structs.h"
 
 */
 import "C"

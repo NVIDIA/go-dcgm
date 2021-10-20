@@ -2,7 +2,7 @@ package dcgm
 
 /*
 #include <stdlib.h>
-#include "../../internal/include/dcgm_structs.h"
+#include "dcgm_structs.h"
 */
 import "C"
 
