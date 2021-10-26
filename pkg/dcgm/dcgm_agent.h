@@ -25,7 +25,6 @@ extern "C" {
 
 #define DCGM_PUBLIC_API
 
-
 /***************************************************************************************************/
 /** @defgroup DCGMAPI_Admin Administrative
  *

@@ -16,9 +16,6 @@
 #ifndef DCGM_ERRORS_H
 #define DCGM_ERRORS_H
 
-#include "dcgm_api_export.h"
-#include "dcgm_structs.h"
-
 /*
  * Error codes for passive and active health checks.
  * New error codes must be added to end of enum to maintain backwards compatibility.
