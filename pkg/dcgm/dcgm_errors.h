@@ -106,7 +106,11 @@ typedef enum dcgmError_enum
     DCGM_FR_UNCONTAINED_ERROR            = 81, //!< Uncontained error - XID 95
     DCGM_FR_EMPTY_GPU_LIST               = 82, //!< No GPU information given to plugin
     DCGM_FR_DBE_PENDING_PAGE_RETIREMENTS = 83, //!< Pending page retirements due to a DBE
-    DCGM_FR_ERROR_SENTINEL               = 84, //!< MUST BE THE LAST ERROR CODE
+    DCGM_FR_UNCORRECTABLE_ROW_REMAP      = 84, //!< Uncorrectable row remapping
+    DCGM_FR_PENDING_ROW_REMAP            = 85, //!< Row remapping is pending
+    DCGM_FR_BROKEN_P2P_MEMORY_DEVICE     = 86, //!< P2P copy test detected an error writing to this GPU
+    DCGM_FR_BROKEN_P2P_WRITER_DEVICE     = 87, //!< P2P copy test detected an error writing from this GPU
+    DCGM_FR_ERROR_SENTINEL               = 88, //!< MUST BE THE LAST ERROR CODE
 } dcgmError_t;
 
 typedef enum dcgmErrorSeverity_enum
@@ -132,6 +136,7 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DEBUG_COOLING_MSG                                                         \
     "Verify that the cooling on this machine is functional, including external, " \
     "thermal material interface, fans, and any other components."
+#define BUG_REPORT_MSG "Please capture an nvidia-bug-report and send it to NVIDIA."
 
 /*
  * Messages for the error codes. All messages must be defined in the ERROR_CODE_MSG <msg> format
@@ -234,10 +239,10 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
     "%s met or exceeded the threshold of %.1f per second: %.1f at " \
     "%.1f seconds into the test."
 // total seconds of violation, gpu id
-#define DCGM_FR_THERMAL_VIOLATIONS_MSG "There were thermal violations totaling %lu seconds for GPU %u"
+#define DCGM_FR_THERMAL_VIOLATIONS_MSG "There were thermal violations totaling %.1f seconds for GPU %u"
 // total seconds of violations, first instance, gpu id
-#define DCGM_FR_THERMAL_VIOLATIONS_TS_MSG                              \
-    "Thermal violations totaling %lu samples started at %.1f seconds " \
+#define DCGM_FR_THERMAL_VIOLATIONS_TS_MSG                               \
+    "Thermal violations totaling %.1f seconds started at %.1f seconds " \
     "into the test for GPU %u"
 // observed temperature, gpu id, max allowed temperature
 #define DCGM_FR_TEMP_VIOLATION_MSG                                \
@@ -329,10 +334,14 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_HAD_TO_RESTORE_STATE_MSG         "Had to restore GPU state on NVML GPU(s): %s"
 #define DCGM_FR_L1TAG_UNSUPPORTED_MSG            "This card does not support the L1 cache test. Skipping test."
 #define DCGM_FR_L1TAG_MISCOMPARE_MSG             "Detected a miscompare failure in the L1 cache."
-#define DCGM_FR_ROW_REMAP_FAILURE_MSG            "Row remapping failed."
+#define DCGM_FR_ROW_REMAP_FAILURE_MSG            "GPU %u had uncorrectable memory errors and row remapping failed."
 #define DCGM_FR_UNCONTAINED_ERROR_MSG            "GPU had an uncontained error (XID 95)"
 #define DCGM_FR_EMPTY_GPU_LIST_MSG               "No valid GPUs passed to plugin"
 #define DCGM_FR_DBE_PENDING_PAGE_RETIREMENTS_MSG "Pending page retirements together with a DBE were detected on GPU %u."
+#define DCGM_FR_UNCORRECTABLE_ROW_REMAP_MSG      "GPU %u had uncorrectable memory errors and %u rows were remapped"
+#define DCGM_FR_PENDING_ROW_REMAP_MSG            "GPU %u has uncorrectable memory errors and row remappings are pending"
+#define DCGM_FR_BROKEN_P2P_MEMORY_DEVICE_MSG     "GPU %u was unsuccessfully written to in a peer-to-peer test: %s"
+#define DCGM_FR_BROKEN_P2P_WRITER_DEVICE_MSG     "GPU %u unsuccessfully wrote data in a peer-to-peer test: %s"
 
 /*
  * Suggestions for next steps for the corresponding error message
@@ -456,19 +465,27 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_HAD_TO_RESTORE_STATE_NEXT         ""
 #define DCGM_FR_L1TAG_UNSUPPORTED_NEXT            ""
 #define DCGM_FR_L1TAG_MISCOMPARE_NEXT             TRIAGE_RUN_FIELD_DIAG_MSG
-#define DCGM_FR_ROW_REMAP_FAILURE_NEXT            DCGM_FR_VOLATILE_DBE_DETECTED_NEXT
+#define DCGM_FR_ROW_REMAP_FAILURE_NEXT            "Reset the GPU as soon as possible to restore operation."
 #define DCGM_FR_UNCONTAINED_ERROR_NEXT            DCGM_FR_VOLATILE_DBE_DETECTED_NEXT
 #define DCGM_FR_DBE_PENDING_PAGE_RETIREMENTS_NEXT "Drain the GPU and reset it or reboot the node to resolve this issue."
 #define DCGM_FR_EMPTY_GPU_LIST_NEXT               ""
+#define DCGM_FR_UNCORRECTABLE_ROW_REMAP_NEXT      ""
+#define DCGM_FR_PENDING_ROW_REMAP_NEXT            ""
+#define DCGM_FR_BROKEN_P2P_MEMORY_DEVICE_NEXT     BUG_REPORT_MSG
+#define DCGM_FR_BROKEN_P2P_WRITER_DEVICE_NEXT     BUG_REPORT_MSG
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-dcgmErrorSeverity_t dcgmErrorGetPriorityByCode(unsigned int code);
-const char *dcgmErrorGetFormatMsgByCode(unsigned int code);
+
+DCGM_PUBLIC_API dcgmErrorSeverity_t dcgmErrorGetPriorityByCode(unsigned int code);
+DCGM_PUBLIC_API const char *dcgmErrorGetFormatMsgByCode(unsigned int code);
+
+DCGM_PUBLIC_API const dcgm_error_meta_t *dcgmGetErrorMeta(dcgmError_t error);
+DCGM_PUBLIC_API const char *errorString(dcgmReturn_t result);
 
 #ifdef __cplusplus
-}
+} // extern "C"
 #endif
 
 #endif // DCGM_ERRORS_H
