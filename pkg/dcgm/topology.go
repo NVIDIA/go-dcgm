@@ -7,8 +7,6 @@ package dcgm
 import "C"
 import (
 	"fmt"
-	"io/ioutil"
-	"strings"
 	"unsafe"
 )
 
@@ -85,14 +83,6 @@ func getP2PLink(path uint) P2PLinkType {
 		return FourNVLINKLinks
 	}
 	return P2PLinkUnknown
-}
-
-func getCPUAffinity(busid string) (string, error) {
-	b, err := ioutil.ReadFile(fmt.Sprintf("/sys/bus/pci/devices/%s/local_cpulist", strings.ToLower(busid[4:])))
-	if err != nil {
-		return "", fmt.Errorf("Error getting device cpu affinity: %v", err)
-	}
-	return strings.TrimSuffix(string(b), "\n"), nil
 }
 
 func getBusid(gpuid uint) (string, error) {

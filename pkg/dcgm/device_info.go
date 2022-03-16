@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"math/rand"
 	"unsafe"
+
+	"github.com/bits-and-blooms/bitset"
 )
 
 type PCIInfo struct {
@@ -118,6 +120,57 @@ func getPciBandwidth(gpuId uint) (int64, error) {
 	return bandwidth, nil
 }
 
+func getCPUAffinity(gpuId uint) (string, error) {
+	const (
+		affinity0 int = iota
+		affinity1
+		affinity2
+		affinity3
+		fieldsCount
+	)
+
+	affFields := make([]Short, fieldsCount)
+	affFields[affinity0] = C.DCGM_FI_DEV_CPU_AFFINITY_0
+	affFields[affinity1] = C.DCGM_FI_DEV_CPU_AFFINITY_1
+	affFields[affinity2] = C.DCGM_FI_DEV_CPU_AFFINITY_2
+	affFields[affinity3] = C.DCGM_FI_DEV_CPU_AFFINITY_3
+
+	fieldsName := fmt.Sprintf("cpuAffFields%d", rand.Uint64())
+
+	fieldsId, err := FieldGroupCreate(fieldsName, affFields)
+	if err != nil {
+		return "N/A", err
+	}
+
+	groupName := fmt.Sprintf("cpuAff%d", rand.Uint64())
+	groupId, err := WatchFields(gpuId, fieldsId, groupName)
+	if err != nil {
+		_ = FieldGroupDestroy(fieldsId)
+		return "N/A", err
+	}
+
+	values, err := GetLatestValuesForFields(gpuId, affFields)
+	if err != nil {
+		_ = FieldGroupDestroy(fieldsId)
+		_ = DestroyGroup(groupId)
+		return "N/A", fmt.Errorf("Error getting cpu affinity: %s", err)
+	}
+
+	bits := make([]uint64, 4)
+	bits[0] = uint64(values[affinity0].Int64())
+	bits[1] = uint64(values[affinity1].Int64())
+	bits[2] = uint64(values[affinity2].Int64())
+	bits[3] = uint64(values[affinity3].Int64())
+
+	_ = FieldGroupDestroy(fieldsId)
+	_ = DestroyGroup(groupId)
+
+	b := bitset.From(bits)
+
+	return b.String(), nil
+
+}
+
 func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 	var device C.dcgmDeviceAttributes_t
 	device.version = makeVersion2(unsafe.Sizeof(device))
@@ -144,7 +197,7 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 
 	busid := *stringPtr(&device.identifiers.pciBusId[0])
 
-	cpuAffinity, err := getCPUAffinity(busid)
+	cpuAffinity, err := getCPUAffinity(gpuid)
 	if err != nil {
 		return
 	}
