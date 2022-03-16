@@ -141,18 +141,17 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	if err != nil {
 		return "N/A", err
 	}
+	defer FieldGroupDestroy(fieldsId)
 
 	groupName := fmt.Sprintf("cpuAff%d", rand.Uint64())
 	groupId, err := WatchFields(gpuId, fieldsId, groupName)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
 		return "N/A", err
 	}
+	defer DestroyGroup(groupId)
 
 	values, err := GetLatestValuesForFields(gpuId, affFields)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
-		_ = DestroyGroup(groupId)
 		return "N/A", fmt.Errorf("Error getting cpu affinity: %s", err)
 	}
 
@@ -161,9 +160,6 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	bits[1] = uint64(values[affinity1].Int64())
 	bits[2] = uint64(values[affinity2].Int64())
 	bits[3] = uint64(values[affinity3].Int64())
-
-	defer FieldGroupDestroy(fieldsId)
-	defer DestroyGroup(groupId)
 
 	b := bitset.From(bits)
 
