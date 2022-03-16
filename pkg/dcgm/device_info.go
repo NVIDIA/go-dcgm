@@ -162,13 +162,12 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	bits[2] = uint64(values[affinity2].Int64())
 	bits[3] = uint64(values[affinity3].Int64())
 
-	_ = FieldGroupDestroy(fieldsId)
-	_ = DestroyGroup(groupId)
+	defer FieldGroupDestroy(fieldsId)
+	defer DestroyGroup(groupId)
 
 	b := bitset.From(bits)
 
 	return b.String(), nil
-
 }
 
 func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
