@@ -2143,9 +2143,19 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_PROF_NVLINK_RX_BYTES 1012
 
 /**
+ * The ratio of cycles the tensor (IMMA) pipe is active (off the peak sustained elapsed cycles)
+ */
+#define DCGM_FI_PROF_PIPE_TENSOR_IMMA_ACTIVE 1013
+
+/**
+ * The ratio of cycles the tensor (HMMA) pipe is active (off the peak sustained elapsed cycles)
+ */
+#define DCGM_FI_PROF_PIPE_TENSOR_HMMA_ACTIVE 1014
+
+/**
  * 1 greater than maximum fields above. This is the 1 greater than the maximum field id that could be allocated
  */
-#define DCGM_FI_MAX_FIELDS 1013
+#define DCGM_FI_MAX_FIELDS 1015
 
 
 /** @} */

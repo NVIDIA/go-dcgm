@@ -387,7 +387,9 @@ const (
 	DCGM_FI_PROF_PCIE_RX_BYTES                    = 1010
 	DCGM_FI_PROF_NVLINK_TX_BYTES                  = 1011
 	DCGM_FI_PROF_NVLINK_RX_BYTES                  = 1012
-	DCGM_FI_MAX_FIELDS                            = 1013
+	DCGM_FI_PROF_PIPE_TENSOR_IMMA_ACTIVE          = 1013
+	DCGM_FI_PROF_PIPE_TENSOR_HMMA_ACTIVE          = 1014
+	DCGM_FI_MAX_FIELDS                            = 1015
 )
 
 var (
@@ -736,7 +738,9 @@ var (
 		"DCGM_FI_PROF_PCIE_RX_BYTES":                    1010,
 		"DCGM_FI_PROF_NVLINK_TX_BYTES":                  1011,
 		"DCGM_FI_PROF_NVLINK_RX_BYTES":                  1012,
-		"DCGM_FI_MAX_FIELDS":                            1013,
+		"DCGM_FI_PROF_PIPE_TENSOR_IMMA_ACTIVE":          1013,
+		"DCGM_FI_PROF_PIPE_TENSOR_HMMA_ACTIVE":          1014,
+		"DCGM_FI_MAX_FIELDS":                            1015,
 	}
 )
 
