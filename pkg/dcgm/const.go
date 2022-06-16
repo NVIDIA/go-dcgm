@@ -134,6 +134,8 @@ const (
 	DCGM_FI_DEV_FB_TOTAL                          = 250
 	DCGM_FI_DEV_FB_FREE                           = 251
 	DCGM_FI_DEV_FB_USED                           = 252
+	DCGM_FI_DEV_FB_RESERVED                       = 253
+	DCGM_FI_DEV_FB_USED_PERCENT                   = 254
 	DCGM_FI_DEV_ECC_CURRENT                       = 300
 	DCGM_FI_DEV_ECC_PENDING                       = 301
 	DCGM_FI_DEV_ECC_SBE_VOL_TOTAL                 = 310
@@ -485,6 +487,8 @@ var (
 		"DCGM_FI_DEV_FB_TOTAL":                          250,
 		"DCGM_FI_DEV_FB_FREE":                           251,
 		"DCGM_FI_DEV_FB_USED":                           252,
+		"DCGM_FI_DEV_FB_RESERVED":                       253,
+		"DCGM_FI_DEV_FB_USED_PERCENT":                   254,
 		"DCGM_FI_DEV_ECC_CURRENT":                       300,
 		"DCGM_FI_DEV_ECC_PENDING":                       301,
 		"DCGM_FI_DEV_ECC_SBE_VOL_TOTAL":                 310,
