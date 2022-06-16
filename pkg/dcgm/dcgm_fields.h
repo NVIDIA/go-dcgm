@@ -685,6 +685,16 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_FB_USED 252
 
 /**
+ * Reserved Frame Buffer in MB
+ */
+#define DCGM_FI_DEV_FB_RESERVED 253
+
+/**
+ * Percentage used (Used+Reserved/Total) of Frame Buffer. Range 0.0-1.0
+ */
+#define DCGM_FI_DEV_FB_USED_PERCENT 254
+
+/**
  * Current ECC mode for the device
  */
 #define DCGM_FI_DEV_ECC_CURRENT 300
@@ -1271,7 +1281,7 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_VGPU_MEMORY_USAGE 525
 
 /**
- * License status of the vGPU instance
+ * License status of the vGPU
  */
 #define DCGM_FI_DEV_VGPU_LICENSE_STATUS 526
 
@@ -1301,9 +1311,14 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_VGPU_FBC_SESSIONS_INFO 531
 
 /**
- * License status of the vGPU host
+ * License state information of the vGPU instance
  */
-#define DCGM_FI_DEV_VGPU_LICENSE_INSTANCE_STATUS 532
+#define DCGM_FI_DEV_VGPU_LICENSE_INSTANCE_STATE 532
+
+/**
+ * PCI Id of the vGPU instance
+ */
+#define DCGM_FI_DEV_VGPU_PCI_ID 533
 
 /**
  * Starting field ID of the vGPU instance
