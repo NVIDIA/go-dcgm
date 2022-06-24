@@ -166,7 +166,7 @@ func (fv FieldValue_v1) Float64() float64 {
 }
 
 func (fv FieldValue_v1) String() string {
-	return *(*string)(unsafe.Pointer(&fv.Value[0]))
+	return C.GoString((*C.char)(unsafe.Pointer(&fv.Value[0])))
 }
 
 func (fv FieldValue_v1) Blob() [4096]byte {
