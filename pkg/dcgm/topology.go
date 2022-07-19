@@ -86,7 +86,7 @@ func getP2PLink(path uint) P2PLinkType {
 }
 
 func getBusid(gpuid uint) (string, error) {
-	var device C.dcgmDeviceAttributes_t
+	var device C.dcgmDeviceAttributes_v3
 	device.version = makeVersion3(unsafe.Sizeof(device))
 
 	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuid), &device)
@@ -97,8 +97,8 @@ func getBusid(gpuid uint) (string, error) {
 }
 
 func getDeviceTopology(gpuid uint) (links []P2PLink, err error) {
-	var topology C.dcgmDeviceTopology_t
-	topology.version = makeVersion2(unsafe.Sizeof(topology))
+	var topology C.dcgmDeviceTopology_v1
+	topology.version = makeVersion1(unsafe.Sizeof(topology))
 
 	result := C.dcgmGetDeviceTopology(handle.handle, C.uint(gpuid), &topology)
 	if result == C.DCGM_ST_NOT_SUPPORTED {
