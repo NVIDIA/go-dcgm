@@ -11,9 +11,9 @@ import (
 )
 
 type MetricGroup struct {
-	major    uint
-	minor    uint
-	fieldIds []uint
+	Major    uint
+	Minor    uint
+	FieldIds []uint
 }
 
 func getSupportedMetricGroups(grpid uint) (groups []MetricGroup, err error) {
@@ -32,13 +32,13 @@ func getSupportedMetricGroups(grpid uint) (groups []MetricGroup, err error) {
 
 	for i := uint(0); i < count; i++ {
 		var group MetricGroup
-		group.major = uint(groupInfo.metricGroups[i].majorId)
-		group.minor = uint(groupInfo.metricGroups[i].minorId)
+		group.Major = uint(groupInfo.metricGroups[i].majorId)
+		group.Minor = uint(groupInfo.metricGroups[i].minorId)
 
 		var fieldCount = uint(groupInfo.metricGroups[i].numFieldIds)
 
 		for j := uint(0); j < fieldCount; j++ {
-			group.fieldIds = append(group.fieldIds, uint(groupInfo.metricGroups[i].fieldIds[j]))
+			group.FieldIds = append(group.FieldIds, uint(groupInfo.metricGroups[i].fieldIds[j]))
 		}
 		groups = append(groups, group)
 	}
