@@ -400,7 +400,62 @@ const (
 	DCGM_FI_PROF_NVLINK_RX_BYTES                    = 1012
 	DCGM_FI_PROF_PIPE_TENSOR_IMMA_ACTIVE            = 1013
 	DCGM_FI_PROF_PIPE_TENSOR_HMMA_ACTIVE            = 1014
-	DCGM_FI_MAX_FIELDS                              = 1015
+	DCGM_FI_PROF_PIPE_TENSOR_DFMA_ACTIVE            = 1015
+	DCGM_FI_PROF_PIPE_INT_ACTIVE                    = 1016
+	DCGM_FI_PROF_NVDEC0_ACTIVE                      = 1017
+	DCGM_FI_PROF_NVDEC1_ACTIVE                      = 1018
+	DCGM_FI_PROF_NVDEC2_ACTIVE                      = 1019
+	DCGM_FI_PROF_NVDEC3_ACTIVE                      = 1020
+	DCGM_FI_PROF_NVDEC4_ACTIVE                      = 1021
+	DCGM_FI_PROF_NVDEC5_ACTIVE                      = 1022
+	DCGM_FI_PROF_NVDEC6_ACTIVE                      = 1023
+	DCGM_FI_PROF_NVDEC7_ACTIVE                      = 1024
+	DCGM_FI_PROF_NVJPG0_ACTIVE                      = 1025
+	DCGM_FI_PROF_NVJPG1_ACTIVE                      = 1026
+	DCGM_FI_PROF_NVJPG2_ACTIVE                      = 1027
+	DCGM_FI_PROF_NVJPG3_ACTIVE                      = 1028
+	DCGM_FI_PROF_NVJPG4_ACTIVE                      = 1029
+	DCGM_FI_PROF_NVJPG5_ACTIVE                      = 1030
+	DCGM_FI_PROF_NVJPG6_ACTIVE                      = 1031
+	DCGM_FI_PROF_NVJPG7_ACTIVE                      = 1032
+	DCGM_FI_PROF_NVOFA0_ACTIVE                      = 1033
+	DCGM_FI_PROF_NVLINK_L0_TX_BYTES                 = 1040
+	DCGM_FI_PROF_NVLINK_L0_RX_BYTES                 = 1041
+	DCGM_FI_PROF_NVLINK_L1_TX_BYTES                 = 1042
+	DCGM_FI_PROF_NVLINK_L1_RX_BYTES                 = 1043
+	DCGM_FI_PROF_NVLINK_L2_TX_BYTES                 = 1044
+	DCGM_FI_PROF_NVLINK_L2_RX_BYTES                 = 1045
+	DCGM_FI_PROF_NVLINK_L3_TX_BYTES                 = 1046
+	DCGM_FI_PROF_NVLINK_L3_RX_BYTES                 = 1047
+	DCGM_FI_PROF_NVLINK_L4_TX_BYTES                 = 1048
+	DCGM_FI_PROF_NVLINK_L4_RX_BYTES                 = 1049
+	DCGM_FI_PROF_NVLINK_L5_TX_BYTES                 = 1050
+	DCGM_FI_PROF_NVLINK_L5_RX_BYTES                 = 1051
+	DCGM_FI_PROF_NVLINK_L6_TX_BYTES                 = 1052
+	DCGM_FI_PROF_NVLINK_L6_RX_BYTES                 = 1053
+	DCGM_FI_PROF_NVLINK_L7_TX_BYTES                 = 1054
+	DCGM_FI_PROF_NVLINK_L7_RX_BYTES                 = 1055
+	DCGM_FI_PROF_NVLINK_L8_TX_BYTES                 = 1056
+	DCGM_FI_PROF_NVLINK_L8_RX_BYTES                 = 1057
+	DCGM_FI_PROF_NVLINK_L9_TX_BYTES                 = 1058
+	DCGM_FI_PROF_NVLINK_L9_RX_BYTES                 = 1059
+	DCGM_FI_PROF_NVLINK_L10_TX_BYTES                = 1060
+	DCGM_FI_PROF_NVLINK_L10_RX_BYTES                = 1061
+	DCGM_FI_PROF_NVLINK_L11_TX_BYTES                = 1062
+	DCGM_FI_PROF_NVLINK_L11_RX_BYTES                = 1063
+	DCGM_FI_PROF_NVLINK_L12_TX_BYTES                = 1064
+	DCGM_FI_PROF_NVLINK_L12_RX_BYTES                = 1065
+	DCGM_FI_PROF_NVLINK_L13_TX_BYTES                = 1066
+	DCGM_FI_PROF_NVLINK_L13_RX_BYTES                = 1067
+	DCGM_FI_PROF_NVLINK_L14_TX_BYTES                = 1068
+	DCGM_FI_PROF_NVLINK_L14_RX_BYTES                = 1069
+	DCGM_FI_PROF_NVLINK_L15_TX_BYTES                = 1070
+	DCGM_FI_PROF_NVLINK_L15_RX_BYTES                = 1071
+	DCGM_FI_PROF_NVLINK_L16_TX_BYTES                = 1072
+	DCGM_FI_PROF_NVLINK_L16_RX_BYTES                = 1073
+	DCGM_FI_PROF_NVLINK_L17_TX_BYTES                = 1074
+	DCGM_FI_PROF_NVLINK_L17_RX_BYTES                = 1075
+	DCGM_FI_MAX_FIELDS                              = 1076
 )
 
 var (
@@ -762,7 +817,62 @@ var (
 		"DCGM_FI_PROF_NVLINK_RX_BYTES":                    1012,
 		"DCGM_FI_PROF_PIPE_TENSOR_IMMA_ACTIVE":            1013,
 		"DCGM_FI_PROF_PIPE_TENSOR_HMMA_ACTIVE":            1014,
-		"DCGM_FI_MAX_FIELDS":                              1015,
+		"DCGM_FI_PROF_PIPE_TENSOR_DFMA_ACTIVE":            1015,
+		"DCGM_FI_PROF_PIPE_INT_ACTIVE":                    1016,
+		"DCGM_FI_PROF_NVDEC0_ACTIVE":                      1017,
+		"DCGM_FI_PROF_NVDEC1_ACTIVE":                      1018,
+		"DCGM_FI_PROF_NVDEC2_ACTIVE":                      1019,
+		"DCGM_FI_PROF_NVDEC3_ACTIVE":                      1020,
+		"DCGM_FI_PROF_NVDEC4_ACTIVE":                      1021,
+		"DCGM_FI_PROF_NVDEC5_ACTIVE":                      1022,
+		"DCGM_FI_PROF_NVDEC6_ACTIVE":                      1023,
+		"DCGM_FI_PROF_NVDEC7_ACTIVE":                      1024,
+		"DCGM_FI_PROF_NVJPG0_ACTIVE":                      1025,
+		"DCGM_FI_PROF_NVJPG1_ACTIVE":                      1026,
+		"DCGM_FI_PROF_NVJPG2_ACTIVE":                      1027,
+		"DCGM_FI_PROF_NVJPG3_ACTIVE":                      1028,
+		"DCGM_FI_PROF_NVJPG4_ACTIVE":                      1029,
+		"DCGM_FI_PROF_NVJPG5_ACTIVE":                      1030,
+		"DCGM_FI_PROF_NVJPG6_ACTIVE":                      1031,
+		"DCGM_FI_PROF_NVJPG7_ACTIVE":                      1032,
+		"DCGM_FI_PROF_NVOFA0_ACTIVE":                      1033,
+		"DCGM_FI_PROF_NVLINK_L0_TX_BYTES":                 1040,
+		"DCGM_FI_PROF_NVLINK_L0_RX_BYTES":                 1041,
+		"DCGM_FI_PROF_NVLINK_L1_TX_BYTES":                 1042,
+		"DCGM_FI_PROF_NVLINK_L1_RX_BYTES":                 1043,
+		"DCGM_FI_PROF_NVLINK_L2_TX_BYTES":                 1044,
+		"DCGM_FI_PROF_NVLINK_L2_RX_BYTES":                 1045,
+		"DCGM_FI_PROF_NVLINK_L3_TX_BYTES":                 1046,
+		"DCGM_FI_PROF_NVLINK_L3_RX_BYTES":                 1047,
+		"DCGM_FI_PROF_NVLINK_L4_TX_BYTES":                 1048,
+		"DCGM_FI_PROF_NVLINK_L4_RX_BYTES":                 1049,
+		"DCGM_FI_PROF_NVLINK_L5_TX_BYTES":                 1050,
+		"DCGM_FI_PROF_NVLINK_L5_RX_BYTES":                 1051,
+		"DCGM_FI_PROF_NVLINK_L6_TX_BYTES":                 1052,
+		"DCGM_FI_PROF_NVLINK_L6_RX_BYTES":                 1053,
+		"DCGM_FI_PROF_NVLINK_L7_TX_BYTES":                 1054,
+		"DCGM_FI_PROF_NVLINK_L7_RX_BYTES":                 1055,
+		"DCGM_FI_PROF_NVLINK_L8_TX_BYTES":                 1056,
+		"DCGM_FI_PROF_NVLINK_L8_RX_BYTES":                 1057,
+		"DCGM_FI_PROF_NVLINK_L9_TX_BYTES":                 1058,
+		"DCGM_FI_PROF_NVLINK_L9_RX_BYTES":                 1059,
+		"DCGM_FI_PROF_NVLINK_L10_TX_BYTES":                1060,
+		"DCGM_FI_PROF_NVLINK_L10_RX_BYTES":                1061,
+		"DCGM_FI_PROF_NVLINK_L11_TX_BYTES":                1062,
+		"DCGM_FI_PROF_NVLINK_L11_RX_BYTES":                1063,
+		"DCGM_FI_PROF_NVLINK_L12_TX_BYTES":                1064,
+		"DCGM_FI_PROF_NVLINK_L12_RX_BYTES":                1065,
+		"DCGM_FI_PROF_NVLINK_L13_TX_BYTES":                1066,
+		"DCGM_FI_PROF_NVLINK_L13_RX_BYTES":                1067,
+		"DCGM_FI_PROF_NVLINK_L14_TX_BYTES":                1068,
+		"DCGM_FI_PROF_NVLINK_L14_RX_BYTES":                1069,
+		"DCGM_FI_PROF_NVLINK_L15_TX_BYTES":                1070,
+		"DCGM_FI_PROF_NVLINK_L15_RX_BYTES":                1071,
+		"DCGM_FI_PROF_NVLINK_L16_TX_BYTES":                1072,
+		"DCGM_FI_PROF_NVLINK_L16_RX_BYTES":                1073,
+		"DCGM_FI_PROF_NVLINK_L17_TX_BYTES":                1074,
+		"DCGM_FI_PROF_NVLINK_L17_RX_BYTES":                1075,
+		"DCGM_FI_MAX_FIELDS":                              1076,
 	}
 )
 
