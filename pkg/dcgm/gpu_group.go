@@ -6,6 +6,7 @@ package dcgm
 */
 import "C"
 import (
+	"encoding/binary"
 	"fmt"
 )
 
@@ -46,6 +47,15 @@ func AddToGroup(groupId GroupHandle, gpuId uint) (err error) {
 	}
 
 	return
+}
+
+func AddLinkEntityToGroup(groupId GroupHandle, index uint, parentId uint) (err error) {
+	/* Only supported on little-endian systems currently */
+	slice := []byte{uint8(FE_SWITCH), uint8(index), uint8(parentId), 0}
+
+	entityId := binary.LittleEndian.Uint32(slice)
+
+	return AddEntityToGroup(groupId, FE_LINK, uint(entityId))
 }
 
 func AddEntityToGroup(groupId GroupHandle, entityGroupId Field_Entity_Group, entityId uint) (err error) {

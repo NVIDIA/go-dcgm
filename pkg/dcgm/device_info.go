@@ -53,6 +53,22 @@ func getAllDeviceCount() (gpuCount uint, err error) {
 	return
 }
 
+// getAllDeviceCount counts all GPUs on the system
+func getEntityGroupEntities(entityGroup Field_Entity_Group) (entities []uint, err error) {
+	var pEntities [C.DCGM_MAX_NUM_DEVICES]C.uint
+	var count C.int = C.DCGM_MAX_NUM_DEVICES
+
+	result := C.dcgmGetEntityGroupEntities(handle.handle, C.dcgm_field_entity_group_t(entityGroup), &pEntities[0], &count, 0)
+	if err = errorString(result); err != nil {
+		return nil, fmt.Errorf("Error getting entity count: %s", err)
+	}
+
+	for i := 0; i < int(count); i++ {
+		entities = append(entities, uint(pEntities[i]))
+	}
+	return entities, nil
+}
+
 // getSupportedDevices returns DCGM supported GPUs
 func getSupportedDevices() (gpus []uint, err error) {
 	var gpuIdList [C.DCGM_MAX_NUM_DEVICES]C.uint

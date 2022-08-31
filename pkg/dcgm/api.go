@@ -56,6 +56,10 @@ func GetAllDeviceCount() (uint, error) {
 	return getAllDeviceCount()
 }
 
+func GetEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
+	return getEntityGroupEntities(entityGroup)
+}
+
 // GetSupportedDevices returns only DCGM supported GPUs
 func GetSupportedDevices() ([]uint, error) {
 	return getSupportedDevices()
@@ -105,4 +109,8 @@ func Introspect() (DcgmStatus, error) {
 // Get all of the profiling metric groups for a given GPU group.
 func GetSupportedMetricGroups(grpid uint) ([]MetricGroup, error) {
 	return getSupportedMetricGroups(grpid)
+}
+
+func GetNvLinkLinkStatus() ([]NvLinkStatus, error) {
+	return getNvLinkLinkStatus()
 }

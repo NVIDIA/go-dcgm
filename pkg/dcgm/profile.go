@@ -19,8 +19,7 @@ type MetricGroup struct {
 func getSupportedMetricGroups(grpid uint) (groups []MetricGroup, err error) {
 
 	var groupInfo C.dcgmProfGetMetricGroups_t
-	groupInfo.version = makeVersion2(unsafe.Sizeof(groupInfo))
-	groupInfo.groupId = C.ulong(grpid)
+	groupInfo.version = makeVersion3(unsafe.Sizeof(groupInfo))
 
 	result := C.dcgmProfGetSupportedMetricGroups(handle.handle, &groupInfo)
 

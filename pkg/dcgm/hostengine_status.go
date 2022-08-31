@@ -16,17 +16,10 @@ type DcgmStatus struct {
 }
 
 func introspect() (engine DcgmStatus, err error) {
-	enableIntrospect := C.dcgmIntrospectState_t(1)
-	result := C.dcgmIntrospectToggleState(handle.handle, enableIntrospect)
-
-	if err = errorString(result); err != nil {
-		return engine, fmt.Errorf("Error enabling DCGM introspection: %s", err)
-	}
-
 	var memory C.dcgmIntrospectMemory_t
 	memory.version = makeVersion1(unsafe.Sizeof(memory))
 	waitIfNoData := 1
-	result = C.dcgmIntrospectGetHostengineMemoryUsage(handle.handle, &memory, C.int(waitIfNoData))
+	result := C.dcgmIntrospectGetHostengineMemoryUsage(handle.handle, &memory, C.int(waitIfNoData))
 
 	if err = errorString(result); err != nil {
 		return engine, fmt.Errorf("Error getting memory usage of hostengine: %s", err)

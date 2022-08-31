@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -186,6 +186,7 @@ typedef enum dcgm_field_entity_group_t
     DCGM_FE_SWITCH,   /*!< Field is associated with a Switch entity */
     DCGM_FE_GPU_I,    /*!< Field is associated with a GPU Instance entity */
     DCGM_FE_GPU_CI,   /*!< Field is associated with a GPU Compute Instance entity */
+    DCGM_FE_LINK,     /*!< Field is associated with an NVLink */
 
     DCGM_FE_COUNT /*!< Number of elements in this enumeration. Keep this entry last */
 } dcgm_field_entity_group_t;
@@ -194,6 +195,7 @@ typedef enum dcgm_field_entity_group_t
  * Represents an identifier for an entity within a field entity. For instance, this is the gpuId for DCGM_FE_GPU.
  */
 typedef unsigned int dcgm_field_eid_t;
+
 
 /** @} */
 
@@ -354,6 +356,28 @@ typedef unsigned int dcgm_field_eid_t;
  * Device CPU affinity. part 3/8 = cpus 192 - 255
  */
 #define DCGM_FI_DEV_CPU_AFFINITY_3 73
+
+/**
+ * ConfidentialCompute/AmpereProtectedMemory status for this system
+ * 0 = disabled
+ * 1 = enabled
+ */
+#define DCGM_FI_DEV_CC_MODE 74
+
+/**
+ * Attributes for the given MIG device handles
+ */
+#define DCGM_FI_DEV_MIG_ATTRIBUTES 75
+
+/**
+ * GPU instance profile information
+ */
+#define DCGM_FI_DEV_MIG_GI_INFO 76
+
+/**
+ * Compute instance profile information
+ */
+#define DCGM_FI_DEV_MIG_CI_INFO 77
 
 /**
  * ECC inforom version
@@ -584,25 +608,7 @@ typedef unsigned int dcgm_field_eid_t;
  */
 #define DCGM_FI_DEV_DEC_UTIL 207
 
-/**
- * Memory utilization samples
- */
-#define DCGM_FI_DEV_MEM_COPY_UTIL_SAMPLES 210
-
-/*
- * SM utilization samples
- */
-#define DCGM_FI_DEV_GPU_UTIL_SAMPLES 211
-
-/**
- * Graphics processes running on the GPU.
- */
-#define DCGM_FI_DEV_GRAPHICS_PIDS 220
-
-/**
- * Compute processes running on the GPU.
- */
-#define DCGM_FI_DEV_COMPUTE_PIDS 221
+/* Fields 210, 211, 220 and 221 are internal-only. See dcgm_fields_internal.hpp */
 
 /**
  * XID errors. The value is the specific XID error
@@ -690,7 +696,7 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_FB_RESERVED 253
 
 /**
- * Percentage used (Used+Reserved/Total) of Frame Buffer. Range 0.0-1.0
+ * Percentage used of Frame Buffer: 'Used/(Total - Reserved)'. Range 0.0-1.0
  */
 #define DCGM_FI_DEV_FB_USED_PERCENT 254
 
@@ -1203,6 +1209,40 @@ typedef unsigned int dcgm_field_eid_t;
  */
 #define DCGM_FI_DEV_NVLINK_BANDWIDTH_L11 480
 
+#define DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L12 406
+#define DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L13 407
+#define DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L14 408
+#define DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L15 481
+#define DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L16 482
+#define DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L17 483
+
+#define DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L12 416
+#define DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L13 417
+#define DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L14 418
+#define DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L15 484
+#define DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L16 485
+#define DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L17 486
+
+#define DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L12 426
+#define DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L13 427
+#define DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L14 428
+#define DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L15 487
+#define DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L16 488
+#define DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L17 489
+
+#define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L12 436
+#define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L13 437
+#define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L14 438
+#define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L15 491
+#define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L16 492
+#define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L17 493
+
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L12 446
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L13 447
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L14 448
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L15 494
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L16 495
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L17 496
 
 /**
  * Virtualization Mode corresponding to the GPU.
@@ -1250,6 +1290,32 @@ typedef unsigned int dcgm_field_eid_t;
  * Information about active frame buffer capture sessions on a target device
  */
 #define DCGM_FI_DEV_FBC_SESSIONS_INFO 508
+
+/**
+ * Includes Count and currently Supported vGPU types on a device
+ */
+#define DCGM_FI_DEV_SUPPORTED_VGPU_TYPE_IDS 509
+
+/**
+ * Includes Static info of vGPU types supported on a device
+ */
+#define DCGM_FI_DEV_VGPU_TYPE_INFO 510
+
+/**
+ * Includes the name of a vGPU type supported on a device
+ */
+#define DCGM_FI_DEV_VGPU_TYPE_NAME 511
+
+/**
+ * Includes the class of a vGPU type supported on a device
+ */
+#define DCGM_FI_DEV_VGPU_TYPE_CLASS 512
+
+/**
+ * Includes the license info for a vGPU type supported on a device
+ */
+#define DCGM_FI_DEV_VGPU_TYPE_LICENSE 513
+
 /**
  * VM ID of the vGPU instance
  */
@@ -1313,12 +1379,17 @@ typedef unsigned int dcgm_field_eid_t;
 /**
  * License state information of the vGPU instance
  */
-#define DCGM_FI_DEV_VGPU_LICENSE_INSTANCE_STATE 532
+#define DCGM_FI_DEV_VGPU_INSTANCE_LICENSE_STATE 532
 
 /**
  * PCI Id of the vGPU instance
  */
 #define DCGM_FI_DEV_VGPU_PCI_ID 533
+
+/**
+ * GPU Instance ID for the given vGPU Instance
+ */
+#define DCGM_FI_DEV_VGPU_VM_GPU_INSTANCE_ID 534
 
 /**
  * Starting field ID of the vGPU instance
@@ -1720,337 +1791,49 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVSWITCH_LATENCY_MAX_P17 771
 
 /**
- * <p>NVSwitch Tx Bandwidth Counter 0 for port 0</p>
+ * <p>NVSwitch Tx Bandwidth Counter for ports 0-17</p>
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P00 780
+#define DCGM_FI_DEV_NVSWITCH_LINK_BANDWIDTH_TX 780
 /**
- * NVSwitch Rx Bandwidth Counter 0 for port 0
+ * NVSwitch Rx Bandwidth Counter for ports 0-17
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P00 781
+#define DCGM_FI_DEV_NVSWITCH_LINK_BANDWIDTH_RX 781
 
 /**
- * NVSwitch Tx Bandwidth Counter 0 for port 1
+ * NvSwitch fatal_errors for ports 0-17
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P01 782
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 1
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P01 783
+#define DCGM_FI_DEV_NVSWITCH_LINK_FATAL_ERRORS 782
 
 /**
- * NVSwitch Tx Bandwidth Counter 0 for port 2
+ * NvSwitch non_fatal_errors for ports 0-17
+ *
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P02 784
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 2
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P02 785
+#define DCGM_FI_DEV_NVSWITCH_LINK_NON_FATAL_ERRORS 783
 
 /**
- * NVSwitch Tx Bandwidth Counter 0 for port 3
+ * NvSwitch replay_count_errors for ports  0-17
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P03 786
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 3
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P03 787
+#define DCGM_FI_DEV_NVSWITCH_LINK_REPLAY_ERRORS 784
 
 /**
- * NVSwitch Tx Bandwidth Counter 0 for port 4
+ * NvSwitch recovery_count_errors for ports 0-17
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P04 788
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 4
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P04 789
+#define DCGM_FI_DEV_NVSWITCH_LINK_RECOVERY_ERRORS 785
 
 /**
- * NVSwitch Tx Bandwidth Counter 0 for port 5
+ * NvSwitch filt_err_count_errors for ports 0-17
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P05 790
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 5
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P05 791
+#define DCGM_FI_DEV_NVSWITCH_LINK_FLIT_ERRORS 786
 
 /**
- * NVSwitch Tx Bandwidth Counter 0 for port 6
+ * NvLink lane_crs_err_count_aggregate_errors for ports 0-17
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P06 792
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 6
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P06 793
+#define DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS 787
 
 /**
- * NVSwitch Tx Bandwidth Counter 0 for port 7
+ * NvLink lane ecc_err_count_aggregate_errors for ports 0-17
  */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P07 794
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 7
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P07 795
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 8
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P08 796
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 8
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P08 797
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 9
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P09 798
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 9
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P09 799
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 10
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P10 800
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 10
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P10 801
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 11
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P11 802
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 11
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P11 803
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 12
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P12 804
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 12
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P12 805
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 13
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P13 806
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 13
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P13 807
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 14
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P14 808
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 14
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P14 809
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 15
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P15 810
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 15
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P15 811
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 16
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P16 812
-/**
- * NVSwitch Rx Bandwidth Counter 0 for port 16
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P16 813
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 17
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_0_P17 814
-/**
- * <p>NVSwitch Rx Bandwidth Counter 0 for port 17</p>
- * <p>&nbsp;</p>
- * <p>&nbsp;</p>
- * <p>&nbsp;</p>
- * <p>NVSwitch Tx and RX Bandwidth Counter 1 for each port</p>
- * <p>By default, Counter 1 counts packets.</p>
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_0_P17 815
-
-/**
- * <p>NVSwitch Tx Bandwidth Counter 1 for port 0</p>
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P00 820
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 0
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P00 821
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 1
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P01 822
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 1
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P01 823
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 2
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P02 824
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 2
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P02 825
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 3
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P03 826
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 3
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P03 827
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 4
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P04 828
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 4
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P04 829
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 5
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P05 830
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 5
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P05 831
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 6
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P06 832
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 6
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P06 833
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 7
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P07 834
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 7
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P07 835
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 8
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P08 836
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 8
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P08 837
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 9
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P09 838
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 9
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P09 839
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 10
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P10 840
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 10
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P10 841
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 11
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P11 842
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 11
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P11 843
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 12
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P12 844
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 12
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P12 845
-
-/**
- * NVSwitch Tx Bandwidth Counter 0 for port 13
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P13 846
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 13
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P13 847
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 14
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P14 848
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 14
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P14 849
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 15
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P15 850
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 15
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P15 851
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 16
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P16 852
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 16
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P16 853
-
-/**
- * NVSwitch Tx Bandwidth Counter 1 for port 17
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_TX_1_P17 854
-/**
- * NVSwitch Rx Bandwidth Counter 1 for port 17
- * <p>&nbsp;</p>
- * <p>&nbsp;</p>
- * <p>&nbsp;</p>
- * NVSwitch error counters
- */
-#define DCGM_FI_DEV_NVSWITCH_BANDWIDTH_RX_1_P17 855
+#define DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS 788
 
 /**
  * NVSwitch fatal error information.
@@ -2065,6 +1848,31 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS 857
 
 /**
+ * NVSwitch current temperature.
+ */
+#define DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT 858
+
+/**
+ * NVSwitch limit slowdown temperature.
+ */
+#define DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SLOWDOWN 859
+
+/**
+ * NVSwitch limit shutdown temperature.
+ */
+#define DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SHUTDOWN 860
+
+/**
+ * NVSwitch throughput Tx.
+ */
+#define DCGM_FI_DEV_NVSWITCH_THROUGHPUT_TX 861
+
+/**
+ * NVSwitch throughput Rx.
+ */
+#define DCGM_FI_DEV_NVSWITCH_THROUGHPUT_RX 862
+
+/**
  * Starting field ID of the NVSwitch instance
  */
 #define DCGM_FI_FIRST_NVSWITCH_FIELD_ID 700
@@ -2072,7 +1880,7 @@ typedef unsigned int dcgm_field_eid_t;
 /**
  * Last field ID of the NVSwitch instance
  */
-#define DCGM_FI_LAST_NVSWITCH_FIELD_ID 860
+#define DCGM_FI_LAST_NVSWITCH_FIELD_ID 899
 
 /**
  * For now max NVSwitch field Ids taken as difference of DCGM_FI_LAST_NVSWITCH_FIELD_ID and
@@ -2105,7 +1913,7 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_PROF_SM_OCCUPANCY 1003
 
 /**
- * The ratio of cycles the tensor (HMMA) pipe is active
+ * The ratio of cycles the any tensor pipe is active
  * (off the peak sustained elapsed cycles)
  */
 #define DCGM_FI_PROF_PIPE_TENSOR_ACTIVE 1004
@@ -2148,12 +1956,14 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_PROF_PCIE_RX_BYTES 1010
 
 /**
- * The number of bytes of active NvLink tx (transmit) data including both header and payload.
+ * The total number of bytes of active NvLink tx (transmit) data including both header and payload.
+ * Per-link fields are available below
  */
 #define DCGM_FI_PROF_NVLINK_TX_BYTES 1011
 
 /**
- * The number of bytes of active NvLink rx (read) data including both header and payload.
+ * The total number of bytes of active NvLink rx (read) data including both header and payload.
+ * Per-link fields are available below
  */
 #define DCGM_FI_PROF_NVLINK_RX_BYTES 1012
 
@@ -2168,9 +1978,101 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_PROF_PIPE_TENSOR_HMMA_ACTIVE 1014
 
 /**
+ * The ratio of cycles the tensor (DFMA) pipe is active (off the peak sustained elapsed cycles)
+ */
+#define DCGM_FI_PROF_PIPE_TENSOR_DFMA_ACTIVE 1015
+
+/**
+ * Ratio of cycles the integer pipe is active.
+ */
+#define DCGM_FI_PROF_PIPE_INT_ACTIVE 1016
+
+/**
+ * Ratio of cycles each of the NVDEC engines are active.
+ */
+#define DCGM_FI_PROF_NVDEC0_ACTIVE 1017
+#define DCGM_FI_PROF_NVDEC1_ACTIVE 1018
+#define DCGM_FI_PROF_NVDEC2_ACTIVE 1019
+#define DCGM_FI_PROF_NVDEC3_ACTIVE 1020
+#define DCGM_FI_PROF_NVDEC4_ACTIVE 1021
+#define DCGM_FI_PROF_NVDEC5_ACTIVE 1022
+#define DCGM_FI_PROF_NVDEC6_ACTIVE 1023
+#define DCGM_FI_PROF_NVDEC7_ACTIVE 1024
+
+/**
+ * Ratio of cycles each of the NVJPG engines are active.
+ */
+#define DCGM_FI_PROF_NVJPG0_ACTIVE 1025
+#define DCGM_FI_PROF_NVJPG1_ACTIVE 1026
+#define DCGM_FI_PROF_NVJPG2_ACTIVE 1027
+#define DCGM_FI_PROF_NVJPG3_ACTIVE 1028
+#define DCGM_FI_PROF_NVJPG4_ACTIVE 1029
+#define DCGM_FI_PROF_NVJPG5_ACTIVE 1030
+#define DCGM_FI_PROF_NVJPG6_ACTIVE 1031
+#define DCGM_FI_PROF_NVJPG7_ACTIVE 1032
+
+/**
+ * Ratio of cycles each of the NVOFA engines are active.
+ */
+#define DCGM_FI_PROF_NVOFA0_ACTIVE 1033
+
+/**
+ * The per-link number of bytes of active NvLink TX (transmit) or RX (transmit) data including both header and payload.
+ * For example: DCGM_FI_PROF_NVLINK_L0_TX_BYTES -> L0 TX
+ * To get the bandwidth for a link, add the RX and TX value together like
+ * total = DCGM_FI_PROF_NVLINK_L0_TX_BYTES + DCGM_FI_PROF_NVLINK_L0_RX_BYTES
+ */
+#define DCGM_FI_PROF_NVLINK_L0_TX_BYTES  1040
+#define DCGM_FI_PROF_NVLINK_L0_RX_BYTES  1041
+#define DCGM_FI_PROF_NVLINK_L1_TX_BYTES  1042
+#define DCGM_FI_PROF_NVLINK_L1_RX_BYTES  1043
+#define DCGM_FI_PROF_NVLINK_L2_TX_BYTES  1044
+#define DCGM_FI_PROF_NVLINK_L2_RX_BYTES  1045
+#define DCGM_FI_PROF_NVLINK_L3_TX_BYTES  1046
+#define DCGM_FI_PROF_NVLINK_L3_RX_BYTES  1047
+#define DCGM_FI_PROF_NVLINK_L4_TX_BYTES  1048
+#define DCGM_FI_PROF_NVLINK_L4_RX_BYTES  1049
+#define DCGM_FI_PROF_NVLINK_L5_TX_BYTES  1050
+#define DCGM_FI_PROF_NVLINK_L5_RX_BYTES  1051
+#define DCGM_FI_PROF_NVLINK_L6_TX_BYTES  1052
+#define DCGM_FI_PROF_NVLINK_L6_RX_BYTES  1053
+#define DCGM_FI_PROF_NVLINK_L7_TX_BYTES  1054
+#define DCGM_FI_PROF_NVLINK_L7_RX_BYTES  1055
+#define DCGM_FI_PROF_NVLINK_L8_TX_BYTES  1056
+#define DCGM_FI_PROF_NVLINK_L8_RX_BYTES  1057
+#define DCGM_FI_PROF_NVLINK_L9_TX_BYTES  1058
+#define DCGM_FI_PROF_NVLINK_L9_RX_BYTES  1059
+#define DCGM_FI_PROF_NVLINK_L10_TX_BYTES 1060
+#define DCGM_FI_PROF_NVLINK_L10_RX_BYTES 1061
+#define DCGM_FI_PROF_NVLINK_L11_TX_BYTES 1062
+#define DCGM_FI_PROF_NVLINK_L11_RX_BYTES 1063
+#define DCGM_FI_PROF_NVLINK_L12_TX_BYTES 1064
+#define DCGM_FI_PROF_NVLINK_L12_RX_BYTES 1065
+#define DCGM_FI_PROF_NVLINK_L13_TX_BYTES 1066
+#define DCGM_FI_PROF_NVLINK_L13_RX_BYTES 1067
+#define DCGM_FI_PROF_NVLINK_L14_TX_BYTES 1068
+#define DCGM_FI_PROF_NVLINK_L14_RX_BYTES 1069
+#define DCGM_FI_PROF_NVLINK_L15_TX_BYTES 1070
+#define DCGM_FI_PROF_NVLINK_L15_RX_BYTES 1071
+#define DCGM_FI_PROF_NVLINK_L16_TX_BYTES 1072
+#define DCGM_FI_PROF_NVLINK_L16_RX_BYTES 1073
+#define DCGM_FI_PROF_NVLINK_L17_TX_BYTES 1074
+#define DCGM_FI_PROF_NVLINK_L17_RX_BYTES 1075
+
+/**
+ * NVLink throughput First.
+ */
+#define DCGM_FI_PROF_NVLINK_THROUGHPUT_FIRST DCGM_FI_PROF_NVLINK_L0_TX_BYTES
+
+/**
+ * NVLink throughput Last.
+ */
+#define DCGM_FI_PROF_NVLINK_THROUGHPUT_LAST DCGM_FI_PROF_NVLINK_L17_RX_BYTES
+
+/**
  * 1 greater than maximum fields above. This is the 1 greater than the maximum field id that could be allocated
  */
-#define DCGM_FI_MAX_FIELDS 1015
+#define DCGM_FI_MAX_FIELDS 1076
 
 
 /** @} */
@@ -2207,7 +2109,9 @@ typedef struct
 
     dcgm_field_output_format_p valueFormat; /*!< pointer to the structure that holds the formatting the
                                                  values for fields */
-} dcgm_field_meta_t, *dcgm_field_meta_p;
+} dcgm_field_meta_t;
+
+typedef const dcgm_field_meta_t *dcgm_field_meta_p;
 
 /***************************************************************************************************/
 /** @addtogroup dcgmFieldIdentifiers
@@ -2237,7 +2141,7 @@ dcgm_field_meta_p DCGM_PUBLIC_API DcgmFieldGetById(unsigned short fieldId);
  *       >0     Pointer to field metadata structure if found
  *
  */
-dcgm_field_meta_p DCGM_PUBLIC_API DcgmFieldGetByTag(char *tag);
+dcgm_field_meta_p DCGM_PUBLIC_API DcgmFieldGetByTag(const char *tag);
 
 /**
  * Initialize the DcgmFields module. Call this once from inside

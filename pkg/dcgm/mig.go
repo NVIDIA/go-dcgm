@@ -19,6 +19,7 @@ const (
 	FE_SWITCH
 	FE_GPU_I
 	FE_GPU_CI
+	FE_LINK
 	FE_COUNT
 )
 
