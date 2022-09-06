@@ -1791,13 +1791,13 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVSWITCH_LATENCY_MAX_P17 771
 
 /**
- * <p>NVSwitch Tx Bandwidth Counter for ports 0-17</p>
+ * <p>NVSwitch Tx Throughput Counter for ports 0-17</p>
  */
-#define DCGM_FI_DEV_NVSWITCH_LINK_BANDWIDTH_TX 780
+#define DCGM_FI_DEV_NVSWITCH_LINK_THROUGHPUT_TX 780
 /**
- * NVSwitch Rx Bandwidth Counter for ports 0-17
+ * NVSwitch Rx Throughput Counter for ports 0-17
  */
-#define DCGM_FI_DEV_NVSWITCH_LINK_BANDWIDTH_RX 781
+#define DCGM_FI_DEV_NVSWITCH_LINK_THROUGHPUT_RX 781
 
 /**
  * NvSwitch fatal_errors for ports 0-17
@@ -1834,6 +1834,81 @@ typedef unsigned int dcgm_field_eid_t;
  * NvLink lane ecc_err_count_aggregate_errors for ports 0-17
  */
 #define DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS 788
+
+/**
+ * Nvlink lane latency low counter.
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_LANE_LATENCY_LOW 789
+
+/**
+ * Nvlink lane latency medium counter.
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_LANE_LATENCY_MEDIUM 790
+
+/**
+ * Nvlink lane latency high counter.
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_LANE_LATENCY_HIGH 791
+
+/**
+ * Nvlink lane latency panic counter.
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_LANE_LATENCY_PANIC 792
+
+/**
+ * Nvlink lane latency count counter.
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_LANE_LATENCY_COUNT 793
+
+/**
+ * NvLink lane crc_err_count for lanes on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_LANE_CRC_ERRORS 794
+
+/**
+ * NvLink lane ecc_err_count for lanes on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_LANE_ECC_ERRORS 795
+
+/**
+ * NvLink lane crc_err_count for lane 0 on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE0 796
+
+/**
+ * NvLink lane crc_err_count for lane 1 on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE1 797
+
+/**
+ * NvLink lane crc_err_count for lane 2 on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE2 798
+
+/**
+ * NvLink lane crc_err_count for lane 3 on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE3 799
+
+/**
+ * NvLink lane ecc_err_count for lane 0 on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE0 800
+
+/**
+ * NvLink lane ecc_err_count for lane 1 on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE1 801
+
+/**
+ * NvLink lane ecc_err_count for lane 2 on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE2 802
+
+/**
+ * NvLink lane ecc_err_count for lane 3 on ports 0-17
+ */
+#define DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE3 803
 
 /**
  * NVSwitch fatal error information.
