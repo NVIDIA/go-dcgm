@@ -125,15 +125,23 @@ func getDeviceTopology(gpuid uint) (links []P2PLink, err error) {
 	return
 }
 
+type Link_State uint
+
+const (
+	LS_NOT_SUPPORTED Link_State = iota // Link is unsupported (Default for GPUs)
+	LS_DISABLED                        // Link is supported but disabled (Default for NvSwitches)
+	LS_DOWN                            // Link link is down (inactive)
+	LS_UP                              // Link link is up (active)
+)
+
 type NvLinkStatus struct {
 	ParentId   uint
 	ParentType Field_Entity_Group
-	State      C.dcgmNvLinkLinkState_t
+	State      Link_State
 	Index      uint
 }
 
 func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
-	/* Only reports "UP" nvlinks */
 	var linkStatus C.dcgmNvLinkStatus_v3
 	linkStatus.version = makeVersion3(unsafe.Sizeof(linkStatus))
 
@@ -150,31 +158,27 @@ func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
 
 	for i := uint(0); i < uint(linkStatus.numGpus); i++ {
 		for j := 0; j < int(C.DCGM_NVLINK_MAX_LINKS_PER_GPU); j++ {
-			if linkStatus.gpus[i].linkState[j] == C.DcgmNvLinkLinkStateUp {
-				link := NvLinkStatus{
-					uint(linkStatus.gpus[i].entityId),
-					FE_GPU,
-					linkStatus.gpus[i].linkState[j],
-					uint(j),
-				}
-
-				links = append(links, link)
+			link := NvLinkStatus{
+				uint(linkStatus.gpus[i].entityId),
+				FE_GPU,
+				Link_State(linkStatus.gpus[i].linkState[j]),
+				uint(j),
 			}
+
+			links = append(links, link)
 		}
 	}
 
 	for i := uint(0); i < uint(linkStatus.numNvSwitches); i++ {
 		for j := 0; j < C.DCGM_NVLINK_MAX_LINKS_PER_NVSWITCH; j++ {
-			if linkStatus.nvSwitches[i].linkState[j] == C.DcgmNvLinkLinkStateUp {
-				link := NvLinkStatus{
-					uint(linkStatus.nvSwitches[i].entityId),
-					FE_SWITCH,
-					linkStatus.nvSwitches[i].linkState[j],
-					uint(j),
-				}
-
-				links = append(links, link)
+			link := NvLinkStatus{
+				uint(linkStatus.nvSwitches[i].entityId),
+				FE_SWITCH,
+				Link_State(linkStatus.nvSwitches[i].linkState[j]),
+				uint(j),
 			}
+
+			links = append(links, link)
 		}
 	}
 
