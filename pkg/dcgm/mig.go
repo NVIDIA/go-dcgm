@@ -23,6 +23,24 @@ const (
 	FE_COUNT
 )
 
+func (e Field_Entity_Group) String() string {
+	switch e {
+	case FE_GPU:
+		return "GPU"
+	case FE_VGPU:
+		return "vGPU"
+	case FE_SWITCH:
+		return "NvSwitch"
+	case FE_GPU_I:
+		return "GPU Instance"
+	case FE_GPU_CI:
+		return "GPU Compute Instance"
+	case FE_LINK:
+		return "NvLink"
+	}
+	return "unknown"
+}
+
 type GroupEntityPair struct {
 	EntityGroupId Field_Entity_Group
 	EntityId      uint
