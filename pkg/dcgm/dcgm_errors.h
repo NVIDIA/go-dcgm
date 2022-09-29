@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
  */
 #ifndef DCGM_ERRORS_H
 #define DCGM_ERRORS_H
+
+#include "dcgm_api_export.h"
+#include "dcgm_structs.h"
 
 /*
  * Error codes for passive and active health checks.
@@ -45,7 +48,7 @@ typedef enum dcgmError_enum
     DCGM_FR_DEVICE_COUNT_MISMATCH        = 20, //!< Disagreement in GPU count between /dev and NVML
     DCGM_FR_BAD_PARAMETER                = 21, //!< Bad parameter passed to API
     DCGM_FR_CANNOT_OPEN_LIB              = 22, //!< Cannot open a library that must be accessed
-    DCGM_FR_BLACKLISTED_DRIVER           = 23, //!< A blacklisted driver (nouveau) is active
+    DCGM_FR_DENYLISTED_DRIVER            = 23, //!< A driver on the denylist (nouveau) is active
     DCGM_FR_NVML_LIB_BAD                 = 24, //!< The NVML library is missing expected functions
     DCGM_FR_GRAPHICS_PROCESSES           = 25, //!< Graphics processes are active on this GPU
     DCGM_FR_HOSTENGINE_CONN              = 26, //!< Unstable connection to nv-hostengine (daemonized DCGM)
@@ -110,7 +113,8 @@ typedef enum dcgmError_enum
     DCGM_FR_PENDING_ROW_REMAP            = 85, //!< Row remapping is pending
     DCGM_FR_BROKEN_P2P_MEMORY_DEVICE     = 86, //!< P2P copy test detected an error writing to this GPU
     DCGM_FR_BROKEN_P2P_WRITER_DEVICE     = 87, //!< P2P copy test detected an error writing from this GPU
-    DCGM_FR_ERROR_SENTINEL               = 88, //!< MUST BE THE LAST ERROR CODE
+    DCGM_FR_NVSWITCH_NVLINK_DOWN         = 88, //!< An NvLink is down for the specified NVSwitch
+    DCGM_FR_ERROR_SENTINEL               = 89, //!< MUST BE THE LAST ERROR CODE
 } dcgmError_t;
 
 typedef enum dcgmErrorSeverity_enum
@@ -191,8 +195,8 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_BAD_PARAMETER_MSG "Bad parameter to function %s cannot be processed"
 // library name, error returned from dlopen
 #define DCGM_FR_CANNOT_OPEN_LIB_MSG "Cannot open library %s: '%s'"
-// the name of the blacklisted driver
-#define DCGM_FR_BLACKLISTED_DRIVER_MSG "Found blacklisted driver: %s"
+// the name of the denylisted driver
+#define DCGM_FR_DENYLISTED_DRIVER_MSG "Found driver on the denylist: %s"
 // the name of the function that wasn't found
 #define DCGM_FR_NVML_LIB_BAD_MSG "Cannot get pointer to %s from libnvidia-ml.so"
 #define DCGM_FR_GRAPHICS_PROCESSES_MSG                                                 \
@@ -342,6 +346,7 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_PENDING_ROW_REMAP_MSG            "GPU %u has uncorrectable memory errors and row remappings are pending"
 #define DCGM_FR_BROKEN_P2P_MEMORY_DEVICE_MSG     "GPU %u was unsuccessfully written to in a peer-to-peer test: %s"
 #define DCGM_FR_BROKEN_P2P_WRITER_DEVICE_MSG     "GPU %u unsuccessfully wrote data in a peer-to-peer test: %s"
+#define DCGM_FR_NVSWITCH_NVLINK_DOWN_MSG         "NVSwitch %u's NvLink %u is down."
 
 /*
  * Suggestions for next steps for the corresponding error message
@@ -378,7 +383,7 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_CANNOT_OPEN_LIB_NEXT                                  \
     "Check for the existence of the library and set LD_LIBRARY_PATH " \
     "if needed."
-#define DCGM_FR_BLACKLISTED_DRIVER_NEXT "Please load the appropriate driver."
+#define DCGM_FR_DENYLISTED_DRIVER_NEXT "Please load the appropriate driver."
 #define DCGM_FR_NVML_LIB_BAD_NEXT                             \
     "Make sure that the required version of libnvidia-ml.so " \
     "is present and accessible on the system."
@@ -473,6 +478,9 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_PENDING_ROW_REMAP_NEXT            ""
 #define DCGM_FR_BROKEN_P2P_MEMORY_DEVICE_NEXT     BUG_REPORT_MSG
 #define DCGM_FR_BROKEN_P2P_WRITER_DEVICE_NEXT     BUG_REPORT_MSG
+#define DCGM_FR_NVSWITCH_NVLINK_DOWN_NEXT                                                      \
+    "Please check fabric manager and initialization logs to figure out why the link is down. " \
+    "You may also need to run a field diagnostic."
 
 #ifdef __cplusplus
 extern "C" {

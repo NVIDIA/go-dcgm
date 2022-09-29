@@ -6,6 +6,7 @@ package dcgm
 */
 import "C"
 import (
+	"encoding/binary"
 	"fmt"
 	"unicode"
 	"unsafe"
@@ -103,6 +104,14 @@ func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error)
 	}
 
 	return toFieldValue(values), nil
+}
+
+func LinkGetLatestValues(index uint, parentId uint, fields []Short) ([]FieldValue_v1, error) {
+	slice := []byte{uint8(FE_SWITCH), uint8(index), uint8(parentId), 0}
+
+	entityId := binary.LittleEndian.Uint32(slice)
+
+	return EntityGetLatestValues(FE_LINK, uint(entityId), fields)
 }
 
 func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields []Short) ([]FieldValue_v1, error) {
