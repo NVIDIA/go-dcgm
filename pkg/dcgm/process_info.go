@@ -191,7 +191,6 @@ func getProcessInfo(groupId GroupHandle, pid uint) (processInfo []ProcessInfo, e
 		}
 		processInfo = append(processInfo, pInfo)
 	}
-	_ = DestroyGroup(groupId)
 	return
 }
 
