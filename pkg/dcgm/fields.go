@@ -119,8 +119,8 @@ func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields
 	cfields := (*C.ushort)(unsafe.Pointer(&fields[0]))
 
 	result := C.dcgmEntityGetLatestValues(handle.handle, C.dcgm_field_entity_group_t(entityGroup), C.int(entityId), cfields, C.uint(len(fields)), &values[0])
-	if err := errorString(result); err != nil {
-		return nil, fmt.Errorf("Error getting the latest value for fields: %s", err)
+	if result != C.DCGM_ST_OK {
+		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	return toFieldValue(values), nil
@@ -137,7 +137,7 @@ func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags u
 
 	result := C.dcgmEntitiesGetLatestValues(handle.handle, &cPtrEntities[0], C.uint(len(entities)), cfields, C.uint(len(fields)), C.uint(flags), &values[0])
 	if err := errorString(result); err != nil {
-		return nil, fmt.Errorf("Error getting the latest value for fields: %s", err)
+		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	return toFieldValue_v2(values), nil

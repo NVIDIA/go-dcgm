@@ -6,7 +6,6 @@ package dcgm
 */
 import "C"
 import (
-	"fmt"
 	"unsafe"
 )
 
@@ -22,7 +21,7 @@ func introspect() (engine DcgmStatus, err error) {
 	result := C.dcgmIntrospectGetHostengineMemoryUsage(handle.handle, &memory, C.int(waitIfNoData))
 
 	if err = errorString(result); err != nil {
-		return engine, fmt.Errorf("Error getting memory usage of hostengine: %s", err)
+		return engine, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	var cpu C.dcgmIntrospectCpuUtil_t
@@ -31,7 +30,7 @@ func introspect() (engine DcgmStatus, err error) {
 	result = C.dcgmIntrospectGetHostengineCpuUtilization(handle.handle, &cpu, C.int(waitIfNoData))
 
 	if err = errorString(result); err != nil {
-		return engine, fmt.Errorf("Error getting cpu usage of hostengine: %s", err)
+		return engine, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	engine = DcgmStatus{

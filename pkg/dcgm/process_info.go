@@ -93,7 +93,7 @@ func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gp
 	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(updateFreq.Microseconds()), C.double(maxKeepAge.Seconds()), C.int(maxKeepSamples))
 
 	if err = errorString(result); err != nil {
-		return groupId, fmt.Errorf("Error watching process fields: %s", err)
+		return groupId, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 	_ = UpdateAllFields()
 	return group, nil
@@ -107,7 +107,7 @@ func getProcessInfo(groupId GroupHandle, pid uint) (processInfo []ProcessInfo, e
 	result := C.dcgmGetPidInfo(handle.handle, groupId.handle, &pidInfo)
 
 	if err = errorString(result); err != nil {
-		return processInfo, fmt.Errorf("Error getting process info: %s", err)
+		return processInfo, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	name, err := processName(pid)

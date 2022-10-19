@@ -342,7 +342,7 @@ func registerPolicy(gpuId uint, typ ...policyCondition) (violation chan PolicyVi
 	result := C.dcgmPolicyRegister(handle.handle, groupId.handle, C.dcgmPolicyCondition_t(condition), C.fpRecvUpdates(C.violationNotify), C.fpRecvUpdates(C.violationNotify))
 
 	if err = errorString(result); err != nil {
-		return violation, fmt.Errorf("Error registering policy: %s", err)
+		return violation, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 	log.Println("Listening for violations...")
 

@@ -105,7 +105,7 @@ func getDeviceTopology(gpuid uint) (links []P2PLink, err error) {
 		return links, nil
 	}
 	if result != C.DCGM_ST_OK {
-		return links, fmt.Errorf("Error getting device topology: %s", errorString(result))
+		return links, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	busid, err := getBusid(gpuid)
@@ -153,7 +153,7 @@ func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
 	}
 
 	if result != C.DCGM_ST_OK {
-		return nil, fmt.Errorf("Error getting NvLinkLinkStatus: ", errorString(result))
+		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	for i := uint(0); i < uint(linkStatus.numGpus); i++ {
