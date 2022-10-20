@@ -89,6 +89,13 @@ func stringPtr(c *C.char) *string {
 	return &s
 }
 
+type DcgmError struct {
+	msg  string         // description of error
+	Code C.dcgmReturn_t // dcgmReturn_t value of error
+}
+
+func (e *DcgmError) Error() string { return e.msg }
+
 func errorString(result C.dcgmReturn_t) error {
 	if result == C.DCGM_ST_OK {
 		return nil

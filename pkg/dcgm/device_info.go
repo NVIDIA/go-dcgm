@@ -76,7 +76,7 @@ func getSupportedDevices() (gpus []uint, err error) {
 
 	result := C.dcgmGetAllSupportedDevices(handle.handle, &gpuIdList[0], &count)
 	if err = errorString(result); err != nil {
-		return gpus, fmt.Errorf("Error getting DCGM supported devices: %s", err)
+		return gpus, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	numGpus := int(count)
@@ -188,7 +188,7 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 
 	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuid), &device)
 	if err = errorString(result); err != nil {
-		return deviceInfo, fmt.Errorf("Error getting device information: %s", err)
+		return deviceInfo, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	// check if the given GPU is DCGM supported

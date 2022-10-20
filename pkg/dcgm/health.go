@@ -54,7 +54,7 @@ func healthCheckByGpuId(gpuId uint) (deviceHealth DeviceHealth, err error) {
 	result := C.dcgmHealthCheck(handle.handle, groupId.handle, (*C.dcgmHealthResponse_t)(unsafe.Pointer(&healthResults)))
 
 	if err = errorString(result); err != nil {
-		return deviceHealth, fmt.Errorf("Error checking GPU health: %s", err)
+		return deviceHealth, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	status := healthStatus(int8(healthResults.overallHealth))

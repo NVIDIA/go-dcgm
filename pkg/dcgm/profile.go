@@ -6,7 +6,6 @@ package dcgm
 */
 import "C"
 import (
-	"fmt"
 	"unsafe"
 )
 
@@ -24,7 +23,7 @@ func getSupportedMetricGroups(grpid uint) (groups []MetricGroup, err error) {
 	result := C.dcgmProfGetSupportedMetricGroups(handle.handle, &groupInfo)
 
 	if err = errorString(result); err != nil {
-		return groups, fmt.Errorf("Error getting supported metrics: %s", err)
+		return groups, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	var count = uint(groupInfo.numMetricGroups)
