@@ -193,6 +193,11 @@
 #define DCGM_NVLINK_MAX_LINKS_PER_NVSWITCH 64
 
 /**
+ * Number of Lines per NvSwitch NvLink supported by DCGM
+ */
+#define DCGM_LANE_MAX_LANES_PER_NVSWICH_LINK 4
+
+/**
  * Maximum number of vGPU instances per physical GPU
  */
 #define DCGM_MAX_VGPU_INSTANCES_PER_PGPU 32
@@ -450,7 +455,7 @@ typedef struct dcgm_link_s
     {
         struct
         {
-            dcgm_field_entity_group_t etype : 8; /*!< Entity Group */
+            dcgm_field_entity_group_t type : 8; /*!< Entity Group */
             uint8_t index                  : 8; /*!< Link Index Tx before Rx */
             union
             {
