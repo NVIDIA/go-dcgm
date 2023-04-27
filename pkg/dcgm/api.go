@@ -107,8 +107,8 @@ func Introspect() (DcgmStatus, error) {
 }
 
 // Get all of the profiling metric groups for a given GPU group.
-func GetSupportedMetricGroups(grpid uint) ([]MetricGroup, error) {
-	return getSupportedMetricGroups(grpid)
+func GetSupportedMetricGroups(group GroupHandle) ([]MetricGroup, error) {
+	return getSupportedMetricGroups(group)
 }
 
 func GetNvLinkLinkStatus() ([]NvLinkStatus, error) {
