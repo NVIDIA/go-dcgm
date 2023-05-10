@@ -15,12 +15,12 @@ type MetricGroup struct {
 	FieldIds []uint
 }
 
-func getSupportedMetricGroups(group GroupHandle) (groups []MetricGroup, err error) {
+func getSupportedMetricGroups(gpuId uint) (groups []MetricGroup, err error) {
 
 	var groupInfo C.dcgmProfGetMetricGroups_t
 	groupInfo.version = makeVersion3(unsafe.Sizeof(groupInfo))
 
-	groupInfo.gpuId = C.uint(group.handle)
+	groupInfo.gpuId = C.uint(gpuId)
 
 	result := C.dcgmProfGetSupportedMetricGroups(handle.handle, &groupInfo)
 
