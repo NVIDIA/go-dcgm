@@ -156,6 +156,11 @@ func makeVersion4(struct_type uintptr) C.uint {
 	return version
 }
 
+func makeVersion8(struct_type uintptr) C.uint {
+	version := C.uint(struct_type | 8<<24)
+	return version
+}
+
 func roundFloat(f *float64) *float64 {
 	var val float64
 	if f != nil {

@@ -12,6 +12,10 @@ import (
 
 type GroupHandle struct{ handle C.dcgmGpuGrp_t }
 
+func GroupAllGPUs() GroupHandle {
+	return GroupHandle{C.DCGM_GROUP_ALL_GPUS}
+}
+
 func CreateGroup(groupName string) (goGroupId GroupHandle, err error) {
 	var cGroupId C.dcgmGpuGrp_t
 	cname := C.CString(groupName)
