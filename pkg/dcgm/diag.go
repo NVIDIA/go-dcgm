@@ -6,6 +6,7 @@ package dcgm
 */
 import "C"
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -114,15 +115,15 @@ func gpuTestName(t int) string {
 }
 
 func newDiagResult(testResult C.dcgmDiagTestResult_v2, testName string) DiagResult {
-	msg := C.GoBytes(unsafe.Pointer(&testResult.error.msg), DIAG_RESULT_STRING_SIZE)
-	info := C.GoBytes(unsafe.Pointer(&testResult.info), DIAG_RESULT_STRING_SIZE)
+	msg := C.GoString((*C.char)(unsafe.Pointer(&testResult.error.msg)))
+	info := C.GoString((*C.char)(unsafe.Pointer(&testResult.info)))
 
 	return DiagResult{
 		Status:       diagResultString(int(testResult.status)),
 		TestName:     testName,
-		TestOutput:   string(info),
+		TestOutput:   fmt.Sprintf("%s", string(info)),
 		ErrorCode:    uint(testResult.error.code),
-		ErrorMessage: string(msg),
+		ErrorMessage: fmt.Sprintf("%s", string(msg)),
 	}
 }
 
