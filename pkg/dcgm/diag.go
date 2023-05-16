@@ -6,7 +6,6 @@ package dcgm
 */
 import "C"
 import (
-	"fmt"
 	"unsafe"
 )
 
@@ -121,9 +120,9 @@ func newDiagResult(testResult C.dcgmDiagTestResult_v2, testName string) DiagResu
 	return DiagResult{
 		Status:       diagResultString(int(testResult.status)),
 		TestName:     testName,
-		TestOutput:   fmt.Sprintf("%s", string(info)),
+		TestOutput:   info,
 		ErrorCode:    uint(testResult.error.code),
-		ErrorMessage: fmt.Sprintf("%s", string(msg)),
+		ErrorMessage: msg,
 	}
 }
 
