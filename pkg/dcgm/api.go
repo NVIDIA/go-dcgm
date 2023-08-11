@@ -25,6 +25,12 @@ func Init(m mode, args ...string) (cleanup func(), err error) {
 	}
 	if dcgmInitCounter == 0 {
 		err = initDcgm(m, args...)
+
+		if err != nil {
+			mux.Unlock()
+
+			return nil, err
+		}
 	}
 	dcgmInitCounter += 1
 	mux.Unlock()
