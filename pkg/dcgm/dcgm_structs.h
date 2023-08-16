@@ -208,6 +208,11 @@
 #define DCGM_MAX_STR_LENGTH 256
 
 /**
+ * Default maximum age of samples kept (usec)
+ */
+#define DCGM_MAX_AGE_USEC_DEFAULT 30000000
+
+/**
  * Max number of clocks supported for a device
  */
 #define DCGM_MAX_CLOCKS 256
@@ -344,6 +349,7 @@ typedef enum dcgmReturn_enum
     DCGM_ST_NVVS_ISOLATE_ERROR    = -51, //!< The diagnostic returned an error that indicates the need for isolation
     DCGM_ST_NVVS_BINARY_NOT_FOUND = -52, //!< The NVVS binary was not found in the specified location
     DCGM_ST_NVVS_KILLED           = -53, //!< The NVVS process was killed by a signal
+    DCGM_ST_PAUSED                = -54, //!< The hostengine and all modules are paused
 } dcgmReturn_t;
 
 const char *errorString(dcgmReturn_t result);
@@ -589,19 +595,25 @@ typedef dcgmGroupInfo_v2 dcgmGroupInfo_t;
  */
 typedef enum
 {
-    DcgmMigProfileNone                  = 0,  /*!< No profile (for GPUs) */
-    DcgmMigProfileGpuInstanceSlice1     = 1,  /*!< GPU instance slice 1 */
-    DcgmMigProfileGpuInstanceSlice2     = 2,  /*!< GPU instance slice 2 */
-    DcgmMigProfileGpuInstanceSlice3     = 3,  /*!< GPU instance slice 3 */
-    DcgmMigProfileGpuInstanceSlice4     = 4,  /*!< GPU instance slice 4 */
-    DcgmMigProfileGpuInstanceSlice7     = 5,  /*!< GPU instance slice 7 */
-    DcgmMigProfileGpuInstanceSlice8     = 6,  /*!< GPU instance slice 8 */
-    DcgmMigProfileComputeInstanceSlice1 = 30, /*!< compute instance slice 1 */
-    DcgmMigProfileComputeInstanceSlice2 = 31, /*!< compute instance slice 2 */
-    DcgmMigProfileComputeInstanceSlice3 = 32, /*!< compute instance slice 3 */
-    DcgmMigProfileComputeInstanceSlice4 = 33, /*!< compute instance slice 4*/
-    DcgmMigProfileComputeInstanceSlice7 = 34, /*!< compute instance slice 7 */
-    DcgmMigProfileComputeInstanceSlice8 = 35, /*!< compute instance slice 8 */
+    DcgmMigProfileNone                      = 0,  /*!< No profile (for GPUs) */
+    DcgmMigProfileGpuInstanceSlice1         = 1,  /*!< GPU instance slice 1 */
+    DcgmMigProfileGpuInstanceSlice2         = 2,  /*!< GPU instance slice 2 */
+    DcgmMigProfileGpuInstanceSlice3         = 3,  /*!< GPU instance slice 3 */
+    DcgmMigProfileGpuInstanceSlice4         = 4,  /*!< GPU instance slice 4 */
+    DcgmMigProfileGpuInstanceSlice7         = 5,  /*!< GPU instance slice 7 */
+    DcgmMigProfileGpuInstanceSlice8         = 6,  /*!< GPU instance slice 8 */
+    DcgmMigProfileGpuInstanceSlice6         = 7,  /*!< GPU instance slice 6 */
+    DcgmMigProfileGpuInstanceSlice1Rev1     = 8,  /*!< GPU instance slice 1 revision 1 */
+    DcgmMigProfileGpuInstanceSlice2Rev1     = 9,  /*!< GPU instance slice 2 revision 1 */
+    DcgmMigProfileGpuInstanceSlice1Rev2     = 10, /*!< GPU instance slice 1 revision 2 */
+    DcgmMigProfileComputeInstanceSlice1     = 30, /*!< compute instance slice 1 */
+    DcgmMigProfileComputeInstanceSlice2     = 31, /*!< compute instance slice 2 */
+    DcgmMigProfileComputeInstanceSlice3     = 32, /*!< compute instance slice 3 */
+    DcgmMigProfileComputeInstanceSlice4     = 33, /*!< compute instance slice 4*/
+    DcgmMigProfileComputeInstanceSlice7     = 34, /*!< compute instance slice 7 */
+    DcgmMigProfileComputeInstanceSlice8     = 35, /*!< compute instance slice 8 */
+    DcgmMigProfileComputeInstanceSlice6     = 36, /*!< compute instance slice 6 */
+    DcgmMigProfileComputeInstanceSlice1Rev1 = 37, /*!< compute instance slice 1 revision 1 */
 } dcgmMigProfile_t;
 
 /**
@@ -2331,13 +2343,6 @@ typedef enum dcgmDiagResult_enum
 
 typedef struct
 {
-    dcgmDiagResult_t status; //!< The result of the test
-    char warning[1024];      //!< Warning returned from the test, if any
-    char info[1024];         //!< Information details returned from the test, if any
-} dcgmDiagTestResult_v1;
-
-typedef struct
-{
     dcgmDiagResult_t status;     //!< The result of the test
     dcgmDiagErrorDetail_t error; //!< The error message and error code, if any
     char info[1024];             //!< Information details returned from the test, if any
@@ -2358,9 +2363,9 @@ typedef enum dcgmPerGpuTestIndices_enum
     DCGM_MEMORY_BANDWIDTH_INDEX = 6, //!< Memory bandwidth test index
     DCGM_MEMTEST_INDEX          = 7, //!< Memtest test index
     DCGM_PULSE_TEST_INDEX       = 8, //!< Pulse test index
+    DCGM_EUD_TEST_INDEX         = 9, //!< EUD test index
     // Remaining tests are included for convenience but have different execution rules
     // See DCGM_PER_GPU_TEST_COUNT
-    DCGM_UNUSED1_TEST_INDEX   = 9,
     DCGM_UNUSED2_TEST_INDEX   = 10,
     DCGM_UNUSED3_TEST_INDEX   = 11,
     DCGM_UNUSED4_TEST_INDEX   = 12,
@@ -2419,6 +2424,9 @@ typedef enum dcgmSoftwareTest_enum
     DCGM_SWTEST_INFOROM              = 9, //!< test for inforom corruption
 } dcgmSoftwareTest_t;
 
+#define DCGM_DEVICE_ID_LEN 5
+#define DCGM_VERSION_LEN   12
+
 /**
  * Global diagnostics result structure v8
  *
@@ -2433,7 +2441,10 @@ typedef struct
     dcgmDiagTestResult_v2 levelOneResults[LEVEL_ONE_MAX_RESULTS];    //!< Basic, system-wide test results.
     dcgmDiagResponsePerGpu_v4 perGpuResponses[DCGM_MAX_NUM_DEVICES]; //!< per GPU test results
     dcgmDiagErrorDetail_t systemError;                               //!< System-wide error reported from NVVS
-    char _unused[1024];                                              //!< No longer used
+    char devIds[DCGM_MAX_NUM_DEVICES][DCGM_DEVICE_ID_LEN];           //!< The SKU device id for each GPU
+    char dcgmVersion[DCGM_VERSION_LEN];                              //!< A string representing DCGM's version
+    char driverVersion[DCGM_MAX_STR_LENGTH];                         //!< A string representing the driver version
+    char _unused[596];                                               //!< No longer used
 } dcgmDiagResponse_v8;
 
 /**
@@ -2663,6 +2674,8 @@ typedef dcgmIntrospectCpuUtil_v1 dcgmIntrospectCpuUtil_t;
  *
  */
 
+#define DCGM_HOME_DIR_VAR_NAME "DCGM_HOME_DIR"
+
 /**
  * Output in verbose mode; include information as well as warnings
  */
@@ -2715,9 +2728,9 @@ typedef struct
                                                //!< reasons
     char pluginPath[DCGM_PATH_LEN]; //!< Custom path to the diagnostic plugins - No longer supported as of 2.2.9
 
+    unsigned int currentIteration;  //!< The current iteration that will be executed
+    unsigned int totalIterations;   //!< The total iterations that will be executed
     unsigned int _unusedInt1;       //!< No longer used
-    unsigned int _unusedInt2;       //!< No longer used
-    unsigned int _unusedInt3;       //!< No longer used
     char _unusedBuf[DCGM_PATH_LEN]; //!< No longer used
     unsigned int failCheckInterval; //!< How often the fail early checks should occur when enabled.
 } dcgmRunDiag_v7;
@@ -2908,6 +2921,9 @@ typedef enum
     DcgmModuleStatusFailed     = 2, //!< Loading the module failed
     DcgmModuleStatusLoaded     = 3, //!< Module has been loaded
     DcgmModuleStatusUnloaded   = 4, //!< Module has been unloaded, happens during shutdown
+    DcgmModuleStatusPaused     = 5, /*!< Module has been paused. This is a temporary state that will
+                                         move to DcgmModuleStatusLoaded once the module is resumed.
+                                         This status implies that the module is loaded. */
 } dcgmModuleStatus_t;
 
 /**
@@ -2977,7 +2993,7 @@ typedef struct
 } dcgmStartEmbeddedV2Params_v2;
 
 /**
- * Version 3 for \ref dcgmStartEmbeddedV2Params
+ * Version 2 for \ref dcgmStartEmbeddedV2Params
  */
 #define dcgmStartEmbeddedV2Params_version2 MAKE_DCGM_VERSION(dcgmStartEmbeddedV2Params_v2, 2)
 

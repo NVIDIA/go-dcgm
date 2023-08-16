@@ -87,6 +87,10 @@ const (
 	DCGM_FI_DEV_INFOROM_CONFIG_CHECK                = 83
 	DCGM_FI_DEV_INFOROM_CONFIG_VALID                = 84
 	DCGM_FI_DEV_VBIOS_VERSION                       = 85
+	DCGM_FI_DEV_MEM_AFFINITY_0                      = 86
+	DCGM_FI_DEV_MEM_AFFINITY_1                      = 87
+	DCGM_FI_DEV_MEM_AFFINITY_2                      = 88
+	DCGM_FI_DEV_MEM_AFFINITY_3                      = 89
 	DCGM_FI_DEV_BAR1_TOTAL                          = 90
 	DCGM_FI_SYNC_BOOST                              = 91
 	DCGM_FI_DEV_BAR1_USED                           = 92
@@ -108,6 +112,7 @@ const (
 	DCGM_FI_DEV_GPU_MAX_OP_TEMP                     = 152
 	DCGM_FI_DEV_POWER_USAGE                         = 155
 	DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION            = 156
+	DCGM_FI_DEV_POWER_USAGE_INSTANT                 = 157
 	DCGM_FI_DEV_SLOWDOWN_TEMP                       = 158
 	DCGM_FI_DEV_SHUTDOWN_TEMP                       = 159
 	DCGM_FI_DEV_POWER_MGMT_LIMIT                    = 160
@@ -169,6 +174,11 @@ const (
 	DCGM_FI_DEV_ECC_DBE_AGG_REG                     = 331
 	DCGM_FI_DEV_ECC_SBE_AGG_TEX                     = 332
 	DCGM_FI_DEV_ECC_DBE_AGG_TEX                     = 333
+	DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_MAX          = 385
+	DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_HIGH         = 386
+	DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_PARTIAL      = 387
+	DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_LOW          = 388
+	DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_NONE         = 389
 	DCGM_FI_DEV_RETIRED_SBE                         = 390
 	DCGM_FI_DEV_RETIRED_DBE                         = 391
 	DCGM_FI_DEV_RETIRED_PENDING                     = 392
@@ -611,6 +621,10 @@ var (
 		"DCGM_FI_DEV_INFOROM_CONFIG_CHECK":                83,
 		"DCGM_FI_DEV_INFOROM_CONFIG_VALID":                84,
 		"DCGM_FI_DEV_VBIOS_VERSION":                       85,
+		"DCGM_FI_DEV_MEM_AFFINITY_0":                      86,
+		"DCGM_FI_DEV_MEM_AFFINITY_1":                      87,
+		"DCGM_FI_DEV_MEM_AFFINITY_2":                      88,
+		"DCGM_FI_DEV_MEM_AFFINITY_3":                      89,
 		"DCGM_FI_DEV_BAR1_TOTAL":                          90,
 		"DCGM_FI_SYNC_BOOST":                              91,
 		"DCGM_FI_DEV_BAR1_USED":                           92,
@@ -632,6 +646,7 @@ var (
 		"DCGM_FI_DEV_GPU_MAX_OP_TEMP":                     152,
 		"DCGM_FI_DEV_POWER_USAGE":                         155,
 		"DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION":            156,
+		"DCGM_FI_DEV_POWER_USAGE_INSTANT":                 157,
 		"DCGM_FI_DEV_SLOWDOWN_TEMP":                       158,
 		"DCGM_FI_DEV_SHUTDOWN_TEMP":                       159,
 		"DCGM_FI_DEV_POWER_MGMT_LIMIT":                    160,
@@ -693,6 +708,11 @@ var (
 		"DCGM_FI_DEV_ECC_DBE_AGG_REG":                     331,
 		"DCGM_FI_DEV_ECC_SBE_AGG_TEX":                     332,
 		"DCGM_FI_DEV_ECC_DBE_AGG_TEX":                     333,
+		"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_MAX":          385,
+		"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_HIGH":         386,
+		"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_PARTIAL":      387,
+		"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_LOW":          388,
+		"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_NONE":         389,
 		"DCGM_FI_DEV_RETIRED_SBE":                         390,
 		"DCGM_FI_DEV_RETIRED_DBE":                         391,
 		"DCGM_FI_DEV_RETIRED_PENDING":                     392,

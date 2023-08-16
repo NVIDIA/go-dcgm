@@ -103,7 +103,7 @@ func gpuTestName(t int) string {
 		return "Memtest"
 	case C.DCGM_PULSE_TEST_INDEX:
 		return "Pulse"
-	case C.DCGM_UNUSED1_TEST_INDEX:
+	case C.DCGM_EUD_TEST_INDEX:
 		return "EUD"
 	case C.DCGM_SOFTWARE_INDEX:
 		return "Software"
