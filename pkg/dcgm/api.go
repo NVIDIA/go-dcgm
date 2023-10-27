@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 )
 
 var (
@@ -89,7 +90,7 @@ func GetDeviceTopology(gpuId uint) ([]P2PLink, error) {
 // WatchPidFields lets DCGM start recording stats for GPU process
 // It needs to be called before calling GetProcessInfo
 func WatchPidFields() (GroupHandle, error) {
-	return watchPidFields(defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
+	return watchPidFields(time.Microsecond * time.Duration(defaultUpdateFreq), time.Second * time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
 }
 
 // GetProcessInfo provides detailed per GPU stats for this process
