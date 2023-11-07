@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 #ifndef DCGM_AGENT_H
 #define DCGM_AGENT_H
 
+#define DCGM_PUBLIC_API
 #include "dcgm_structs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define DCGM_PUBLIC_API
 
 /***************************************************************************************************/
 /** @defgroup DCGMAPI_Admin Administrative

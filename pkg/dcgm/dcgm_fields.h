@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -726,6 +726,24 @@ typedef unsigned int dcgm_field_eid_t;
  * Percentage used of Frame Buffer: 'Used/(Total - Reserved)'. Range 0.0-1.0
  */
 #define DCGM_FI_DEV_FB_USED_PERCENT 254
+
+/**
+ * C2C Link Count
+ */
+#define DCGM_FI_DEV_C2C_LINK_COUNT 285
+
+/**
+ * C2C Link Status
+ * The value of 0 the link is INACTIVE.
+ * The value of 1 the link is ACTIVE.
+ */
+#define DCGM_FI_DEV_C2C_LINK_STATUS 286
+
+/**
+ * C2C Max Bandwidth
+ * The value indicates the link speed in MB/s.
+ */
+#define DCGM_FI_DEV_C2C_MAX_BANDWIDTH 287
 
 /**
  * Current ECC mode for the device
@@ -2043,6 +2061,16 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_CPU_TEMP_CURRENT 1110
 
 /**
+ * CPU Warning Temperature
+ */
+#define DCGM_FI_DEV_CPU_TEMP_WARNING 1111
+
+/**
+ * CPU Critical Temperature
+ */
+#define DCGM_FI_DEV_CPU_TEMP_CRITICAL 1112
+
+/**
  * CPU instantaneous clock speed
  */
 #define DCGM_FI_DEV_CPU_CLOCK_CURRENT 1120
@@ -2066,7 +2094,6 @@ typedef unsigned int dcgm_field_eid_t;
  * CPU model name
  */
 #define DCGM_FI_DEV_CPU_MODEL 1141
-
 
 /**
  * 1 greater than maximum fields above. This is the 1 greater than the maximum field id that could be allocated
