@@ -113,15 +113,15 @@ func gpuTestName(t int) string {
 	return ""
 }
 
-func newDiagResult(testResult C.dcgmDiagTestResult_v2, testName string) DiagResult {
-	msg := C.GoString((*C.char)(unsafe.Pointer(&testResult.error.msg)))
+func newDiagResult(testResult C.dcgmDiagTestResult_v3, testName string) DiagResult {
+	msg := C.GoString((*C.char)(unsafe.Pointer(&testResult.error[0].msg)))
 	info := C.GoString((*C.char)(unsafe.Pointer(&testResult.info)))
 
 	return DiagResult{
 		Status:       diagResultString(int(testResult.status)),
 		TestName:     testName,
 		TestOutput:   info,
-		ErrorCode:    uint(testResult.error.code),
+		ErrorCode:    uint(testResult.error[0].code),
 		ErrorMessage: msg,
 	}
 }
@@ -141,10 +141,10 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 }
 
 func RunDiag(diagType DiagType, groupId GroupHandle) (DiagResults, error) {
-	var diagResults C.dcgmDiagResponse_v8
-	diagResults.version = makeVersion8(unsafe.Sizeof(diagResults))
+	var diagResults C.dcgmDiagResponse_v9
+	diagResults.version = makeVersion9(unsafe.Sizeof(diagResults))
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupId.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v8)(unsafe.Pointer(&diagResults)))
+	result := C.dcgmRunDiagnostic(handle.handle, groupId.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v9)(unsafe.Pointer(&diagResults)))
 	if err := errorString(result); err != nil {
 		return DiagResults{}, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}

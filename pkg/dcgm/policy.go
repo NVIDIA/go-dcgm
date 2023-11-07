@@ -160,6 +160,7 @@ func makePolicyParmsMap() {
 }
 
 // ViolationRegistration is a go callback function for dcgmPolicyRegister() wrapped in C.violationNotify()
+//
 //export ViolationRegistration
 func ViolationRegistration(data unsafe.Pointer) int {
 	var con policyCondition
