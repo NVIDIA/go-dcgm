@@ -17,8 +17,8 @@
 package dcgm
 
 /*
-#cgo linux LDFLAGS: -ldl -Wl,--unresolved-symbols=ignore-in-object-files
-#cgo darwin LDFLAGS: -ldl -Wl,-undefined,dynamic_lookup
+#cgo linux LDFLAGS: -ldl -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files
+#cgo darwin LDFLAGS: -ldl -Wl,--export-dynamic -Wl,-undefined,dynamic_lookup
 
 #include <dlfcn.h>
 #include "dcgm_agent.h"
