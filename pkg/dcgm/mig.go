@@ -20,6 +20,8 @@ const (
 	FE_GPU_I
 	FE_GPU_CI
 	FE_LINK
+	FE_CPU
+	FE_CPU_CORE
 	FE_COUNT
 )
 
@@ -37,6 +39,10 @@ func (e Field_Entity_Group) String() string {
 		return "GPU Compute Instance"
 	case FE_LINK:
 		return "NvLink"
+	case FE_CPU:
+		return "CPU"
+	case FE_CPU_CORE:
+		return "CPU Core"
 	}
 	return "unknown"
 }
