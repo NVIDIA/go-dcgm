@@ -3,6 +3,7 @@ package tests
 import (
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -41,6 +42,34 @@ func BenchmarkDeviceCount1(b *testing.B) {
 
 	dcgm.Shutdown()
 }
+
+func TestCpuQuery(t *testing.T) {
+	os.Setenv("DCGM_SKIP_SYSMON_HARDWARE_CHECK", "1")
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	check(err, t)
+	defer cleanup()
+
+	hierarchy, err := dcgm.GetCpuHierarchy()
+	check(err, t)
+
+	if hierarchy.NumCpus == 0 {
+		t.Errorf("Found no CPUs")
+	}
+
+	for i := uint(0); i < hierarchy.NumCpus; i++ {
+		var coresFound = false
+		for j := uint(0); j < dcgm.MAX_CPU_CORE_BITMASK_COUNT; j++ {
+			if hierarchy.Cpus[i].OwnedCores[j] != 0 {
+				coresFound = true
+			}
+		}
+
+		if coresFound == false {
+			t.Errorf("Cpu %d has no cores", i)
+		}
+	}
+}
+
 
 func TestDeviceInfo(t *testing.T) {
 	cleanup, err := dcgm.Init(dcgm.Embedded)
