@@ -70,7 +70,6 @@ func TestCpuQuery(t *testing.T) {
 	}
 }
 
-
 func TestDeviceInfo(t *testing.T) {
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	check(err, t)

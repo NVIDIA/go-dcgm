@@ -10,29 +10,29 @@ import (
 	"unsafe"
 )
 
-/* 
- *See dcgm_structs.h 
+/*
+ *See dcgm_structs.h
  *	DCGM_CPU_CORE_BITMASK_COUNT_V1 (DCGM_MAX_NUM_CPU_CORES / sizeof(uint64_t) / CHAR_BIT)
  *	or
  *	1024 / 8 / 8
  */
 
 const (
-	MAX_NUM_CPU_CORES  uint = C.DCGM_MAX_NUM_CPU_CORES
-	MAX_NUM_CPUS       uint = C.DCGM_MAX_NUM_CPUS
-	CHAR_BIT           		   uint = C.CHAR_BIT
+	MAX_NUM_CPU_CORES          uint = C.DCGM_MAX_NUM_CPU_CORES
+	MAX_NUM_CPUS               uint = C.DCGM_MAX_NUM_CPUS
+	CHAR_BIT                   uint = C.CHAR_BIT
 	MAX_CPU_CORE_BITMASK_COUNT uint = 1024 / 8 / 8
 )
 
 type CpuHierarchyCpu_v1 struct {
-	CpuId uint
-	OwnedCores [] uint64
+	CpuId      uint
+	OwnedCores []uint64
 }
 
 type CpuHierarchy_v1 struct {
 	Version uint
 	NumCpus uint
-	Cpus [MAX_NUM_CPUS]CpuHierarchyCpu_v1
+	Cpus    [MAX_NUM_CPUS]CpuHierarchyCpu_v1
 }
 
 func GetCpuHierarchy() (hierarchy CpuHierarchy_v1, err error) {
@@ -60,7 +60,7 @@ func toCpuHierarchy(c_hierarchy C.dcgmCpuHierarchy_v1) CpuHierarchy_v1 {
 		}
 
 		hierarchy.Cpus[i] = CpuHierarchyCpu_v1{
-			CpuId: uint(c_hierarchy.cpus[i].cpuId),
+			CpuId:      uint(c_hierarchy.cpus[i].cpuId),
 			OwnedCores: bits,
 		}
 	}
