@@ -80,5 +80,8 @@ func (p *publisher) broadcast() {
 }
 
 func (p *publisher) closePublisher() {
+	for _, s := range p.subscriberList() {
+		p.remove(s)
+	}
 	p.close <- true
 }
