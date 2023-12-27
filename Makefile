@@ -29,7 +29,7 @@ binary:
 	cd samples/topology; go build
 
 test-main:
-	go test ./tests
+	go test -race ./tests
 
 check-format:
 	test $$(gofmt -l . | tee /dev/stderr | wc -l) -eq 0

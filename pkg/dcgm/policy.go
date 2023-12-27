@@ -274,16 +274,20 @@ func setPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t, paramList
 		// C union types are represented as a Go byte array
 		binary.LittleEndian.PutUint32(policy.parms[key].val[:], conditionParam.value)
 	}
+
 	var statusHandle C.dcgmStatus_t
+
 	result := C.dcgmPolicySet(handle.handle, groupId.handle, &policy, statusHandle)
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("Error setting policies: %s", err)
 	}
+
 	log.Println("Policy successfully set.")
+
 	return
 }
 
-func registerPolicy(gpuId uint, typ ...policyCondition) (violation chan PolicyViolation, err error) {
+func registerPolicy(gpuId uint, typ ...policyCondition) (<-chan PolicyViolation, error) {
 	// init policy globals for internal API
 	makePolicyChannels()
 	makePolicyParmsMap()
@@ -291,10 +295,11 @@ func registerPolicy(gpuId uint, typ ...policyCondition) (violation chan PolicyVi
 	name := fmt.Sprintf("policy%d", rand.Uint64())
 	groupId, err := CreateGroup(name)
 	if err != nil {
-		return
+		return nil, err
 	}
+
 	if err = AddToGroup(groupId, gpuId); err != nil {
-		return
+		return nil, err
 	}
 
 	// make a list of all callback channels
@@ -337,56 +342,28 @@ func registerPolicy(gpuId uint, typ ...policyCondition) (violation chan PolicyVi
 	}
 
 	if err = setPolicy(groupId, condition, paramKeys); err != nil {
-		return
+		return nil, err
 	}
 
 	result := C.dcgmPolicyRegister(handle.handle, groupId.handle, C.dcgmPolicyCondition_t(condition), C.fpRecvUpdates(C.violationNotify), C.fpRecvUpdates(C.violationNotify))
 
 	if err = errorString(result); err != nil {
-		return violation, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 	log.Println("Listening for violations...")
 
-	// create a publisher
-	publisher := newPublisher()
-	_ = publisher.add()
-	_ = publisher.add()
-
-	// broadcast
-	go publisher.broadcast()
-
-	go func() {
-		for {
-			select {
-			case dbe := <-callbacks["dbe"]:
-				publisher.send(dbe)
-			case pcie := <-callbacks["pcie"]:
-				publisher.send(pcie)
-			case maxrtpg := <-callbacks["maxrtpg"]:
-				publisher.send(maxrtpg)
-			case thermal := <-callbacks["thermal"]:
-				publisher.send(thermal)
-			case power := <-callbacks["power"]:
-				publisher.send(power)
-			case nvlink := <-callbacks["nvlink"]:
-				publisher.send(nvlink)
-			case xid := <-callbacks["xid"]:
-				publisher.send(xid)
-			}
-		}
-	}()
-
 	// merge
-	violation = make(chan PolicyViolation, len(channels))
+	violation := make(chan PolicyViolation, len(channels))
 	go func() {
 		for _, c := range channels {
 			val := <-c
 			violation <- val
 		}
+		DestroyGroup(groupId)
 		close(violation)
 	}()
-	_ = DestroyGroup(groupId)
-	return
+
+	return violation, err
 }
 
 func unregisterPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t) {
