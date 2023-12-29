@@ -71,7 +71,7 @@ func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 	return gpuIDs, nil
 }
 
-func InjectFieldValue(gpu uint, fieldID int, fieldType uint, status int, ts int64, value interface{}) error {
+func InjectFieldValue(gpu uint, fieldID uint, fieldType uint, status int, ts int64, value interface{}) error {
 	field := C.dcgmInjectFieldValue_t{
 		version:   C.dcgmInjectFieldValue_version1,
 		fieldId:   C.ushort(fieldID),
