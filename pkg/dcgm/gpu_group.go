@@ -10,6 +10,10 @@ import (
 	"fmt"
 )
 
+const (
+	DCGM_GROUP_MAX_ENTITIES int = C.DCGM_GROUP_MAX_ENTITIES
+)
+
 type GroupHandle struct{ handle C.dcgmGpuGrp_t }
 
 func GroupAllGPUs() GroupHandle {
