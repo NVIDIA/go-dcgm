@@ -1,6 +1,7 @@
 package dcgm
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -103,9 +104,10 @@ func HealthCheckByGpuId(gpuId uint) (DeviceHealth, error) {
 	return healthCheckByGpuId(gpuId)
 }
 
-// Policy sets GPU usage and error policies and notifies in case of any violations via callback functions
-func Policy(gpuId uint, typ ...policyCondition) (<-chan PolicyViolation, error) {
-	return registerPolicy(gpuId, typ...)
+// ListenForPolicyViolations sets GPU usage and error policies and notifies in case of any violations
+func ListenForPolicyViolations(ctx context.Context, typ ...policyCondition) (<-chan PolicyViolation, error) {
+	groupId := GroupAllGPUs()
+	return registerPolicy(ctx, groupId, typ...)
 }
 
 // Introspect returns DCGM hostengine memory and CPU usage

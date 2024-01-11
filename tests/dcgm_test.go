@@ -98,6 +98,9 @@ func TestDeviceInfo(t *testing.T) {
 		for _, val := range fields {
 			var msg, output string
 			res := Query(id, val)
+			if res == "[N/A]" {
+				continue
+			}
 
 			switch val {
 			case "driver_version":
@@ -180,6 +183,9 @@ func TestDeviceStatus(t *testing.T) {
 		for _, val := range fields {
 			var msg, output string
 			res := Query(id, val)
+			if res == "[N/A]" {
+				continue
+			}
 
 			switch val {
 			case "power.draw":
