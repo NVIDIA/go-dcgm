@@ -215,10 +215,55 @@ func toFieldValue_v2(cfields []C.dcgmFieldValue_v2) []FieldValue_v2 {
 	return fields
 }
 
+func dcgmFieldValue_v1ToFieldValue_v2(fieldEntityGroup Field_Entity_Group, entityId uint, cfields []C.dcgmFieldValue_v1) []FieldValue_v2 {
+	fields := make([]FieldValue_v2, len(cfields))
+	for i, f := range cfields {
+		fields[i] = FieldValue_v2{
+			Version:       C.dcgmFieldValue_version2,
+			EntityGroupId: fieldEntityGroup,
+			EntityId:      entityId,
+			FieldId:       uint(f.fieldId),
+			FieldType:     uint(f.fieldType),
+			Status:        int(f.status),
+			Ts:            int64(f.ts),
+			Value:         f.value,
+			StringValue:   nil,
+		}
+
+		if uint(f.fieldType) == DCGM_FT_STRING {
+			fields[i].StringValue = stringPtr((*C.char)(unsafe.Pointer(&f.value[0])))
+		}
+	}
+
+	return fields
+}
+
+func (fv FieldValue_v2) Int64() int64 {
+	return *(*int64)(unsafe.Pointer(&fv.Value[0]))
+}
+
+func (fv FieldValue_v2) Float64() float64 {
+	return *(*float64)(unsafe.Pointer(&fv.Value[0]))
+}
+
+func (fv FieldValue_v2) String() string {
+	return C.GoString((*C.char)(unsafe.Pointer(&fv.Value[0])))
+}
+
+func (fv FieldValue_v2) Blob() [4096]byte {
+	return fv.Value
+}
+
+// Deprecated: Fv2_Int64 exists for backward compatibility
+// and should not be used. To access the int64 returned by a FieldValue_v2,
+// use the FieldValue_v2.Int64 method.
 func Fv2_Int64(fv FieldValue_v2) int64 {
 	return *(*int64)(unsafe.Pointer(&fv.Value[0]))
 }
 
+// Deprecated: Fv2_Float64 exists for backward compatibility
+// and should not be used. To access the int64 returned by a FieldValue_v2,
+// use the FieldValue_v2.Float64 method.
 func Fv2_Float64(fv FieldValue_v2) float64 {
 	return *(*float64)(unsafe.Pointer(&fv.Value[0]))
 }

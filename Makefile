@@ -43,3 +43,6 @@ clean:
 	rm -f samples/processInfo/processInfo
 	rm -f samples/restApi/restApi
 	rm -f samples/topology/topology
+
+lint:
+	golangci-lint run ./...
