@@ -55,8 +55,8 @@ func TestPolicyErrors(t *testing.T) {
 			assert: func(cb PolicyViolation, _ int) {
 				require.NotNil(t, cb)
 				assert.Equal(t, DbePolicy, cb.Condition)
-				require.IsType(t, dbePolicyCondition{}, cb.Data)
-				policyCondition := cb.Data.(dbePolicyCondition)
+				require.IsType(t, DbePolicyCondition{}, cb.Data)
+				policyCondition := cb.Data.(DbePolicyCondition)
 				assert.Equal(t, uint(1), policyCondition.NumErrors)
 				assert.Equal(t, "Device", policyCondition.Location)
 			},
@@ -78,8 +78,8 @@ func TestPolicyErrors(t *testing.T) {
 			assert: func(cb PolicyViolation, _ int) {
 				require.NotNil(t, cb)
 				assert.Equal(t, PowerPolicy, cb.Condition)
-				require.IsType(t, powerPolicyCondition{}, cb.Data)
-				policyCondition := cb.Data.(powerPolicyCondition)
+				require.IsType(t, PowerPolicyCondition{}, cb.Data)
+				policyCondition := cb.Data.(PowerPolicyCondition)
 				assert.Equal(t, uint(300), policyCondition.PowerViolation)
 			},
 		},
@@ -100,8 +100,8 @@ func TestPolicyErrors(t *testing.T) {
 			assert: func(cb PolicyViolation, _ int) {
 				require.NotNil(t, cb)
 				assert.Equal(t, PCIePolicy, cb.Condition)
-				require.IsType(t, pciPolicyCondition{}, cb.Data)
-				pciPolicyCondition := cb.Data.(pciPolicyCondition)
+				require.IsType(t, PciPolicyCondition{}, cb.Data)
+				pciPolicyCondition := cb.Data.(PciPolicyCondition)
 				assert.Equal(t, uint(1), pciPolicyCondition.ReplayCounter)
 			},
 		},
@@ -134,8 +134,8 @@ func TestPolicyErrors(t *testing.T) {
 			assert: func(cb PolicyViolation, _ int) {
 				require.NotNil(t, cb)
 				assert.Equal(t, MaxRtPgPolicy, cb.Condition)
-				require.IsType(t, retiredPagesPolicyCondition{}, cb.Data)
-				retiredPagesPolicyCondition := cb.Data.(retiredPagesPolicyCondition)
+				require.IsType(t, RetiredPagesPolicyCondition{}, cb.Data)
+				retiredPagesPolicyCondition := cb.Data.(RetiredPagesPolicyCondition)
 				assert.Equal(t, uint(10), retiredPagesPolicyCondition.DbePages)
 			},
 		},
@@ -156,8 +156,8 @@ func TestPolicyErrors(t *testing.T) {
 			assert: func(cb PolicyViolation, _ int) {
 				require.NotNil(t, cb)
 				assert.Equal(t, ThermalPolicy, cb.Condition)
-				require.IsType(t, thermalPolicyCondition{}, cb.Data)
-				thermalPolicyCondition := cb.Data.(thermalPolicyCondition)
+				require.IsType(t, ThermalPolicyCondition{}, cb.Data)
+				thermalPolicyCondition := cb.Data.(ThermalPolicyCondition)
 				assert.Equal(t, uint(101), thermalPolicyCondition.ThermalViolation)
 			},
 		},
@@ -178,8 +178,8 @@ func TestPolicyErrors(t *testing.T) {
 			assert: func(cb PolicyViolation, _ int) {
 				require.NotNil(t, cb)
 				assert.Equal(t, NvlinkPolicy, cb.Condition)
-				require.IsType(t, nvlinkPolicyCondition{}, cb.Data)
-				nvlinkPolicyCondition := cb.Data.(nvlinkPolicyCondition)
+				require.IsType(t, NvlinkPolicyCondition{}, cb.Data)
+				nvlinkPolicyCondition := cb.Data.(NvlinkPolicyCondition)
 				assert.Equal(t, uint(1), nvlinkPolicyCondition.Counter)
 			},
 		},
@@ -200,8 +200,8 @@ func TestPolicyErrors(t *testing.T) {
 			assert: func(cb PolicyViolation, _ int) {
 				require.NotNil(t, cb)
 				assert.Equal(t, XidPolicy, cb.Condition)
-				require.IsType(t, xidPolicyCondition{}, cb.Data)
-				xidPolicyCondition := cb.Data.(xidPolicyCondition)
+				require.IsType(t, XidPolicyCondition{}, cb.Data)
+				xidPolicyCondition := cb.Data.(XidPolicyCondition)
 				assert.Equal(t, uint(16), xidPolicyCondition.ErrNum)
 			},
 		},
@@ -244,14 +244,14 @@ func TestPolicyErrors(t *testing.T) {
 				case 1:
 					require.NotNil(t, cb)
 					assert.Equal(t, XidPolicy, cb.Condition)
-					require.IsType(t, xidPolicyCondition{}, cb.Data)
-					xidPolicyCondition := cb.Data.(xidPolicyCondition)
+					require.IsType(t, XidPolicyCondition{}, cb.Data)
+					xidPolicyCondition := cb.Data.(XidPolicyCondition)
 					assert.Equal(t, uint(16), xidPolicyCondition.ErrNum)
 				case 2:
 					require.NotNil(t, cb)
 					assert.Equal(t, NvlinkPolicy, cb.Condition)
-					require.IsType(t, nvlinkPolicyCondition{}, cb.Data)
-					nvlinkPolicyCondition := cb.Data.(nvlinkPolicyCondition)
+					require.IsType(t, NvlinkPolicyCondition{}, cb.Data)
+					nvlinkPolicyCondition := cb.Data.(NvlinkPolicyCondition)
 					assert.Equal(t, uint(1), nvlinkPolicyCondition.Counter)
 				}
 			},
