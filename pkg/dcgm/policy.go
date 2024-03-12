@@ -53,34 +53,34 @@ type policyConditionParam struct {
 	value uint32
 }
 
-type dbePolicyCondition struct {
+type DbePolicyCondition struct {
 	Location  string
 	NumErrors uint
 }
 
-type pciPolicyCondition struct {
+type PciPolicyCondition struct {
 	ReplayCounter uint
 }
 
-type retiredPagesPolicyCondition struct {
+type RetiredPagesPolicyCondition struct {
 	SbePages uint
 	DbePages uint
 }
 
-type thermalPolicyCondition struct {
+type ThermalPolicyCondition struct {
 	ThermalViolation uint
 }
 
-type powerPolicyCondition struct {
+type PowerPolicyCondition struct {
 	PowerViolation uint
 }
 
-type nvlinkPolicyCondition struct {
+type NvlinkPolicyCondition struct {
 	FieldId uint16
 	Counter uint
 }
 
-type xidPolicyCondition struct {
+type XidPolicyCondition struct {
 	ErrNum uint
 }
 
@@ -174,7 +174,7 @@ func ViolationRegistration(data unsafe.Pointer) int {
 		dbe := (*C.dcgmPolicyConditionDbe_t)(unsafe.Pointer(&response.val))
 		con = DbePolicy
 		timestamp = createTimeStamp(dbe.timestamp)
-		val = dbePolicyCondition{
+		val = DbePolicyCondition{
 			Location:  dbeLocation(int(dbe.location)),
 			NumErrors: *uintPtr(dbe.numerrors),
 		}
@@ -182,14 +182,14 @@ func ViolationRegistration(data unsafe.Pointer) int {
 		pci := (*C.dcgmPolicyConditionPci_t)(unsafe.Pointer(&response.val))
 		con = PCIePolicy
 		timestamp = createTimeStamp(pci.timestamp)
-		val = pciPolicyCondition{
+		val = PciPolicyCondition{
 			ReplayCounter: *uintPtr(pci.counter),
 		}
 	case C.DCGM_POLICY_COND_MAX_PAGES_RETIRED:
 		mpr := (*C.dcgmPolicyConditionMpr_t)(unsafe.Pointer(&response.val))
 		con = MaxRtPgPolicy
 		timestamp = createTimeStamp(mpr.timestamp)
-		val = retiredPagesPolicyCondition{
+		val = RetiredPagesPolicyCondition{
 			SbePages: *uintPtr(mpr.sbepages),
 			DbePages: *uintPtr(mpr.dbepages),
 		}
@@ -197,21 +197,21 @@ func ViolationRegistration(data unsafe.Pointer) int {
 		thermal := (*C.dcgmPolicyConditionThermal_t)(unsafe.Pointer(&response.val))
 		con = ThermalPolicy
 		timestamp = createTimeStamp(thermal.timestamp)
-		val = thermalPolicyCondition{
+		val = ThermalPolicyCondition{
 			ThermalViolation: *uintPtr(thermal.thermalViolation),
 		}
 	case C.DCGM_POLICY_COND_POWER:
 		pwr := (*C.dcgmPolicyConditionPower_t)(unsafe.Pointer(&response.val))
 		con = PowerPolicy
 		timestamp = createTimeStamp(pwr.timestamp)
-		val = powerPolicyCondition{
+		val = PowerPolicyCondition{
 			PowerViolation: *uintPtr(pwr.powerViolation),
 		}
 	case C.DCGM_POLICY_COND_NVLINK:
 		nvlink := (*C.dcgmPolicyConditionNvlink_t)(unsafe.Pointer(&response.val))
 		con = NvlinkPolicy
 		timestamp = createTimeStamp(nvlink.timestamp)
-		val = nvlinkPolicyCondition{
+		val = NvlinkPolicyCondition{
 			FieldId: uint16(nvlink.fieldId),
 			Counter: *uintPtr(nvlink.counter),
 		}
@@ -219,7 +219,7 @@ func ViolationRegistration(data unsafe.Pointer) int {
 		xid := (*C.dcgmPolicyConditionXID_t)(unsafe.Pointer(&response.val))
 		con = XidPolicy
 		timestamp = createTimeStamp(xid.timestamp)
-		val = xidPolicyCondition{
+		val = XidPolicyCondition{
 			ErrNum: *uintPtr(xid.errnum),
 		}
 	}
