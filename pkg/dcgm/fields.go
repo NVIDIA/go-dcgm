@@ -30,6 +30,14 @@ type FieldMeta struct {
 
 type FieldHandle struct{ handle C.dcgmFieldGrp_t }
 
+func (f *FieldHandle) SetHandle(val uintptr) {
+	f.handle = C.dcgmGpuGrp_t(val)
+}
+
+func (f *FieldHandle) GetHandle() uintptr {
+	return uintptr(f.handle)
+}
+
 func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHandle, err error) {
 	var fieldsGroup C.dcgmFieldGrp_t
 	cfields := *(*[]C.ushort)(unsafe.Pointer(&fields))
@@ -66,7 +74,8 @@ func WatchFields(gpuId uint, fieldsGroup FieldHandle, groupName string) (groupId
 		return
 	}
 
-	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle, C.longlong(defaultUpdateFreq), C.double(defaultMaxKeepAge), C.int(defaultMaxKeepSamples))
+	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle, C.longlong(defaultUpdateFreq),
+		C.double(defaultMaxKeepAge), C.int(defaultMaxKeepSamples))
 	if err = errorString(result); err != nil {
 		return groupId, fmt.Errorf("Error watching fields: %s", err)
 	}
@@ -75,7 +84,9 @@ func WatchFields(gpuId uint, fieldsGroup FieldHandle, groupName string) (groupId
 	return group, nil
 }
 
-func WatchFieldsWithGroupEx(fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) error {
+func WatchFieldsWithGroupEx(
+	fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
+) error {
 	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
 		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
 
@@ -118,7 +129,8 @@ func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields
 	values := make([]C.dcgmFieldValue_v1, len(fields))
 	cfields := (*C.ushort)(unsafe.Pointer(&fields[0]))
 
-	result := C.dcgmEntityGetLatestValues(handle.handle, C.dcgm_field_entity_group_t(entityGroup), C.int(entityId), cfields, C.uint(len(fields)), &values[0])
+	result := C.dcgmEntityGetLatestValues(handle.handle, C.dcgm_field_entity_group_t(entityGroup), C.int(entityId),
+		cfields, C.uint(len(fields)), &values[0])
 	if result != C.DCGM_ST_OK {
 		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
@@ -132,10 +144,14 @@ func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags u
 	cEntities := make([]C.dcgmGroupEntityPair_t, len(entities))
 	cPtrEntities := *(*[]C.dcgmGroupEntityPair_t)(unsafe.Pointer(&cEntities))
 	for i, entity := range entities {
-		cEntities[i] = C.dcgmGroupEntityPair_t{C.dcgm_field_entity_group_t(entity.EntityGroupId), C.dcgm_field_eid_t(entity.EntityId)}
+		cEntities[i] = C.dcgmGroupEntityPair_t{
+			C.dcgm_field_entity_group_t(entity.EntityGroupId),
+			C.dcgm_field_eid_t(entity.EntityId),
+		}
 	}
 
-	result := C.dcgmEntitiesGetLatestValues(handle.handle, &cPtrEntities[0], C.uint(len(entities)), cfields, C.uint(len(fields)), C.uint(flags), &values[0])
+	result := C.dcgmEntitiesGetLatestValues(handle.handle, &cPtrEntities[0], C.uint(len(entities)), cfields,
+		C.uint(len(fields)), C.uint(flags), &values[0])
 	if err := errorString(result); err != nil {
 		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
@@ -215,7 +231,9 @@ func toFieldValue_v2(cfields []C.dcgmFieldValue_v2) []FieldValue_v2 {
 	return fields
 }
 
-func dcgmFieldValue_v1ToFieldValue_v2(fieldEntityGroup Field_Entity_Group, entityId uint, cfields []C.dcgmFieldValue_v1) []FieldValue_v2 {
+func dcgmFieldValue_v1ToFieldValue_v2(
+	fieldEntityGroup Field_Entity_Group, entityId uint, cfields []C.dcgmFieldValue_v1,
+) []FieldValue_v2 {
 	fields := make([]FieldValue_v2, len(cfields))
 	for i, f := range cfields {
 		fields[i] = FieldValue_v2{
