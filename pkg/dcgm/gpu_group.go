@@ -16,6 +16,14 @@ const (
 
 type GroupHandle struct{ handle C.dcgmGpuGrp_t }
 
+func (g *GroupHandle) SetHandle(val uintptr) {
+	g.handle = C.dcgmGpuGrp_t(val)
+}
+
+func (g *GroupHandle) GetHandle() uintptr {
+	return uintptr(g.handle)
+}
+
 func GroupAllGPUs() GroupHandle {
 	return GroupHandle{C.DCGM_GROUP_ALL_GPUS}
 }
@@ -67,7 +75,8 @@ func AddLinkEntityToGroup(groupId GroupHandle, index uint, parentId uint) (err e
 }
 
 func AddEntityToGroup(groupId GroupHandle, entityGroupId Field_Entity_Group, entityId uint) (err error) {
-	result := C.dcgmGroupAddEntity(handle.handle, groupId.handle, C.dcgm_field_entity_group_t(entityGroupId), C.uint(entityId))
+	result := C.dcgmGroupAddEntity(handle.handle, groupId.handle, C.dcgm_field_entity_group_t(entityGroupId),
+		C.uint(entityId))
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("Error adding entity group type %v, entity %v to group: %s", entityGroupId, entityId, err)
 	}
