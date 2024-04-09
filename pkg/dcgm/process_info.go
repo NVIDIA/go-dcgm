@@ -178,7 +178,7 @@ func getProcessInfo(groupId GroupHandle, pid uint) (processInfo []ProcessInfo, e
 		}
 
 		pInfo := ProcessInfo{
-			GPU:                uint(pidInfo.summary.gpuId),
+			GPU:                uint(pidInfo.gpus[i].gpuId),
 			PID:                uint(pidInfo.pid),
 			Name:               name,
 			ProcessUtilization: processUtil,
