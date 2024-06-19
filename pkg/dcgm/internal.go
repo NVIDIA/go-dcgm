@@ -25,6 +25,7 @@ package dcgm
 #include "dcgm_structs_internal.h"
 */
 import "C"
+
 import (
 	"unsafe"
 )
