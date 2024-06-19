@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupTest(t *testing.T) func(t *testing.T) {
@@ -38,4 +39,22 @@ func runOnlyWithLiveGPUs(t *testing.T) {
 	if len(gpus) < 1 {
 		t.Skip("Skipping test that requires live GPUs. None were found")
 	}
+}
+
+func withInjectionGPUs(t *testing.T, gpuCount int) ([]uint, error) {
+	t.Helper()
+	numGPUs, err := GetAllDeviceCount()
+	require.NoError(t, err)
+
+	if numGPUs+1 > MAX_NUM_DEVICES {
+		t.Skipf("Unable to add fake GPU with more than %d gpus", MAX_NUM_DEVICES)
+	}
+
+	entityList := make([]MigHierarchyInfo, gpuCount)
+	for i := range entityList {
+		entityList[i] = MigHierarchyInfo{
+			Entity: GroupEntityPair{EntityGroupId: FE_GPU},
+		}
+	}
+	return CreateFakeEntities(entityList)
 }

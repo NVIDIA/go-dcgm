@@ -5,6 +5,7 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"encoding/binary"
 	"fmt"
@@ -91,4 +92,35 @@ func DestroyGroup(groupId GroupHandle) (err error) {
 	}
 
 	return
+}
+
+type GroupInfo struct {
+	Version    uint32
+	GroupName  string
+	EntityList []GroupEntityPair
+}
+
+func GetGroupInfo(groupId GroupHandle) (*GroupInfo, error) {
+	response := C.dcgmGroupInfo_v2{
+		version: C.dcgmGroupInfo_version2,
+	}
+
+	result := C.dcgmGroupGetInfo(handle.handle, groupId.handle, &response)
+	if err := errorString(result); err != nil {
+		return nil, err
+	}
+
+	ret := &GroupInfo{
+		Version:   uint32(response.version),
+		GroupName: C.GoString(&response.groupName[0]),
+	}
+
+	for i := 0; i < int(response.count); i++ {
+		ret.EntityList = append(ret.EntityList, GroupEntityPair{
+			EntityId:      uint(response.entityList[i].entityId),
+			EntityGroupId: Field_Entity_Group(response.entityList[i].entityGroupId),
+		})
+	}
+
+	return ret, nil
 }

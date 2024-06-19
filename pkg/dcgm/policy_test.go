@@ -119,7 +119,7 @@ func TestPolicyErrors(t *testing.T) {
 					int64(10),
 				)
 				if err == nil {
-					//inject a SBE too so that the health check code gets past its internal checks
+					// inject a SBE too so that the health check code gets past its internal checks
 					t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_RETIRED_SBE", gpu)
 					err = InjectFieldValue(gpu,
 						DCGM_FI_DEV_RETIRED_SBE,
@@ -206,12 +206,12 @@ func TestPolicyErrors(t *testing.T) {
 			},
 		},
 		{
-			//testcase: register multiple policy conditions
+			// testcase: register multiple policy conditions
 			policy:    []policyCondition{NvlinkPolicy, XidPolicy},
 			numErrors: 2,
 			injectError: func() error {
 				gpu := uint(rand.Intn(8) + 1)
-				//Inject a DBE error; since it has not registered DBEPolicy it will not get this event.
+				// Inject a DBE error; since it has not registered DBEPolicy it will not get this event.
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_ECC_DBE_VOL_DEV", gpu)
 				err := InjectFieldValue(gpu,
 					DCGM_FI_DEV_ECC_DBE_VOL_DEV,
@@ -220,6 +220,10 @@ func TestPolicyErrors(t *testing.T) {
 					time.Now().Add(60*time.Second).UnixMicro(),
 					int64(1),
 				)
+				if err != nil {
+					return err
+				}
+
 				gpu = uint(rand.Intn(8) + 1)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_XID_ERRORS", gpu)
 				err = InjectFieldValue(gpu,
@@ -229,6 +233,10 @@ func TestPolicyErrors(t *testing.T) {
 					time.Now().Add(60*time.Second).UnixMicro(),
 					int64(16),
 				)
+				if err != nil {
+					return err
+				}
+
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL", gpu)
 				err = InjectFieldValue(gpu,
 					DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL,
@@ -239,20 +247,24 @@ func TestPolicyErrors(t *testing.T) {
 				)
 				return err
 			},
-			assert: func(cb PolicyViolation, en int) {
-				switch en {
-				case 1:
-					require.NotNil(t, cb)
-					assert.Equal(t, XidPolicy, cb.Condition)
+			assert: func(cb PolicyViolation, _ int) {
+				require.NotNil(t, cb)
+
+				switch cb.Condition {
+				case XidPolicy:
 					require.IsType(t, XidPolicyCondition{}, cb.Data)
 					xidPolicyCondition := cb.Data.(XidPolicyCondition)
 					assert.Equal(t, uint(16), xidPolicyCondition.ErrNum)
-				case 2:
-					require.NotNil(t, cb)
-					assert.Equal(t, NvlinkPolicy, cb.Condition)
+				case NvlinkPolicy:
 					require.IsType(t, NvlinkPolicyCondition{}, cb.Data)
 					nvlinkPolicyCondition := cb.Data.(NvlinkPolicyCondition)
 					assert.Equal(t, uint(1), nvlinkPolicyCondition.Counter)
+				default:
+					require.FailNowf(
+						t,
+						"unexpected condition %s",
+						string(cb.Condition),
+					)
 				}
 			},
 		},
