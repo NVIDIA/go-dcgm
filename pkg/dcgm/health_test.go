@@ -60,7 +60,9 @@ func TestHealthCheckPCIE(t *testing.T) {
 
 	groupID, err := CreateGroup("test1")
 	require.NoError(t, err)
-	defer DestroyGroup(groupID)
+	defer func() {
+		_ = DestroyGroup(groupID)
+	}()
 	err = AddEntityToGroup(groupID, FE_GPU, gpuID)
 	require.NoError(t, err)
 
