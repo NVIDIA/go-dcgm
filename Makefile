@@ -13,6 +13,7 @@
 # limitations under the License.
 
 GOLANG_VERSION := 1.14.2
+GOLANGCILINT_TIMEOUT ?= 10m
 
 .PHONY: all binary install check-format
 all: binary test-main check-format
@@ -45,4 +46,4 @@ clean:
 	rm -f samples/topology/topology
 
 lint:
-	golangci-lint run ./...
+	golangci-lint run ./... --timeout $(GOLANGCILINT_TIMEOUT)  --new-from-rev=HEAD~1 --fix
