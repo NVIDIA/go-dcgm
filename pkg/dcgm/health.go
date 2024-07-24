@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package dcgm
 
 /*
@@ -5,6 +21,7 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"fmt"
 	"math/rand"
@@ -23,12 +40,82 @@ type DeviceHealth struct {
 	Watches []SystemWatch
 }
 
-func setHealthWatches(groupId GroupHandle) (err error) {
-	result := C.dcgmHealthSet(handle.handle, groupId.handle, C.DCGM_HEALTH_WATCH_ALL)
+// HealthSet enable the DCGM health check system for the given systems
+func HealthSet(groupId GroupHandle, systems HealthSystem) (err error) {
+	result := C.dcgmHealthSet(handle.handle, groupId.handle, C.dcgmHealthSystems_t(systems))
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error setting health watches: %s", err)
+		return fmt.Errorf("error setting health watches: %w", err)
 	}
 	return
+}
+
+// HealthGet retrieve the current state of the DCGM health check system
+func HealthGet(groupId GroupHandle) (HealthSystem, error) {
+	var systems C.dcgmHealthSystems_t
+
+	result := C.dcgmHealthGet(handle.handle, groupId.handle, (*C.dcgmHealthSystems_t)(unsafe.Pointer(&systems)))
+	if err := errorString(result); err != nil {
+		return HealthSystem(0), err
+	}
+	return HealthSystem(systems), nil
+}
+
+type DiagErrorDetail struct {
+	Message string
+	Code    HealthCheckErrorCode
+}
+
+type Incident struct {
+	System     HealthSystem
+	Health     HealthResult
+	Error      DiagErrorDetail
+	EntityInfo GroupEntityPair
+}
+
+type HealthResponse struct {
+	OverallHealth HealthResult
+	Incidents     []Incident
+}
+
+// HealthCheck check the configured watches for any errors/failures/warnings that have occurred
+// since the last time this check was invoked.  On the first call, stateful information
+// about all of the enabled watches within a group is created but no error results are
+// provided. On subsequent calls, any error information will be returned.
+func HealthCheck(groupId GroupHandle) (HealthResponse, error) {
+	var healthResults C.dcgmHealthResponse_v4
+	healthResults.version = makeVersion4(unsafe.Sizeof(healthResults))
+
+	result := C.dcgmHealthCheck(handle.handle, groupId.handle, (*C.dcgmHealthResponse_t)(unsafe.Pointer(&healthResults)))
+
+	if err := errorString(result); err != nil {
+		return HealthResponse{}, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+	}
+
+	response := HealthResponse{
+		OverallHealth: HealthResult(healthResults.overallHealth),
+	}
+
+	// number of watches that encountred error/warning
+	incidents := uint(healthResults.incidentCount)
+
+	response.Incidents = make([]Incident, incidents)
+
+	for i := uint(0); i < incidents; i++ {
+		response.Incidents[i] = Incident{
+			System: HealthSystem(healthResults.incidents[i].system),
+			Health: HealthResult(healthResults.incidents[i].health),
+			Error: DiagErrorDetail{
+				Message: *stringPtr(&healthResults.incidents[i].error.msg[0]),
+				Code:    HealthCheckErrorCode(healthResults.incidents[i].error.code),
+			},
+			EntityInfo: GroupEntityPair{
+				EntityGroupId: Field_Entity_Group(healthResults.incidents[i].entityInfo.entityGroupId),
+				EntityId:      uint(healthResults.incidents[i].entityInfo.entityId),
+			},
+		}
+	}
+
+	return response, nil
 }
 
 func healthCheckByGpuId(gpuId uint) (deviceHealth DeviceHealth, err error) {
@@ -43,32 +130,28 @@ func healthCheckByGpuId(gpuId uint) (deviceHealth DeviceHealth, err error) {
 		return
 	}
 
-	err = setHealthWatches(groupId)
+	err = HealthSet(groupId, DCGM_HEALTH_WATCH_ALL)
 	if err != nil {
 		return
 	}
 
-	var healthResults C.dcgmHealthResponse_v4
-	healthResults.version = makeVersion4(unsafe.Sizeof(healthResults))
-
-	result := C.dcgmHealthCheck(handle.handle, groupId.handle, (*C.dcgmHealthResponse_t)(unsafe.Pointer(&healthResults)))
-
-	if err = errorString(result); err != nil {
-		return deviceHealth, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+	result, err := HealthCheck(groupId)
+	if err != nil {
+		return
 	}
 
-	status := healthStatus(int8(healthResults.overallHealth))
+	status := healthStatus(result.OverallHealth)
 	watches := []SystemWatch{}
 
 	// number of watches that encountred error/warning
-	incidents := uint(healthResults.incidentCount)
+	incidents := len(result.Incidents)
 
-	for j := uint(0); j < incidents; j++ {
+	for j := 0; j < incidents; j++ {
 		watch := SystemWatch{
-			Type:   systemWatch(int(healthResults.incidents[j].system)),
-			Status: healthStatus(int8(healthResults.incidents[j].health)),
+			Type:   systemWatch(result.Incidents[j].System),
+			Status: healthStatus(result.Incidents[j].Health),
 
-			Error: *stringPtr(&healthResults.incidents[j].error.msg[0]),
+			Error: result.Incidents[j].Error.Message,
 		}
 		watches = append(watches, watch)
 	}
@@ -82,7 +165,7 @@ func healthCheckByGpuId(gpuId uint) (deviceHealth DeviceHealth, err error) {
 	return
 }
 
-func healthStatus(status int8) string {
+func healthStatus(status HealthResult) string {
 	switch status {
 	case 0:
 		return "Healthy"
@@ -94,7 +177,7 @@ func healthStatus(status int8) string {
 	return "N/A"
 }
 
-func systemWatch(watch int) string {
+func systemWatch(watch HealthSystem) string {
 	switch watch {
 	case 1:
 		return "PCIe watches"
