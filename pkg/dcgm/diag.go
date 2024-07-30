@@ -145,8 +145,12 @@ func RunDiag(diagType DiagType, groupId GroupHandle) (DiagResults, error) {
 	diagResults.version = makeVersion9(unsafe.Sizeof(diagResults))
 
 	result := C.dcgmRunDiagnostic(handle.handle, groupId.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v9)(unsafe.Pointer(&diagResults)))
-	if err := errorString(result); err != nil {
-		return DiagResults{}, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+	var err error
+	if err = errorString(result); err != nil {
+		err = &DcgmError{msg: err.Error(), Code: result}
+		if result != DCGM_ST_NVVS_ERROR {
+			return DiagResults{}, err
+		}
 	}
 
 	var diagRun DiagResults
@@ -165,5 +169,5 @@ func RunDiag(diagType DiagType, groupId GroupHandle) (DiagResults, error) {
 		diagRun.PerGpu = append(diagRun.PerGpu, gr)
 	}
 
-	return diagRun, nil
+	return diagRun, err
 }
