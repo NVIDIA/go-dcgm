@@ -28,15 +28,8 @@ type DiagResult struct {
 	ErrorMessage string
 }
 
-type GpuResult struct {
-	GPU         uint
-	RC          uint
-	DiagResults []DiagResult
-}
-
 type DiagResults struct {
 	Software []DiagResult
-	PerGpu   []GpuResult
 }
 
 func diagResultString(r int) string {
@@ -113,15 +106,45 @@ func gpuTestName(t int) string {
 	return ""
 }
 
-func newDiagResult(testResult C.dcgmDiagTestResult_v3, testName string) DiagResult {
-	msg := C.GoString((*C.char)(unsafe.Pointer(&testResult.error[0].msg)))
-	info := C.GoString((*C.char)(unsafe.Pointer(&testResult.info)))
+func getErrorMsg(entityId uint, response C.dcgmDiagResponse_v11) (string, uint) {
+	for i := 0; i < int(response.numErrors); i++ {
+		if uint(response.errors[i].entity.entityId) != entityId {
+			continue
+		}
+
+		msg := C.GoString((*C.char)(unsafe.Pointer(&response.errors[i].msg)))
+		code := uint(response.errors[i].code)
+		return msg, code
+	}
+
+	return "", 0
+}
+
+func getInfoMsg(entityId uint, response C.dcgmDiagResponse_v11) string {
+	for i := 0; i < int(response.numInfo); i++ {
+		if uint(response.info[i].entity.entityId) != entityId {
+			continue
+		}
+
+		msg := C.GoString((*C.char)(unsafe.Pointer(&response.info[i].msg)))
+		return msg
+	}
+
+	return ""
+}
+
+func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v11) DiagResult {
+	entityId := uint(response.results[resultIndex].entity.entityId)
+
+	msg, code := getErrorMsg(entityId, response)
+	info := getInfoMsg(entityId, response)
+	testName := swTestName(int(response.results[resultIndex].testId))
 
 	return DiagResult{
-		Status:       diagResultString(int(testResult.status)),
+		Status:       diagResultString(int(response.results[resultIndex].result)),
 		TestName:     testName,
 		TestOutput:   info,
-		ErrorCode:    uint(testResult.error[0].code),
+		ErrorCode:    uint(code),
 		ErrorMessage: msg,
 	}
 }
@@ -141,28 +164,18 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 }
 
 func RunDiag(diagType DiagType, groupId GroupHandle) (DiagResults, error) {
-	var diagResults C.dcgmDiagResponse_v9
-	diagResults.version = makeVersion9(unsafe.Sizeof(diagResults))
+	var diagResults C.dcgmDiagResponse_v11
+	diagResults.version = makeVersion11(unsafe.Sizeof(diagResults))
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupId.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v9)(unsafe.Pointer(&diagResults)))
+	result := C.dcgmRunDiagnostic(handle.handle, groupId.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v11)(unsafe.Pointer(&diagResults)))
 	if err := errorString(result); err != nil {
 		return DiagResults{}, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	var diagRun DiagResults
-	for i := 0; i < int(diagResults.levelOneTestCount); i++ {
-		dr := newDiagResult(diagResults.levelOneResults[i], swTestName(i))
+	for i := 0; i < int(diagResults.numResults); i++ {
+		dr := newDiagResult(uint(diagResults.results[i].entity.entityId), diagResults)
 		diagRun.Software = append(diagRun.Software, dr)
-	}
-
-	for i := uint(0); i < uint(diagResults.gpuCount); i++ {
-		r := diagResults.perGpuResponses[i]
-		gr := GpuResult{GPU: uint(r.gpuId), RC: uint(r.hwDiagnosticReturn)}
-		for j := 0; j < int(C.DCGM_PER_GPU_TEST_COUNT_V8); j++ {
-			dr := newDiagResult(r.results[j], gpuTestName(j))
-			gr.DiagResults = append(gr.DiagResults, dr)
-		}
-		diagRun.PerGpu = append(diagRun.PerGpu, gr)
 	}
 
 	return diagRun, nil

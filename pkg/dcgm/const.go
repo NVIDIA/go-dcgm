@@ -95,12 +95,13 @@ const (
 	DCGM_FI_SYNC_BOOST                              = 91
 	DCGM_FI_DEV_BAR1_USED                           = 92
 	DCGM_FI_DEV_BAR1_FREE                           = 93
+	DCGM_FI_DEV_GPM_SUPPORT                         = 94
 	DCGM_FI_DEV_SM_CLOCK                            = 100
 	DCGM_FI_DEV_MEM_CLOCK                           = 101
 	DCGM_FI_DEV_VIDEO_CLOCK                         = 102
 	DCGM_FI_DEV_APP_SM_CLOCK                        = 110
 	DCGM_FI_DEV_APP_MEM_CLOCK                       = 111
-	DCGM_FI_DEV_CLOCK_THROTTLE_REASONS              = 112
+	DCGM_FI_DEV_CLOCKS_EVENT_REASONS                = 112
 	DCGM_FI_DEV_MAX_SM_CLOCK                        = 113
 	DCGM_FI_DEV_MAX_MEM_CLOCK                       = 114
 	DCGM_FI_DEV_MAX_VIDEO_CLOCK                     = 115
@@ -120,6 +121,13 @@ const (
 	DCGM_FI_DEV_POWER_MGMT_LIMIT_MAX                = 162
 	DCGM_FI_DEV_POWER_MGMT_LIMIT_DEF                = 163
 	DCGM_FI_DEV_ENFORCED_POWER_LIMIT                = 164
+	DCGM_FI_DEV_REQUESTED_PERF_PROFILE_MASK         = 165
+	DCGM_FI_DEV_ENFORCED_PERF_PROFILE_MASK          = 166
+	DCGM_FI_DEV_VALID_PERF_PROFILE_MASK             = 167
+	DCGM_FI_DEV_FABRIC_MANAGER_STATUS               = 170
+	DCGM_FI_DEV_FABRIC_MANAGER_ERROR_CODE           = 171
+	DCGM_FI_DEV_FABRIC_CLUSTER_UUID                 = 172
+	DCGM_FI_DEV_FABRIC_CLIQUE_ID                    = 173
 	DCGM_FI_DEV_PSTATE                              = 190
 	DCGM_FI_DEV_FAN_SPEED                           = 191
 	DCGM_FI_DEV_PCIE_TX_THROUGHPUT                  = 200
@@ -177,6 +185,17 @@ const (
 	DCGM_FI_DEV_ECC_DBE_AGG_REG                     = 331
 	DCGM_FI_DEV_ECC_SBE_AGG_TEX                     = 332
 	DCGM_FI_DEV_ECC_DBE_AGG_TEX                     = 333
+	DCGM_FI_DEV_DIAG_MEMORY_RESULT                  = 350
+	DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT              = 351
+	DCGM_FI_DEV_DIAG_PCIE_RESULT                    = 352
+	DCGM_FI_DEV_DIAG_TARGETED_STRESS_RESULT         = 353
+	DCGM_FI_DEV_DIAG_TARGETED_POWER_RESULT          = 354
+	DCGM_FI_DEV_DIAG_MEMORY_BANDWIDTH_RESULT        = 355
+	DCGM_FI_DEV_DIAG_MEMTEST_RESULT                 = 356
+	DCGM_FI_DEV_DIAG_PULSE_TEST_RESULT              = 357
+	DCGM_FI_DEV_DIAG_EUD_TEST_RESULT                = 358
+	DCGM_FI_DEV_DIAG_SOFTWARE_RESULT                = 360
+	DCGM_FI_DEV_DIAG_NVBANDWIDTH_RESULT             = 361
 	DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_MAX          = 385
 	DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_HIGH         = 386
 	DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_PARTIAL      = 387
@@ -360,6 +379,14 @@ const (
 	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE1      = 814
 	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE2      = 815
 	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE3      = 816
+	DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE4      = 817
+	DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE5      = 818
+	DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE6      = 819
+	DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE7      = 820
+	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE4      = 821
+	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE5      = 822
+	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE6      = 823
+	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE7      = 824
 	DCGM_FI_DEV_NVSWITCH_FATAL_ERRORS               = 856
 	DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS           = 857
 	DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT        = 858
@@ -382,7 +409,7 @@ const (
 	DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_FUNCTION  = 875
 	DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_ID        = 876
 	DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_SID       = 877
-	DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_UUID           = 878
+	DCGM_FI_DEV_NVSWITCH_DEVICE_UUID                = 878
 	DCGM_FI_PROF_GR_ENGINE_ACTIVE                   = 1001
 	DCGM_FI_PROF_SM_ACTIVE                          = 1002
 	DCGM_FI_PROF_SM_OCCUPANCY                       = 1003
@@ -463,6 +490,8 @@ const (
 	DCGM_FI_DEV_CPU_CLOCK_CURRENT                   = 1120
 	DCGM_FI_DEV_CPU_POWER_UTIL_CURRENT              = 1130
 	DCGM_FI_DEV_CPU_POWER_LIMIT                     = 1131
+	DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT            = 1132
+	DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT           = 1133
 	DCGM_FI_DEV_CPU_VENDOR                          = 1140
 	DCGM_FI_DEV_CPU_MODEL                           = 1141
 	DCGM_FI_MAX_FIELDS                              = 1142
@@ -578,12 +607,13 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_SYNC_BOOST":                              91,
 	"DCGM_FI_DEV_BAR1_USED":                           92,
 	"DCGM_FI_DEV_BAR1_FREE":                           93,
+	"DCGM_FI_DEV_GPM_SUPPORT":                         94,
 	"DCGM_FI_DEV_SM_CLOCK":                            100,
 	"DCGM_FI_DEV_MEM_CLOCK":                           101,
 	"DCGM_FI_DEV_VIDEO_CLOCK":                         102,
 	"DCGM_FI_DEV_APP_SM_CLOCK":                        110,
 	"DCGM_FI_DEV_APP_MEM_CLOCK":                       111,
-	"DCGM_FI_DEV_CLOCK_THROTTLE_REASONS":              112,
+	"DCGM_FI_DEV_CLOCKS_EVENT_REASONS":                112,
 	"DCGM_FI_DEV_MAX_SM_CLOCK":                        113,
 	"DCGM_FI_DEV_MAX_MEM_CLOCK":                       114,
 	"DCGM_FI_DEV_MAX_VIDEO_CLOCK":                     115,
@@ -603,6 +633,13 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_POWER_MGMT_LIMIT_MAX":                162,
 	"DCGM_FI_DEV_POWER_MGMT_LIMIT_DEF":                163,
 	"DCGM_FI_DEV_ENFORCED_POWER_LIMIT":                164,
+	"DCGM_FI_DEV_REQUESTED_PERF_PROFILE_MASK":         165,
+	"DCGM_FI_DEV_ENFORCED_PERF_PROFILE_MASK":          166,
+	"DCGM_FI_DEV_VALID_PERF_PROFILE_MASK":             167,
+	"DCGM_FI_DEV_FABRIC_MANAGER_STATUS":               170,
+	"DCGM_FI_DEV_FABRIC_MANAGER_ERROR_CODE":           171,
+	"DCGM_FI_DEV_FABRIC_CLUSTER_UUID":                 172,
+	"DCGM_FI_DEV_FABRIC_CLIQUE_ID":                    173,
 	"DCGM_FI_DEV_PSTATE":                              190,
 	"DCGM_FI_DEV_FAN_SPEED":                           191,
 	"DCGM_FI_DEV_PCIE_TX_THROUGHPUT":                  200,
@@ -660,6 +697,17 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_ECC_DBE_AGG_REG":                     331,
 	"DCGM_FI_DEV_ECC_SBE_AGG_TEX":                     332,
 	"DCGM_FI_DEV_ECC_DBE_AGG_TEX":                     333,
+	"DCGM_FI_DEV_DIAG_MEMORY_RESULT":                  350,
+	"DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT":              351,
+	"DCGM_FI_DEV_DIAG_PCIE_RESULT":                    352,
+	"DCGM_FI_DEV_DIAG_TARGETED_STRESS_RESULT":         353,
+	"DCGM_FI_DEV_DIAG_TARGETED_POWER_RESULT":          354,
+	"DCGM_FI_DEV_DIAG_MEMORY_BANDWIDTH_RESULT":        355,
+	"DCGM_FI_DEV_DIAG_MEMTEST_RESULT":                 356,
+	"DCGM_FI_DEV_DIAG_PULSE_TEST_RESULT":              357,
+	"DCGM_FI_DEV_DIAG_EUD_TEST_RESULT":                358,
+	"DCGM_FI_DEV_DIAG_SOFTWARE_RESULT":                360,
+	"DCGM_FI_DEV_DIAG_NVBANDWIDTH_RESULT":             361,
 	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_MAX":          385,
 	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_HIGH":         386,
 	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_PARTIAL":      387,
@@ -843,6 +891,14 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE1":      814,
 	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE2":      815,
 	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE3":      816,
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE4":      817,
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE5":      818,
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE6":      819,
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE7":      820,
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE4":      821,
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE5":      822,
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE6":      823,
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE7":      824,
 	"DCGM_FI_DEV_NVSWITCH_FATAL_ERRORS":               856,
 	"DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS":           857,
 	"DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT":        858,
@@ -865,7 +921,7 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_FUNCTION":  875,
 	"DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_ID":        876,
 	"DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_SID":       877,
-	"DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_UUID":           878,
+	"DCGM_FI_DEV_NVSWITCH_DEVICE_UUID":                878,
 	"DCGM_FI_PROF_GR_ENGINE_ACTIVE":                   1001,
 	"DCGM_FI_PROF_SM_ACTIVE":                          1002,
 	"DCGM_FI_PROF_SM_OCCUPANCY":                       1003,
@@ -946,6 +1002,8 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_CPU_CLOCK_CURRENT":                   1120,
 	"DCGM_FI_DEV_CPU_POWER_UTIL_CURRENT":              1130,
 	"DCGM_FI_DEV_CPU_POWER_LIMIT":                     1131,
+	"DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT":            1132,
+	"DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT":           1133,
 	"DCGM_FI_DEV_CPU_VENDOR":                          1140,
 	"DCGM_FI_DEV_CPU_MODEL":                           1141,
 	"DCGM_FI_MAX_FIELDS":                              1142,
@@ -1139,5 +1197,12 @@ const (
 	DCGM_FR_PCIE_REPLAY_THRESHOLD_VIOLATION HealthCheckErrorCode = 107 // 107 PCIE replay count violated
 	DCGM_FR_CUDA_FM_NOT_INITIALIZED         HealthCheckErrorCode = 108 // 108 The fabricmanager is not initialized
 	DCGM_FR_SXID_ERROR                      HealthCheckErrorCode = 109 // 109 NvSwitch fatal error detected
-	DCGM_FR_ERROR_SENTINEL                  HealthCheckErrorCode = 110 // 110 MUST BE THE LAST ERROR CODE
+	DCGM_FR_GFLOPS_THRESHOLD_VIOLATION      HealthCheckErrorCode = 110 // 110 GPU GFLOPs threshold violated
+	DCGM_FR_NAN_VALUE                       HealthCheckErrorCode = 111 // 111 NaN value detected on this GPU
+	DCGM_FR_FABRIC_MANAGER_TRAINING_ERROR   HealthCheckErrorCode = 112 // 112 Fabric Manager did not finish training
+	DCGM_FR_BROKEN_P2P_PCIE_MEMORY_DEVICE   HealthCheckErrorCode = 113 // 113 P2P copy test detected an error writing to this GPU over PCIE
+	DCGM_FR_BROKEN_P2P_PCIE_WRITER_DEVICE   HealthCheckErrorCode = 114 // 114 P2P copy test detected an error writing from this GPU over PCIE
+	DCGM_FR_BROKEN_P2P_NVLINK_MEMORY_DEVICE HealthCheckErrorCode = 115 // 115 P2P copy test detected an error writing to this GPU over NVLink
+	DCGM_FR_BROKEN_P2P_NVLINK_WRITER_DEVICE HealthCheckErrorCode = 116 // 116 P2P copy test detected an error writing from this GPU over NVLink
+	DCGM_FR_ERROR_SENTINEL                  HealthCheckErrorCode = 117 //!< 117 MUST BE THE LAST ERROR CODE
 )

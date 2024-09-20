@@ -327,8 +327,7 @@ func registerPolicy(ctx context.Context, groupId GroupHandle, typ ...policyCondi
 		return nil, err
 	}
 
-	var finishCallback unsafe.Pointer
-	result := C.dcgmPolicyRegister(handle.handle, groupId.handle, C.dcgmPolicyCondition_t(condition), C.fpRecvUpdates(C.violationNotify), C.fpRecvUpdates(finishCallback))
+	result := C.dcgmPolicyRegister_v2(handle.handle, groupId.handle, C.dcgmPolicyCondition_t(condition), C.fpRecvUpdates(C.violationNotify), C.ulong(0))
 
 	if err = errorString(result); err != nil {
 		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}

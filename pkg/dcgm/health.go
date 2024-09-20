@@ -82,8 +82,8 @@ type HealthResponse struct {
 // about all of the enabled watches within a group is created but no error results are
 // provided. On subsequent calls, any error information will be returned.
 func HealthCheck(groupId GroupHandle) (HealthResponse, error) {
-	var healthResults C.dcgmHealthResponse_v4
-	healthResults.version = makeVersion4(unsafe.Sizeof(healthResults))
+	var healthResults C.dcgmHealthResponse_v5
+	healthResults.version = makeVersion5(unsafe.Sizeof(healthResults))
 
 	result := C.dcgmHealthCheck(handle.handle, groupId.handle, (*C.dcgmHealthResponse_t)(unsafe.Pointer(&healthResults)))
 
