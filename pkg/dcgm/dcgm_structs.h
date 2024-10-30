@@ -206,10 +206,10 @@
 /**
  * Number of NvLink links per NvSwitch supported by DCGM
  */
-#define DCGM_NVLINK_MAX_LINKS_PER_NVSWITCH 64
+#define DCGM_NVLINK_MAX_LINKS_PER_NVSWITCH 256
 
 /**
- * Number of Lines per NvSwitch NvLink supported by DCGM
+ * Number of Lanes per NvSwitch NvLink supported by DCGM
  */
 #define DCGM_LANE_MAX_LANES_PER_NVSWICH_LINK 4
 
@@ -494,8 +494,8 @@ typedef struct dcgm_link_s
     {
         struct
         {
-            dcgm_field_entity_group_t type : 8; /*!< Entity Group */
-            uint8_t index                  : 8; /*!< Link Index Tx before Rx */
+            dcgm_field_entity_group_t type : 8;  /*!< Entity Group */
+            uint32_t index                 : 32; /*!< Link Index Tx before Rx */
             union
             {
                 dcgm_field_eid_t gpuId    : 16; /*!< Physical GPU ID */
@@ -657,6 +657,9 @@ typedef enum
     DcgmMigProfileGpuInstanceSlice1Rev1     = 8,  /*!< GPU instance slice 1 revision 1 */
     DcgmMigProfileGpuInstanceSlice2Rev1     = 9,  /*!< GPU instance slice 2 revision 1 */
     DcgmMigProfileGpuInstanceSlice1Rev2     = 10, /*!< GPU instance slice 1 revision 2 */
+    DcgmMigProfileGpuInstanceSlice1GFX      = 11, /*!< GPU instance slice 1 GFX */
+    DcgmMigProfileGpuInstanceSlice2GFX      = 12, /*!< GPU instance slice 2 GFX */
+    DcgmMigProfileGpuInstanceSlice4GFX      = 13, /*!< GPU instance slice 4 GFX */
     DcgmMigProfileComputeInstanceSlice1     = 30, /*!< compute instance slice 1 */
     DcgmMigProfileComputeInstanceSlice2     = 31, /*!< compute instance slice 2 */
     DcgmMigProfileComputeInstanceSlice3     = 32, /*!< compute instance slice 3 */
@@ -1603,69 +1606,71 @@ typedef dcgmComputeInstanceProfiles_v1 dcgmComputeInstanceProfiles_t;
 #define DCGM_DEVICE_UUID_BUFFER_SIZE 80
 
 /**
- * Performance profile information
+ * Workload power profile information
  */
 
-#define DCGM_PERF_PROFILE_ARRAY_SIZE         8
-#define DCGM_PERF_PROFILE_MASK_BITS_PER_ELEM 32
-#define DCGM_PERF_PROFILE_MAX_NUM            (255)
+#define DCGM_POWER_PROFILE_ARRAY_SIZE         8
+#define DCGM_POWER_PROFILE_MASK_BITS_PER_ELEM 32
+#define DCGM_POWER_PROFILE_MAX_NUM            (255)
 typedef enum
 {
-    DCGM_PERF_PROFILE_MAX_P         = 0,
-    DCGM_PERF_PROFILE_MAX_Q         = 1,
-    DCGM_PERF_PROFILE_COMPUTE       = 2,
-    DCGM_PERF_PROFILE_MEMORY_BOUND  = 3,
-    DCGM_PERF_PROFILE_NETWORK       = 4,
-    DCGM_PERF_PROFILE_BALANCED      = 5,
-    DCGM_PERF_PROFILE_LLM_INFERENCE = 6,
-    DCGM_PERF_PROFILE_LLM_TRAINING  = 7,
-    DCGM_PERF_PROFILE_RBM           = 8,
-    DCGM_PERF_PROFILE_DCPCIE        = 9,
-    DCGM_PERF_PROFILE_HMMA_SPARSE   = 10,
-    DCGM_PERF_PROFILE_HMMA_DENSE    = 11,
-    DCGM_PERF_PROFILE_SYNC_BALANCED = 12,
-    DCGM_PERF_PROFILE_HPC           = 13,
-    DCGM_PERF_PROFILE_MIG           = 14,
-    DCGM_PERF_PROFILE_MAX           = 15,
-} dcgmPerfProfileType_t;
+    DCGM_POWER_PROFILE_MAX_P         = 0,
+    DCGM_POWER_PROFILE_MAX_Q         = 1,
+    DCGM_POWER_PROFILE_COMPUTE       = 2,
+    DCGM_POWER_PROFILE_MEMORY_BOUND  = 3,
+    DCGM_POWER_PROFILE_NETWORK       = 4,
+    DCGM_POWER_PROFILE_BALANCED      = 5,
+    DCGM_POWER_PROFILE_LLM_INFERENCE = 6,
+    DCGM_POWER_PROFILE_LLM_TRAINING  = 7,
+    DCGM_POWER_PROFILE_RBM           = 8,
+    DCGM_POWER_PROFILE_DCPCIE        = 9,
+    DCGM_POWER_PROFILE_HMMA_SPARSE   = 10,
+    DCGM_POWER_PROFILE_HMMA_DENSE    = 11,
+    DCGM_POWER_PROFILE_SYNC_BALANCED = 12,
+    DCGM_POWER_PROFILE_HPC           = 13,
+    DCGM_POWER_PROFILE_MIG           = 14,
+    DCGM_POWER_PROFILE_MAX           = 15,
+} dcgmPowerProfileType_t;
 
 typedef struct
 {
     unsigned int version; //!< the API version number
-    dcgmPerfProfileType_t
-        profileId;         //<! Performance Profile Id to provide semantic name such as compute, Memory, Max-Q...
+    dcgmPowerProfileType_t
+        profileId;         //<! Workload Power Profile Id to provide semantic name such as compute, Memory, Max-Q...
     unsigned int priority; //<! Priority of the profile
-    unsigned int conflictingMask[DCGM_PERF_PROFILE_ARRAY_SIZE]; //<! Mask of conflicting performance profiles
-} dcgmPerfProfileInfo_v1;
-typedef dcgmPerfProfileInfo_v1 dcgmPerfProfileInfo_t;
-#define dcgmPerfProfileInfo_version1 MAKE_DCGM_VERSION(dcgmPerfProfileInfo_v1, 1)
-#define dcgmPerfProfileInfo_version  dcgmPerfProfileInfo_version1
+    unsigned int conflictingMask[DCGM_POWER_PROFILE_ARRAY_SIZE]; //<! Mask of conflicting workload power profiles
+} dcgmWorkloadPowerProfileInfo_v1;
+typedef dcgmWorkloadPowerProfileInfo_v1 dcgmWorkloadPowerProfileInfo_t;
+#define dcgmWorkloadPowerProfileInfo_version1 MAKE_DCGM_VERSION(dcgmWorkloadPowerProfileInfo_v1, 1)
+#define dcgmWorkloadPowerProfileInfo_version  dcgmWorkloadPowerProfileInfo_version1
 
 typedef struct
 {
-    unsigned int version;                                          //!< the API version number
-    dcgmPerfProfileInfo_v1 perfProfile[DCGM_PERF_PROFILE_MAX_NUM]; //!< Array of performance profile info parameters
-} dcgmPerfProfileProfilesInfo_v1;
-typedef dcgmPerfProfileProfilesInfo_v1 dcgmPerfProfileProfilesInfo_t;
-#define dcgmPerfProfileProfilesInfo_version1 MAKE_DCGM_VERSION(dcgmPerfProfileProfilesInfo_v1, 1)
-#define dcgmPerfProfileProfilesInfo_version  dcgmPerfProfileProfilesInfo_version1
+    unsigned int version; //!< the API version number
+    dcgmWorkloadPowerProfileInfo_v1
+        workloadPowerProfile[DCGM_POWER_PROFILE_MAX_NUM]; //!< Array of workload power profile info parameters
+    unsigned int profileCount;
+} dcgmWorkloadPowerProfileProfilesInfo_v1;
+typedef dcgmWorkloadPowerProfileProfilesInfo_v1 dcgmWorkloadPowerProfileProfilesInfo_t;
+#define dcgmWorkloadPowerProfileProfilesInfo_version1 MAKE_DCGM_VERSION(dcgmWorkloadPowerProfileProfilesInfo_v1, 1)
+#define dcgmWorkloadPowerProfileProfilesInfo_version  dcgmWorkloadPowerProfileProfilesInfo_version1
 
 /**
- * Device performance profile information
+ * Device workload profile information
  *
  */
 typedef struct
 {
     unsigned int version; //!< the API version number
 
-    unsigned int profileMask[DCGM_PERF_PROFILE_ARRAY_SIZE];          //!< Bitmask of valid performance profiles
-    unsigned int requestedProfileMask[DCGM_PERF_PROFILE_ARRAY_SIZE]; //<! Bitmask of requested performance profiles
-    unsigned int enforcedProfileMask[DCGM_PERF_PROFILE_ARRAY_SIZE];  //<! Bitmask of enforced performance profiles
-} dcgmDevicePerfProfilesStatus_v1;
+    unsigned int profileMask[DCGM_POWER_PROFILE_ARRAY_SIZE];          //!< Bitmask of valid workload power profiles
+    unsigned int requestedProfileMask[DCGM_POWER_PROFILE_ARRAY_SIZE]; //<! Bitmask of requested workload power profiles
+    unsigned int enforcedProfileMask[DCGM_POWER_PROFILE_ARRAY_SIZE];  //<! Bitmask of enforced workload power profiles
+} dcgmDeviceWorkloadPowerProfilesStatus_v1;
 
-typedef dcgmDevicePerfProfilesStatus_v1 dcgmDevicePerfProfilesStatus_t;
-#define dcgmDevicePerfProfilesStatus_version1 MAKE_DCGM_VERSION(dcgmDevicePerfProfilesStatus_v1, 1)
-#define dcgmDevicePerfProfilesStatus_version  dcgmDevicePerfProfilesStatus_version1
+typedef dcgmDeviceWorkloadPowerProfilesStatus_v1 dcgmDeviceWorkloadPowerProfilesStatus_t;
+#define dcgmDeviceWorkloadPowerProfilesStatus_version1 MAKE_DCGM_VERSION(dcgmDeviceWorkloadPowerProfilesStatus_v1, 1)
+#define dcgmDeviceWorkloadPowerProfilesStatus_version  dcgmDeviceWorkloadPowerProfilesStatus_version1
 
 /**
  * Used to represent Performance state settings
@@ -1709,7 +1714,7 @@ typedef struct
     unsigned int computeMode; //!< Compute Mode (One of DCGM_CONFIG_COMPUTEMODE_? OR DCGM_INT32_BLANK to Ignore)
     dcgmConfigPerfStateSettings_t perfState; //!< Performance State Settings (clocks / boost mode)
     dcgmConfigPowerLimit_t powerLimit;       //!< Power Limits
-    unsigned int perfProfiles[DCGM_PERF_PROFILE_ARRAY_SIZE];
+    unsigned int workloadPowerProfiles[DCGM_POWER_PROFILE_ARRAY_SIZE];
 } dcgmConfig_v2;
 
 /**
@@ -2912,6 +2917,33 @@ typedef dcgmDiagResponse_v11 dcgmDiagResponse_t;
 #define dcgmDiagResponse_version dcgmDiagResponse_version11
 
 /**
+ * Diagnostics live status structure v1
+ *
+ * Since DCGM 4.0
+ */
+typedef struct
+{
+    unsigned int version;        //!< The version of this struct
+    unsigned int totalTests;     //!< The number of tests that will execute
+    unsigned int completedTests; //!< The number of tests that have completed.
+    char testName[128];          //!< The last completed test's name
+    unsigned int errorCode;      //!< The last completed test's first error code -
+                                 //!< DCGM_FR_OK for success, otherwise DCGM_FR_*.
+} dcgmDiagStatus_v1;
+
+typedef dcgmDiagStatus_v1 dcgmDiagStatus_t;
+
+/**
+ * Version 1 for \ref dcgmDiagStatus_v1
+ */
+#define dcgmDiagStatus_version1 MAKE_DCGM_VERSION(dcgmDiagStatus_v1, 1)
+
+/**
+ * Latest version for \ref dcgmDiagStatus_t
+ */
+#define dcgmDiagStatus_version dcgmDiagStatus_version1
+
+/**
  * Represents level relationships within a system between two GPUs
  * The enums are spaced to allow for future relationships.
  * These match the definitions in nvml.h
@@ -3097,6 +3129,8 @@ typedef dcgmIntrospectCpuUtil_v1 dcgmIntrospectCpuUtil_t;
 #define DCGM_FILE_LEN              30
 #define DCGM_PATH_LEN              128
 #define DCGM_CLOCKS_EVENT_MASK_LEN 50
+#define DCGM_IGNORE_ERROR_MAX_LEN  512
+
 // Deprecated: Use DCGM_CLOCKS_EVENT_MASK_LEN instead
 #define DCGM_THROTTLE_MASK_LEN DCGM_CLOCKS_EVENT_MASK_LEN
 
@@ -3242,12 +3276,54 @@ typedef struct
     char expectedNumEntities[DCGM_EXPECTED_ENTITIES_LEN]; //!< The expected number of entities the diag will run on.
     char entityIds[DCGM_ENTITY_ID_LIST_LEN]; //!< Comma-separated list of entity ids. Cannot be specified with the
                                              //!< groupId.
+    unsigned int watchFrequency;             //!< The watch frequency for fields being watched
 } dcgmRunDiag_v9;
 
 /**
  * Version 9 for \ref dcgmRunDiag_t
  */
 #define dcgmRunDiag_version9 MAKE_DCGM_VERSION(dcgmRunDiag_v9, 9)
+
+/*
+ * Run diagnostic structure v10
+ */
+typedef struct
+{
+    unsigned int version;    //!< version of this message
+    unsigned int flags;      //!< flags specifying binary options for running it. See DCGM_RUN_FLAGS_*
+    unsigned int debugLevel; //!< 0-5 for the debug level the GPU diagnostic will use for logging.
+    dcgmGpuGrp_t groupId; //!< group of GPUs to verify. Cannot be specified together with entityIds. When entityIds is
+                          //!< specified, this value should be set to DCGM_GROUP_NULL.
+    dcgmPolicyValidation_t validate;                              //!< 0-3 for which tests to run. Optional.
+    char testNames[DCGM_MAX_TEST_NAMES][DCGM_MAX_TEST_NAMES_LEN]; //!< Specified list of test names. Optional.
+    char testParms[DCGM_MAX_TEST_PARMS]
+                  [DCGM_MAX_TEST_PARMS_LEN_V2]; //!< Parameters to set for specified tests
+                                                //!< in the format:
+                                                //!< testName.parameterName=parameterValue. Optional.
+    char fakeGpuList[DCGM_GPU_LIST_LEN]; //!< Comma-separated list of GPUs. Cannot be specified with the groupId or
+                                         //!< entityIds.
+    char debugLogFile[DCGM_PATH_LEN];    //!< Alternate name for the debug log file that should be used
+    char statsPath[DCGM_PATH_LEN];       //!< Path that the plugin's statistics files should be written to
+    char configFileContents[DCGM_MAX_CONFIG_FILE_LEN]; //!< Contents of nvvs config file (likely yaml)
+    char clocksEventMask[DCGM_CLOCKS_EVENT_MASK_LEN];  //!< Clocks event reasons to ignore as either integer mask or
+    //!< csv list of reasons
+    char pluginPath[DCGM_PATH_LEN]; //!< Custom path to the diagnostic plugins - No longer supported as of 2.2.9
+    unsigned int currentIteration;  //!< The current iteration that will be executed
+    unsigned int totalIterations;   //!< The total iterations that will be executed
+    unsigned int timeoutSeconds;    //!< The timeout for the diagnostic in seconds
+    char _unusedBuf[DCGM_PATH_LEN]; //!< No longer used
+    unsigned int failCheckInterval; //!< How often the fail early checks should occur when enabled.
+    char expectedNumEntities[DCGM_EXPECTED_ENTITIES_LEN]; //!< The expected number of entities the diag will run on.
+    char entityIds[DCGM_ENTITY_ID_LIST_LEN]; //!< Comma-separated list of entity ids. Cannot be specified with the
+                                             //!< groupId.
+    unsigned int watchFrequency;             //!< The watch frequency for fields being watched
+    char ignoreErrorCodes[DCGM_IGNORE_ERROR_MAX_LEN]; //!< String of error codes to be ignored on different entities
+} dcgmRunDiag_v10;
+
+/**
+ * Version 10 for \ref dcgmRunDiag_t
+ */
+#define dcgmRunDiag_version10 MAKE_DCGM_VERSION(dcgmRunDiag_v10, 10)
 
 /**
  * Flags for dcgmGetEntityGroupEntities's flags parameter
@@ -3348,14 +3424,14 @@ typedef struct
     dcgmNvLinkGpuLinkStatus_v3 gpus[DCGM_MAX_NUM_DEVICES]; //!< Per-GPU NvLink link statuses
     unsigned int numNvSwitches;                            //!< Number of entries in nvSwitches[] that are populated
     dcgmNvLinkNvSwitchLinkStatus_t nvSwitches[DCGM_MAX_NUM_SWITCHES]; //!< Per-NvSwitch link statuses
-} dcgmNvLinkStatus_v3;
+} dcgmNvLinkStatus_v4;
 
-typedef dcgmNvLinkStatus_v3 dcgmNvLinkStatus_t;
+typedef dcgmNvLinkStatus_v4 dcgmNvLinkStatus_t;
 
 /**
- * Version 3 of dcgmNvLinkStatus
+ * Version 4 of dcgmNvLinkStatus
  */
-#define dcgmNvLinkStatus_version3 MAKE_DCGM_VERSION(dcgmNvLinkStatus_v3, 3)
+#define dcgmNvLinkStatus_version4 MAKE_DCGM_VERSION(dcgmNvLinkStatus_v4, 4)
 
 /* Bitmask values for dcgmGetFieldIdSummary - Sync with DcgmcmSummaryType_t */
 #define DCGM_SUMMARY_MIN      0x00000001

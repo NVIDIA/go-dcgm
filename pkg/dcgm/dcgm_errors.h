@@ -155,7 +155,8 @@ typedef enum dcgmError_enum
         = 115, //!< 115 P2P copy test detected an error writing to this GPU over NVLink
     DCGM_FR_BROKEN_P2P_NVLINK_WRITER_DEVICE
         = 116,                    //!< 116 P2P copy test detected an error writing from this GPU over NVLink
-    DCGM_FR_ERROR_SENTINEL = 117, //!< 117 MUST BE THE LAST ERROR CODE
+    DCGM_FR_TEST_SKIPPED   = 117, //!< 117 Indicates that the test was skipped
+    DCGM_FR_ERROR_SENTINEL = 118, //!< 117 MUST BE THE LAST ERROR CODE
 } dcgmError_t;
 
 typedef enum dcgmErrorSeverity_enum
@@ -339,7 +340,7 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
     "minimum allowed link generation of %d (parameter '%s')"
 #define DCGM_FR_ABORTED_MSG "Test was aborted early due to user signal"
 // Test name
-#define DCGM_FR_TEST_DISABLED_MSG "The %s test is skipped for this GPU."
+#define DCGM_FR_TEST_DISABLED_MSG "The %s test is skipped."
 // stat name, gpu id
 #define DCGM_FR_CANNOT_GET_STAT_MSG "Unable to generate / collect stat %s for GPU %u"
 // observed value, minimum allowed, gpu id
@@ -472,6 +473,7 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_GFLOPS_THRESHOLD_VIOLATION_MSG      "Detected %.2f %s for GPU %u which is below the threshold %.2f"
 #define DCGM_FR_NAN_VALUE_MSG                       "Found %lld NaN-value memory elements on GPU %u"
 #define DCGM_FR_FABRIC_MANAGER_TRAINING_ERROR_MSG   "Fabric Manager (Cluster UUID: %s, Clique ID: %ld): %s."
+#define DCGM_FR_TEST_SKIPPED_MSG                    "Test %s was skipped."
 #define DCGM_FR_ERROR_SENTINEL_MSG                  "" /* See message inplace */
 
 /*
@@ -643,6 +645,7 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
     "if so, and if errors are persistent, please run a field diagnostic."
 #define DCGM_FR_NAN_VALUE_NEXT                     TRIAGE_RUN_FIELD_DIAG_MSG
 #define DCGM_FR_FABRIC_MANAGER_TRAINING_ERROR_NEXT DCGM_FR_CUDA_FM_NOT_INITIALIZED_NEXT
+#define DCGM_FR_TEST_SKIPPED_NEXT                  ""
 #define DCGM_FR_ERROR_SENTINEL_NEXT                "" /* See message inplace */
 
 #ifdef __cplusplus

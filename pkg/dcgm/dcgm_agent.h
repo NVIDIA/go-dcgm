@@ -403,7 +403,7 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmGetGpuInstanceHierarchy(dcgmHandle_t dcgmHandle
  *        - \ref DCGM_ST_NOT_SUPPORTED     if the given entityGroup does not support enumeration.
  *        - \ref DCGM_ST_BADPARAM          if any parameter is invalid
  */
-dcgmReturn_t DCGM_PUBLIC_API dcgmGetNvLinkLinkStatus(dcgmHandle_t dcgmHandle, dcgmNvLinkStatus_v3 *linkStatus);
+dcgmReturn_t DCGM_PUBLIC_API dcgmGetNvLinkLinkStatus(dcgmHandle_t dcgmHandle, dcgmNvLinkStatus_v4 *linkStatus);
 
 
 /**
@@ -1657,7 +1657,7 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate(dcgmHandle_t pDcgmHandle,
  *                                            currently not allowed.
  */
 dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate_v2(dcgmHandle_t pDcgmHandle,
-                                                   dcgmRunDiag_v9 *drd,
+                                                   dcgmRunDiag_v10 *drd,
                                                    dcgmDiagResponse_v11 *response);
 
 
@@ -1717,13 +1717,13 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyTrigger(dcgmHandle_t pDcgmHandle);
 /** @} */ // Closing for DCGMAPI_Admin_ExecCtrl
 
 /**
- * Gets device performance profile information and status.
+ * Gets device workload power profile information and status.
  *
  * @param pDcgmHandle             IN: DCGM Handle
  * @param gpuId                   IN: GPU Id corresponding to which topology information should be fetched
- * @param profilesInfo           OUT: Information about each of the supported performance profiles available on this
+ * @param profilesInfo           OUT: Information about each of the supported workload power profiles available on this
  *                                    device
- * @param profilesStatus         OUT: Currently active, requested, and enforced performance profiles on this device
+ * @param profilesStatus         OUT: Currently active, requested, and enforced workload power profiles on this device
  *
  * @return
  *        - \ref DCGM_ST_OK                   if the call was successful.
@@ -1731,10 +1731,11 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyTrigger(dcgmHandle_t pDcgmHandle);
  *        - \ref DCGM_ST_VER_MISMATCH         if profileInfo or profileStatus were not set to the correct versions.
  *
  */
-dcgmReturn_t DCGM_PUBLIC_API dcgmGetDevicePerfProfileInfo(dcgmHandle_t pDcgmHandle,
-                                                          unsigned int gpuId,
-                                                          dcgmPerfProfileProfilesInfo_v1 *profilesInfo,
-                                                          dcgmDevicePerfProfilesStatus_v1 *profileStatus);
+dcgmReturn_t DCGM_PUBLIC_API
+dcgmGetDeviceWorkloadPowerProfileInfo(dcgmHandle_t pDcgmHandle,
+                                      unsigned int gpuId,
+                                      dcgmWorkloadPowerProfileProfilesInfo_v1 *profilesInfo,
+                                      dcgmDeviceWorkloadPowerProfilesStatus_v1 *profileStatus);
 
 /***************************************************************************************************/
 /** @defgroup DCGMAPI_Topo Topology

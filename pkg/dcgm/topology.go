@@ -142,8 +142,8 @@ type NvLinkStatus struct {
 }
 
 func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
-	var linkStatus C.dcgmNvLinkStatus_v3
-	linkStatus.version = makeVersion3(unsafe.Sizeof(linkStatus))
+	var linkStatus C.dcgmNvLinkStatus_v4
+	linkStatus.version = makeVersion4(unsafe.Sizeof(linkStatus))
 
 	var links []NvLinkStatus
 

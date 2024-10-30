@@ -632,22 +632,22 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_ENFORCED_POWER_LIMIT 164
 
 /**
- * Requested performance profile mask(Blackwell and newer)
+ * Requested workload power profile mask(Blackwell and newer)
  *
  */
-#define DCGM_FI_DEV_REQUESTED_PERF_PROFILE_MASK 165
+#define DCGM_FI_DEV_REQUESTED_POWER_PROFILE_MASK 165
 
 /**
- * Enforced performance profile mask(Blackwell and newer)
+ * Enforced workload power profile mask(Blackwell and newer)
  *
  */
-#define DCGM_FI_DEV_ENFORCED_PERF_PROFILE_MASK 166
+#define DCGM_FI_DEV_ENFORCED_POWER_PROFILE_MASK 166
 
 /**
- * Requested performance profile mask(Blackwell and newer)
+ * Requested workload power profile mask(Blackwell and newer)
  *
  */
-#define DCGM_FI_DEV_VALID_PERF_PROFILE_MASK 167
+#define DCGM_FI_DEV_VALID_POWER_PROFILE_MASK 167
 
 /**
  * The status of the fabric manager - a value from dcgmFabricManagerStatus_t.
@@ -1033,7 +1033,13 @@ typedef unsigned int dcgm_field_eid_t;
  * Result of the Extended Utility Diagnostics (EUD) test
  * Refers to a `int64_t` storing a value drawn from `dcgmError_t` enumeration
  */
-#define DCGM_FI_DEV_DIAG_EUD_TEST_RESULT 358
+#define DCGM_FI_DEV_DIAG_EUD_RESULT 358
+
+/**
+ * Result of the CPU Extended Utility Diagnostics (CPU EUD) test
+ * Refers to a `int64_t` storing a value drawn from `dcgmError_t` enumeration
+ */
+#define DCGM_FI_DEV_DIAG_CPU_EUD_RESULT 359
 
 /**
  * Result of the Software test
@@ -1047,7 +1053,13 @@ typedef unsigned int dcgm_field_eid_t;
  */
 #define DCGM_FI_DEV_DIAG_NVBANDWIDTH_RESULT 361
 
-/* Values from 362-380 reserved for future use */
+/*
+ * Status of the current diag run
+ * Refers to a binary blob of a `dcgmDiagStatus_t` struct
+ */
+#define DCGM_FI_DEV_DIAG_STATUS 362
+
+/* Values from 363-380 reserved for future use */
 
 /**
  * Historical max available spare memory rows per memory bank
@@ -1475,6 +1487,21 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVLINK_BANDWIDTH_L15 494
 #define DCGM_FI_DEV_NVLINK_BANDWIDTH_L16 495
 #define DCGM_FI_DEV_NVLINK_BANDWIDTH_L17 496
+
+/*
+ * NVLink CRC Error Counter
+ */
+#define DCGM_FI_DEV_NVLINK_ERROR_DL_CRC 497
+
+/*
+ * NVLink Recovery Error Counter
+ */
+#define DCGM_FI_DEV_NVLINK_ERROR_DL_RECOVERY 498
+
+/*
+ * NVLink Replay Error Counter
+ */
+#define DCGM_FI_DEV_NVLINK_ERROR_DL_REPLAY 499
 
 /**
  * Virtualization Mode corresponding to the GPU.
@@ -2234,6 +2261,14 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_PROF_NVLINK_THROUGHPUT_LAST DCGM_FI_PROF_NVLINK_L17_RX_BYTES
 
 /**
+ * C2C (Chip-to-Chip) interface metrics.
+ */
+#define DCGM_FI_PROF_C2C_TX_ALL_BYTES  1076
+#define DCGM_FI_PROF_C2C_TX_DATA_BYTES 1077
+#define DCGM_FI_PROF_C2C_RX_ALL_BYTES  1078
+#define DCGM_FI_PROF_C2C_RX_DATA_BYTES 1079
+
+/**
  * CPU Utilization, total
  */
 #define DCGM_FI_DEV_CPU_UTIL_TOTAL 1100
@@ -2309,9 +2344,89 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_CPU_MODEL 1141
 
 /**
+ * Total Tx packets on the link in NVLink5
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_TX_PACKETS 1200
+
+/**
+ * Total Tx bytes on the link in NVLink5
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_TX_BYTES 1201
+
+/**
+ * Total Rx packets on the link in NVLink5
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_RX_PACKETS 1202
+
+/**
+ * Total Rx bytes on the link in NVLink5
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_RX_BYTES 1203
+
+/**
+ * Number of packets Rx on a link where packets are malformed
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_RX_MALFORMED_PACKET_ERRORS 1204
+
+/**
+ * Number of packets that were discarded on Rx due to buffer overrun
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_RX_BUFFER_OVERRUN_ERRORS 1205
+
+/**
+ * Total number of packets with errors Rx on a link
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_RX_ERRORS 1206
+
+/**
+ * Total number of packets Rx - stomp/EBP marker
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_RX_REMOTE_ERRORS 1207
+
+/**
+ * Total number of packets Rx with header mismatch
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_RX_GENERAL_ERRORS 1208
+
+/**
+ * Total number of times that the count of local errors exceeded a threshold
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_LOCAL_LINK_INTEGRITY_ERRORS 1209
+
+/**
+ * Total number of tx error packets that were discarded
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS 1210
+
+/**
+ * Number of times link went from Up to recovery, succeeded and link came back up
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_SUCCESSFUL_EVENTS 1211
+
+/**
+ * Number of times link went from Up to recovery, failed and link was declared down
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_FAILED_EVENTS 1212
+
+/**
+ * Number of times link went from Up to recovery, irrespective of the result
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_EVENTS 1213
+
+/**
+ * Number of errors in rx symbols
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_RX_SYMBOL_ERRORS 1214
+
+/**
+ * BER for symbol errors
+ */
+#define DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER 1215
+
+/**
  * 1 greater than maximum fields above. This is the 1 greater than the maximum field id that could be allocated
  */
-#define DCGM_FI_MAX_FIELDS 1142
+#define DCGM_FI_MAX_FIELDS 1216
 
 
 /** @} */

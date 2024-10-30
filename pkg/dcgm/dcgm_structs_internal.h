@@ -432,12 +432,12 @@ typedef enum dcgmEntityStatusType_enum
 /**
  * Typedef for \ref dcgmRunDiag_t
  */
-typedef dcgmRunDiag_v9 dcgmRunDiag_t;
+typedef dcgmRunDiag_v10 dcgmRunDiag_t;
 
 /**
  * Latest version for \ref dcgmRunDiag_t
  */
-#define dcgmRunDiag_version dcgmRunDiag_version9
+#define dcgmRunDiag_version dcgmRunDiag_version10
 
 /**
  * Version 1 of dcgmCreateGroup_t
@@ -809,9 +809,9 @@ typedef struct
 
 typedef struct
 {
-    dcgmNvLinkStatus_v3 ls; //!< IN/OUT: nvlink status populated on success
+    dcgmNvLinkStatus_v4 ls; //!< IN/OUT: nvlink status populated on success
     unsigned int cmdRet;    //!< OUT: Error code generated
-} dcgmGetNvLinkStatus_v2;
+} dcgmGetNvLinkStatus_v3;
 
 typedef struct
 {
@@ -872,7 +872,7 @@ typedef struct
     unsigned int extraKeyCount;                                   //!< IN: the number of extra keys
     injectNvmlRet_t injectNvmlRet;                                //!< IN: the return to the associate keys
     unsigned int cmdRet;                                          //!< OUT: Error code generated
-} dcgmMsgNvmlInjectDevice_v1;
+} dcgmMsgNvmlInjectDevice_v2;
 
 typedef struct
 {
@@ -883,7 +883,7 @@ typedef struct
     injectNvmlRet_t injectNvmlRets[NVML_INJECTION_MAX_RETURNS + 1]; //!< IN: the returns to the associate keys
     unsigned int retCount;                                          //!< IN: count of valid injectNvmlRets
     unsigned int cmdRet;                                            //!< OUT: Error code generated
-} dcgmMsgNvmlInjectDeviceForFollowingCalls_v1;
+} dcgmMsgNvmlInjectDeviceForFollowingCalls_v2;
 
 typedef struct
 {
@@ -932,12 +932,12 @@ DCGM_CASSERT((int)DCGM_GPU_VIRTUALIZATION_MODE_HOST_VSGA == (int)NVML_GPU_VIRTUA
 DCGM_CASSERT(dcgmPidInfo_version == (long)0x02004528, 1);
 DCGM_CASSERT(dcgmConfig_version2 == (long)0x2000048, 2);
 DCGM_CASSERT(dcgmConfig_version == (long)0x2000048, 2);
-DCGM_CASSERT(dcgmPerfProfileInfo_version1 == (long)0x100002c, 1);
-DCGM_CASSERT(dcgmPerfProfileInfo_version1 == (long)0x100002c, 1);
-DCGM_CASSERT(dcgmPerfProfileProfilesInfo_version1 == (long)0x1002bd8, 1);
-DCGM_CASSERT(dcgmPerfProfileProfilesInfo_version == (long)0x1002bd8, 1);
-DCGM_CASSERT(dcgmDevicePerfProfilesStatus_version1 == (long)0x1000064, 1);
-DCGM_CASSERT(dcgmDevicePerfProfilesStatus_version == (long)0x1000064, 1);
+DCGM_CASSERT(dcgmWorkloadPowerProfileInfo_version1 == (long)0x100002c, 1);
+DCGM_CASSERT(dcgmWorkloadPowerProfileInfo_version1 == (long)0x100002c, 1);
+DCGM_CASSERT(dcgmWorkloadPowerProfileProfilesInfo_version1 == (long)0x1002bdc, 1);
+DCGM_CASSERT(dcgmWorkloadPowerProfileProfilesInfo_version == (long)0x1002bdc, 1);
+DCGM_CASSERT(dcgmDeviceWorkloadPowerProfilesStatus_version1 == (long)0x1000064, 1);
+DCGM_CASSERT(dcgmDeviceWorkloadPowerProfilesStatus_version == (long)0x1000064, 1);
 DCGM_CASSERT(dcgmConnectV2Params_version1 == (long)16777224, 1);
 DCGM_CASSERT(dcgmConnectV2Params_version == (long)0x02000010, 1);
 DCGM_CASSERT(dcgmCpuHierarchyOwnedCores_version1 == (long)0x1000088, 1);
@@ -964,6 +964,7 @@ DCGM_CASSERT(dcgmDiagTestAuxData_version == (long)0x1000804, 10);
 DCGM_CASSERT(dcgmRunDiag_version7 == (long)0x70054D0, 1);
 DCGM_CASSERT(dcgmRunDiag_version8 == (long)0x801C818, 1);
 DCGM_CASSERT(dcgmRunDiag_version9 == (long)0x901CFE8, 1);
+DCGM_CASSERT(dcgmRunDiag_version10 == (long)0xA01D1E8, 1);
 DCGM_CASSERT(dcgmVgpuDeviceAttributes_version6 == (long)16787744, 1);
 DCGM_CASSERT(dcgmVgpuDeviceAttributes_version7 == (long)117451168, 1);
 DCGM_CASSERT(dcgmVgpuDeviceAttributes_version == (long)117451168, 1);
@@ -977,7 +978,8 @@ DCGM_CASSERT(dcgmStartEmbeddedV2Params_version1 == (long)0x01000048, 1);
 DCGM_CASSERT(dcgmStartEmbeddedV2Params_version2 == (long)0x02000050, 2);
 DCGM_CASSERT(dcgmInjectFieldValue_version1 == (long)0x1001018, 1);
 DCGM_CASSERT(dcgmInjectFieldValue_version == (long)0x1001018, 1);
-DCGM_CASSERT(dcgmNvLinkStatus_version3 == (long)0x30015bc, 3);
+DCGM_CASSERT(dcgmNvLinkStatus_version4 == (long)0x40039BC, 4);
+DCGM_CASSERT(dcgmDiagStatus_version1 == (long)0x1000090, 1);
 
 #ifndef DCGM_ARRAY_CAPACITY
 #ifdef __cplusplus
