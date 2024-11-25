@@ -28,6 +28,7 @@ binary:
 	cd samples/processInfo; go build
 	cd samples/restApi; go build
 	cd samples/topology; go build
+	cd samples/diag; go build
 
 test-main:
 	go test -race ./tests

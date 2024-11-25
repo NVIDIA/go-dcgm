@@ -1657,7 +1657,7 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate(dcgmHandle_t pDcgmHandle,
  *                                            currently not allowed.
  */
 dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate_v2(dcgmHandle_t pDcgmHandle,
-                                                   dcgmRunDiag_v10 *drd,
+                                                   dcgmRunDiag_v9 *drd,
                                                    dcgmDiagResponse_v11 *response);
 
 

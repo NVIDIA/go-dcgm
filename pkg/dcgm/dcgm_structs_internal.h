@@ -432,12 +432,12 @@ typedef enum dcgmEntityStatusType_enum
 /**
  * Typedef for \ref dcgmRunDiag_t
  */
-typedef dcgmRunDiag_v10 dcgmRunDiag_t;
+typedef dcgmRunDiag_v9 dcgmRunDiag_t;
 
 /**
  * Latest version for \ref dcgmRunDiag_t
  */
-#define dcgmRunDiag_version dcgmRunDiag_version10
+#define dcgmRunDiag_version dcgmRunDiag_version9
 
 /**
  * Version 1 of dcgmCreateGroup_t
@@ -872,7 +872,7 @@ typedef struct
     unsigned int extraKeyCount;                                   //!< IN: the number of extra keys
     injectNvmlRet_t injectNvmlRet;                                //!< IN: the return to the associate keys
     unsigned int cmdRet;                                          //!< OUT: Error code generated
-} dcgmMsgNvmlInjectDevice_v2;
+} dcgmMsgNvmlInjectDevice_v1;
 
 typedef struct
 {
@@ -883,7 +883,7 @@ typedef struct
     injectNvmlRet_t injectNvmlRets[NVML_INJECTION_MAX_RETURNS + 1]; //!< IN: the returns to the associate keys
     unsigned int retCount;                                          //!< IN: count of valid injectNvmlRets
     unsigned int cmdRet;                                            //!< OUT: Error code generated
-} dcgmMsgNvmlInjectDeviceForFollowingCalls_v2;
+} dcgmMsgNvmlInjectDeviceForFollowingCalls_v1;
 
 typedef struct
 {
@@ -964,7 +964,6 @@ DCGM_CASSERT(dcgmDiagTestAuxData_version == (long)0x1000804, 10);
 DCGM_CASSERT(dcgmRunDiag_version7 == (long)0x70054D0, 1);
 DCGM_CASSERT(dcgmRunDiag_version8 == (long)0x801C818, 1);
 DCGM_CASSERT(dcgmRunDiag_version9 == (long)0x901CFE8, 1);
-DCGM_CASSERT(dcgmRunDiag_version10 == (long)0xA01D1E8, 1);
 DCGM_CASSERT(dcgmVgpuDeviceAttributes_version6 == (long)16787744, 1);
 DCGM_CASSERT(dcgmVgpuDeviceAttributes_version7 == (long)117451168, 1);
 DCGM_CASSERT(dcgmVgpuDeviceAttributes_version == (long)117451168, 1);

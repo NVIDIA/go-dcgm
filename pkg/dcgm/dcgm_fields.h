@@ -1607,6 +1607,10 @@ typedef unsigned int dcgm_field_eid_t;
 
 /**
  * License status of the vGPU
+ *
+ * 0 = vgpu is not licensed
+ *
+ * 1 = vgpu is licensed
  */
 #define DCGM_FI_DEV_VGPU_LICENSE_STATUS 526
 
@@ -2259,14 +2263,6 @@ typedef unsigned int dcgm_field_eid_t;
  * NVLink throughput Last.
  */
 #define DCGM_FI_PROF_NVLINK_THROUGHPUT_LAST DCGM_FI_PROF_NVLINK_L17_RX_BYTES
-
-/**
- * C2C (Chip-to-Chip) interface metrics.
- */
-#define DCGM_FI_PROF_C2C_TX_ALL_BYTES  1076
-#define DCGM_FI_PROF_C2C_TX_DATA_BYTES 1077
-#define DCGM_FI_PROF_C2C_RX_ALL_BYTES  1078
-#define DCGM_FI_PROF_C2C_RX_DATA_BYTES 1079
 
 /**
  * CPU Utilization, total
