@@ -156,6 +156,11 @@ func makeVersion4(struct_type uintptr) C.uint {
 	return version
 }
 
+func makeVersion5(struct_type uintptr) C.uint {
+	version := C.uint(struct_type | 5<<24)
+	return version
+}
+
 func makeVersion8(struct_type uintptr) C.uint {
 	version := C.uint(struct_type | 8<<24)
 	return version
@@ -163,6 +168,11 @@ func makeVersion8(struct_type uintptr) C.uint {
 
 func makeVersion9(struct_type uintptr) C.uint {
 	version := C.uint(struct_type | 9<<24)
+	return version
+}
+
+func makeVersion11(struct_type uintptr) C.uint {
+	version := C.uint(struct_type | 11<<24)
 	return version
 }
 

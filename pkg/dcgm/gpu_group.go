@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	DCGM_GROUP_MAX_ENTITIES int = C.DCGM_GROUP_MAX_ENTITIES
+	DCGM_GROUP_MAX_ENTITIES int = C.DCGM_GROUP_MAX_ENTITIES_V2
 )
 
 type GroupHandle struct{ handle C.dcgmGpuGrp_t }
@@ -101,8 +101,8 @@ type GroupInfo struct {
 }
 
 func GetGroupInfo(groupId GroupHandle) (*GroupInfo, error) {
-	response := C.dcgmGroupInfo_v2{
-		version: C.dcgmGroupInfo_version2,
+	response := C.dcgmGroupInfo_v3{
+		version: C.dcgmGroupInfo_version3,
 	}
 
 	result := C.dcgmGroupGetInfo(handle.handle, groupId.handle, &response)
