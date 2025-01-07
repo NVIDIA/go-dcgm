@@ -94,6 +94,11 @@ func WatchPidFields() (GroupHandle, error) {
 	return watchPidFields(time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
 }
 
+// WatchPidFieldsWithGroup lets DCGM start recording stats for GPU process with a specified group
+func WatchPidFieldsWithGroup(groupId GroupHandle) error {
+	return watchPidFieldsWithGroup(time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples, groupId)
+}
+
 // GetProcessInfo provides detailed per GPU stats for this process
 func GetProcessInfo(group GroupHandle, pid uint) ([]ProcessInfo, error) {
 	return getProcessInfo(group, pid)
