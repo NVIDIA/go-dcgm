@@ -42,7 +42,7 @@ func GetCpuHierarchy() (hierarchy CpuHierarchy_v1, err error) {
 	result := C.dcgmGetCpuHierarchy(handle.handle, ptr_hierarchy)
 
 	if err = errorString(result); err != nil {
-		return toCpuHierarchy(c_hierarchy), fmt.Errorf("Error retrieving DCGM MIG hierarchy: %s", err)
+		return toCpuHierarchy(c_hierarchy), fmt.Errorf("Error retrieving DCGM CPU hierarchy: %s", err)
 	}
 
 	return toCpuHierarchy(c_hierarchy), nil
