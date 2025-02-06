@@ -112,6 +112,7 @@ const (
 	DCGM_FI_DEV_GPU_TEMP                                     = 150
 	DCGM_FI_DEV_MEM_MAX_OP_TEMP                              = 151
 	DCGM_FI_DEV_GPU_MAX_OP_TEMP                              = 152
+	DCGM_FI_DEV_GPU_TEMP_LIMIT                               = 153
 	DCGM_FI_DEV_POWER_USAGE                                  = 155
 	DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION                     = 156
 	DCGM_FI_DEV_POWER_USAGE_INSTANT                          = 157
@@ -186,6 +187,18 @@ const (
 	DCGM_FI_DEV_ECC_DBE_AGG_REG                              = 331
 	DCGM_FI_DEV_ECC_SBE_AGG_TEX                              = 332
 	DCGM_FI_DEV_ECC_DBE_AGG_TEX                              = 333
+	DCGM_FI_DEV_ECC_SBE_VOL_SHM                              = 334
+	DCGM_FI_DEV_ECC_DBE_VOL_SHM                              = 335
+	DCGM_FI_DEV_ECC_SBE_VOL_CBU                              = 336
+	DCGM_FI_DEV_ECC_DBE_VOL_CBU                              = 337
+	DCGM_FI_DEV_ECC_SBE_AGG_SHM                              = 338
+	DCGM_FI_DEV_ECC_DBE_AGG_SHM                              = 339
+	DCGM_FI_DEV_ECC_SBE_AGG_CBU                              = 340
+	DCGM_FI_DEV_ECC_DBE_AGG_CBU                              = 341
+	DCGM_FI_DEV_ECC_SBE_VOL_SRM                              = 342
+	DCGM_FI_DEV_ECC_DBE_VOL_SRM                              = 343
+	DCGM_FI_DEV_ECC_SBE_AGG_SRM                              = 344
+	DCGM_FI_DEV_ECC_DBE_AGG_SRM                              = 345
 	DCGM_FI_DEV_DIAG_MEMORY_RESULT                           = 350
 	DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT                       = 351
 	DCGM_FI_DEV_DIAG_PCIE_RESULT                             = 352
@@ -341,6 +354,13 @@ const (
 	DCGM_FI_DEV_VGPU_VM_GPU_INSTANCE_ID                      = 534
 	DCGM_FI_FIRST_VGPU_FIELD_ID                              = 520
 	DCGM_FI_LAST_VGPU_FIELD_ID                               = 570
+	DCGM_FI_DEV_PLATFORM_INFINIBAND_GUID                     = 571
+	DCGM_FI_DEV_PLATFORM_CHASSIS_SERIAL_NUMBER               = 572
+	DCGM_FI_DEV_PLATFORM_CHASSIS_SLOT_NUMBER                 = 573
+	DCGM_FI_DEV_PLATFORM_TRAY_INDEX                          = 574
+	DCGM_FI_DEV_PLATFORM_HOST_ID                             = 575
+	DCGM_FI_DEV_PLATFORM_PEER_TYPE                           = 576
+	DCGM_FI_DEV_PLATFORM_MODULE_ID                           = 577
 	DCGM_FI_FIRST_NVSWITCH_FIELD_ID                          = 700
 	DCGM_FI_DEV_NVSWITCH_VOLTAGE_MVOLT                       = 701
 	DCGM_FI_DEV_NVSWITCH_CURRENT_IDDQ                        = 702
@@ -394,6 +414,25 @@ const (
 	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE5               = 822
 	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE6               = 823
 	DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE7               = 824
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L0                       = 825
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L1                       = 826
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L2                       = 827
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L3                       = 828
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L4                       = 829
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L5                       = 830
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L6                       = 831
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L7                       = 832
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L8                       = 833
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L9                       = 834
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L10                      = 835
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L11                      = 836
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L12                      = 837
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L13                      = 838
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L14                      = 839
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L15                      = 840
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L16                      = 841
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L17                      = 842
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL                    = 843
 	DCGM_FI_DEV_NVSWITCH_FATAL_ERRORS                        = 856
 	DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS                    = 857
 	DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT                 = 858
@@ -417,6 +456,25 @@ const (
 	DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_ID                 = 876
 	DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_SID                = 877
 	DCGM_FI_DEV_NVSWITCH_DEVICE_UUID                         = 878
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0                       = 879
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1                       = 880
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2                       = 881
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3                       = 882
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4                       = 883
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5                       = 884
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6                       = 885
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7                       = 886
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8                       = 887
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9                       = 888
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10                      = 889
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11                      = 890
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L12                      = 891
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L13                      = 892
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L14                      = 893
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L15                      = 894
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L16                      = 895
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L17                      = 896
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL                    = 897
 	DCGM_FI_PROF_GR_ENGINE_ACTIVE                            = 1001
 	DCGM_FI_PROF_SM_ACTIVE                                   = 1002
 	DCGM_FI_PROF_SM_OCCUPANCY                                = 1003
@@ -487,6 +545,10 @@ const (
 	DCGM_FI_PROF_NVLINK_L16_RX_BYTES                         = 1073
 	DCGM_FI_PROF_NVLINK_L17_TX_BYTES                         = 1074
 	DCGM_FI_PROF_NVLINK_L17_RX_BYTES                         = 1075
+	DCGM_FI_PROF_C2C_TX_ALL_BYTES                            = 1076
+	DCGM_FI_PROF_C2C_TX_DATA_BYTES                           = 1077
+	DCGM_FI_PROF_C2C_RX_ALL_BYTES                            = 1078
+	DCGM_FI_PROF_C2C_RX_DATA_BYTES                           = 1079
 	DCGM_FI_DEV_CPU_UTIL_TOTAL                               = 1100
 	DCGM_FI_DEV_CPU_UTIL_USER                                = 1101
 	DCGM_FI_DEV_CPU_UTIL_NICE                                = 1102
@@ -518,7 +580,18 @@ const (
 	DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_EVENTS            = 1213
 	DCGM_FI_DEV_NVLINK_COUNT_RX_SYMBOL_ERRORS                = 1214
 	DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER                      = 1215
-	DCGM_FI_MAX_FIELDS                                       = 1216
+	DCGM_FI_DEV_CONNECTX_HEALTH                              = 1300
+	DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_WIDTH              = 1301
+	DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_SPEED              = 1302
+	DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_WIDTH              = 1303
+	DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_SPEED              = 1304
+	DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS              = 1305
+	DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK                = 1306
+	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_STATUS            = 1307
+	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_MASK              = 1308
+	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_SEVERITY          = 1309
+	DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE                  = 1310
+	DCGM_FI_MAX_FIELDS                                       = 1311
 
 	DCGM_ST_OK                          = 0
 	DCGM_ST_BADPARAM                    = -1
@@ -651,6 +724,7 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_GPU_TEMP":                                     150,
 	"DCGM_FI_DEV_MEM_MAX_OP_TEMP":                              151,
 	"DCGM_FI_DEV_GPU_MAX_OP_TEMP":                              152,
+	"DCGM_FI_DEV_GPU_TEMP_LIMIT":                               153,
 	"DCGM_FI_DEV_POWER_USAGE":                                  155,
 	"DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION":                     156,
 	"DCGM_FI_DEV_POWER_USAGE_INSTANT":                          157,
@@ -725,6 +799,18 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_ECC_DBE_AGG_REG":                              331,
 	"DCGM_FI_DEV_ECC_SBE_AGG_TEX":                              332,
 	"DCGM_FI_DEV_ECC_DBE_AGG_TEX":                              333,
+        "DCGM_FI_DEV_ECC_SBE_VOL_SHM":                              334,
+        "DCGM_FI_DEV_ECC_DBE_VOL_SHM":                              335,
+        "DCGM_FI_DEV_ECC_SBE_VOL_CBU":                              336,
+        "DCGM_FI_DEV_ECC_DBE_VOL_CBU":                              337,
+        "DCGM_FI_DEV_ECC_SBE_AGG_SHM":                              338,
+        "DCGM_FI_DEV_ECC_DBE_AGG_SHM":                              339,
+        "DCGM_FI_DEV_ECC_SBE_AGG_CBU":                              340,
+        "DCGM_FI_DEV_ECC_DBE_AGG_CBU":                              341,
+        "DCGM_FI_DEV_ECC_SBE_VOL_SRM":                              342,
+        "DCGM_FI_DEV_ECC_DBE_VOL_SRM":                              343,
+        "DCGM_FI_DEV_ECC_SBE_AGG_SRM":                              344,
+        "DCGM_FI_DEV_ECC_DBE_AGG_SRM":                              345,
 	"DCGM_FI_DEV_DIAG_MEMORY_RESULT":                           350,
 	"DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT":                       351,
 	"DCGM_FI_DEV_DIAG_PCIE_RESULT":                             352,
@@ -880,6 +966,13 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_VGPU_VM_GPU_INSTANCE_ID":                      534,
 	"DCGM_FI_FIRST_VGPU_FIELD_ID":                              520,
 	"DCGM_FI_LAST_VGPU_FIELD_ID":                               570,
+	"DCGM_FI_DEV_PLATFORM_INFINIBAND_GUID":                     571,
+	"DCGM_FI_DEV_PLATFORM_CHASSIS_SERIAL_NUMBER":               572,
+	"DCGM_FI_DEV_PLATFORM_CHASSIS_SLOT_NUMBER":                 573,
+	"DCGM_FI_DEV_PLATFORM_TRAY_INDEX":                          574,
+	"DCGM_FI_DEV_PLATFORM_HOST_ID":                             575,
+	"DCGM_FI_DEV_PLATFORM_PEER_TYPE":                           576,
+	"DCGM_FI_DEV_PLATFORM_MODULE_ID":                           577,
 	"DCGM_FI_FIRST_NVSWITCH_FIELD_ID":                          700,
 	"DCGM_FI_DEV_NVSWITCH_VOLTAGE_MVOLT":                       701,
 	"DCGM_FI_DEV_NVSWITCH_CURRENT_IDDQ":                        702,
@@ -933,6 +1026,25 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE5":               822,
 	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE6":               823,
 	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE7":               824,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L0":                       825,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L1":                       826,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L2":                       827,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L3":                       828,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L4":                       829,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L5":                       830,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L6":                       831,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L7":                       832,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L8":                       833,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L9":                       834,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L10":                      835,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L11":                      836,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L12":                      837,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L13":                      838,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L14":                      839,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L15":                      840,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L16":                      841,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L17":                      842,
+	"DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL":                    843,
 	"DCGM_FI_DEV_NVSWITCH_FATAL_ERRORS":                        856,
 	"DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS":                    857,
 	"DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT":                 858,
@@ -956,6 +1068,25 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_ID":                 876,
 	"DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_SID":                877,
 	"DCGM_FI_DEV_NVSWITCH_DEVICE_UUID":                         878,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0":                       879,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1":                       880,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2":                       881,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3":                       882,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4":                       883,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5":                       884,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6":                       885,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7":                       886,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8":                       887,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9":                       888,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10":                      889,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11":                      890,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L12":                      891,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L13":                      892,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L14":                      893,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L15":                      894,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L16":                      895,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L17":                      896,
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL":                    897,
 	"DCGM_FI_PROF_GR_ENGINE_ACTIVE":                            1001,
 	"DCGM_FI_PROF_SM_ACTIVE":                                   1002,
 	"DCGM_FI_PROF_SM_OCCUPANCY":                                1003,
@@ -1026,6 +1157,10 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_PROF_NVLINK_L16_RX_BYTES":                         1073,
 	"DCGM_FI_PROF_NVLINK_L17_TX_BYTES":                         1074,
 	"DCGM_FI_PROF_NVLINK_L17_RX_BYTES":                         1075,
+	"DCGM_FI_PROF_C2C_TX_ALL_BYTES":                            1076,
+	"DCGM_FI_PROF_C2C_TX_DATA_BYTES":                           1077,
+	"DCGM_FI_PROF_C2C_RX_ALL_BYTES":                            1078,
+	"DCGM_FI_PROF_C2C_RX_DATA_BYTES":                           1079,
 	"DCGM_FI_DEV_CPU_UTIL_TOTAL":                               1100,
 	"DCGM_FI_DEV_CPU_UTIL_USER":                                1101,
 	"DCGM_FI_DEV_CPU_UTIL_NICE":                                1102,
@@ -1057,7 +1192,18 @@ var DCGM_FI = map[string]Short{
 	"DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_EVENTS":            1213,
 	"DCGM_FI_DEV_NVLINK_COUNT_RX_SYMBOL_ERRORS":                1214,
 	"DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER":                      1215,
-	"DCGM_FI_MAX_FIELDS":                                       1216,
+	"DCGM_FI_DEV_CONNECTX_HEALTH":                              1300,
+	"DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_WIDTH":              1301,
+	"DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_SPEED":              1302,
+	"DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_WIDTH":              1303,
+	"DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_SPEED":              1304,
+	"DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS":              1305,
+	"DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK":                1306,
+	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_STATUS":            1307,
+	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_MASK":              1308,
+	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_SEVERITY":          1309,
+	"DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE":                  1310,
+	"DCGM_FI_MAX_FIELDS":                                       1311,
 }
 
 var OLD_DCGM_FI = map[string]Short{
