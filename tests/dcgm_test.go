@@ -1,15 +1,15 @@
 package tests
 
 import (
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
-func check(err error, t *testing.T) {
+func check(t *testing.T, err error) {
 	if err != nil {
 		t.Errorf("%v\n", err)
 	}
@@ -17,11 +17,11 @@ func check(err error, t *testing.T) {
 
 func TestDeviceCount(t *testing.T) {
 	cleanup, err := dcgm.Init(dcgm.Embedded)
-	check(err, t)
+	check(t, err)
 	defer cleanup()
 
 	count, err := dcgm.GetAllDeviceCount()
-	check(err, t)
+	check(t, err)
 
 	query := "count"
 	c := DeviceCount(query)
@@ -32,32 +32,37 @@ func TestDeviceCount(t *testing.T) {
 }
 
 func BenchmarkDeviceCount1(b *testing.B) {
-	dcgm.Init(dcgm.Embedded)
+	_, _ = dcgm.Init(dcgm.Embedded)
 
 	b.StartTimer()
+
 	for n := 0; n < b.N; n++ {
-		dcgm.GetAllDeviceCount()
+		_, _ = dcgm.GetAllDeviceCount()
 	}
+
 	b.StopTimer()
 
-	dcgm.Shutdown()
+	_ = dcgm.Shutdown()
 }
 
 func TestCpuQuery(t *testing.T) {
-	os.Setenv("DCGM_SKIP_SYSMON_HARDWARE_CHECK", "1")
+	t.Setenv("DCGM_SKIP_SYSMON_HARDWARE_CHECK", "1")
+
 	cleanup, err := dcgm.Init(dcgm.Embedded)
-	check(err, t)
+	check(t, err)
+
 	defer cleanup()
 
 	hierarchy, err := dcgm.GetCpuHierarchy()
-	check(err, t)
+	check(t, err)
 
 	if hierarchy.NumCpus == 0 {
 		t.Errorf("Found no CPUs")
 	}
 
 	for i := uint(0); i < hierarchy.NumCpus; i++ {
-		var coresFound = false
+		coresFound := false
+
 		for j := uint(0); j < dcgm.MAX_CPU_CORE_BITMASK_COUNT; j++ {
 			if hierarchy.Cpus[i].OwnedCores[j] != 0 {
 				coresFound = true
@@ -72,7 +77,7 @@ func TestCpuQuery(t *testing.T) {
 
 func TestDeviceInfo(t *testing.T) {
 	cleanup, err := dcgm.Init(dcgm.Embedded)
-	check(err, t)
+	check(t, err)
 	defer cleanup()
 
 	fields := []string{
@@ -87,16 +92,17 @@ func TestDeviceInfo(t *testing.T) {
 	}
 
 	gpus, err := dcgm.GetSupportedDevices()
-	check(err, t)
+	check(t, err)
 
 	for _, gpu := range gpus {
 		info, err := dcgm.GetDeviceInfo(gpu)
-		check(err, t)
+		check(t, err)
 
 		id := strconv.FormatUint(uint64(gpu), 10)
 
 		for _, val := range fields {
 			var msg, output string
+
 			res := Query(id, val)
 			if res == "[N/A]" {
 				continue
@@ -128,7 +134,8 @@ func TestDeviceInfo(t *testing.T) {
 				msg = "Device power limit"
 				output = strconv.FormatUint(uint64(info.Power), 10)
 				power, err := strconv.ParseFloat(res, 64)
-				check(err, t)
+				check(t, err)
+
 				res = strconv.FormatUint(uint64(math.Round(power)), 10)
 			}
 
@@ -144,25 +151,27 @@ func TestDeviceInfo(t *testing.T) {
 }
 
 func BenchmarkDeviceInfo1(b *testing.B) {
-	dcgm.Init(dcgm.Embedded)
+	_, _ = dcgm.Init(dcgm.Embedded)
 
 	b.StartTimer()
+
 	for n := 0; n < b.N; n++ {
 		// assuming there will be atleast 1 GPU attached
-		dcgm.GetDeviceInfo(uint(0))
+		_, _ = dcgm.GetDeviceInfo(uint(0))
 	}
+
 	b.StopTimer()
 
-	dcgm.Shutdown()
+	_ = dcgm.Shutdown()
 }
 
 func TestDeviceStatus(t *testing.T) {
 	cleanup, err := dcgm.Init(dcgm.Embedded)
-	check(err, t)
+	check(t, err)
 	defer cleanup()
 
 	gpus, err := dcgm.GetSupportedDevices()
-	check(err, t)
+	check(t, err)
 
 	fields := []string{
 		"power.draw",
@@ -176,12 +185,13 @@ func TestDeviceStatus(t *testing.T) {
 
 	for _, gpu := range gpus {
 		status, err := dcgm.GetDeviceStatus(gpu)
-		check(err, t)
+		check(t, err)
 
 		id := strconv.FormatUint(uint64(gpu), 10)
 
 		for _, val := range fields {
 			var msg, output string
+
 			res := Query(id, val)
 			if res == "[N/A]" {
 				continue
@@ -190,28 +200,29 @@ func TestDeviceStatus(t *testing.T) {
 			switch val {
 			case "power.draw":
 				msg = "Device power utilization"
-				output = strconv.FormatUint(uint64(math.Round(status.Power)), 10)
+				output = strconv.FormatFloat(math.Round(status.Power), 'f', -1, 64)
 				power, err := strconv.ParseFloat(res, 64)
-				check(err, t)
-				res = strconv.FormatUint(uint64(math.Round(power)), 10)
+				check(t, err)
+
+				res = strconv.FormatFloat(math.Round(power), 'f', -1, 64)
 			case "temperature.gpu":
 				msg = "Device temperature"
-				output = strconv.FormatUint(uint64(status.Temperature), 10)
+				output = strconv.FormatInt(status.Temperature, 10)
 			case "utilization.gpu":
 				msg = "Device gpu utilization"
-				output = strconv.FormatUint(uint64(status.Utilization.GPU), 10)
+				output = strconv.FormatInt(status.Utilization.GPU, 10)
 			case "utilization.memory":
 				msg = "Device memory utilization"
-				output = strconv.FormatUint(uint64(status.Utilization.Memory), 10)
+				output = strconv.FormatInt(status.Utilization.Memory, 10)
 			case "encoder.stats.averageFps":
 				msg = "Device encoder utilization"
-				output = strconv.FormatUint(uint64(status.Utilization.Encoder), 10)
+				output = strconv.FormatInt(status.Utilization.Encoder, 10)
 			case "clocks.current.sm":
 				msg = "Device sm clock"
-				output = strconv.FormatUint(uint64(status.Clocks.Cores), 10)
+				output = strconv.FormatInt(status.Clocks.Cores, 10)
 			case "clocks.current.memory":
 				msg = "Device mem clock"
-				output = strconv.FormatUint(uint64(status.Clocks.Memory), 10)
+				output = strconv.FormatInt(status.Clocks.Memory, 10)
 			}
 
 			if strings.Compare(res, output) != 0 {

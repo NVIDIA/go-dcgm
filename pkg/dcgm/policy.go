@@ -8,6 +8,7 @@ package dcgm
 extern int violationNotify(void* p);
 */
 import "C"
+
 import (
 	"context"
 	"encoding/binary"
@@ -18,22 +19,41 @@ import (
 	"unsafe"
 )
 
+// PolicyCondition represents a type of policy violation that can be monitored
 type policyCondition string
 
+// Policy condition types
 const (
-	DbePolicy     = policyCondition("Double-bit ECC error")
-	PCIePolicy    = policyCondition("PCI error")
+	// DbePolicy represents a Double-bit ECC error policy condition
+	DbePolicy = policyCondition("Double-bit ECC error")
+
+	// PCIePolicy represents a PCI error policy condition
+	PCIePolicy = policyCondition("PCI error")
+
+	// MaxRtPgPolicy represents a Maximum Retired Pages Limit policy condition
 	MaxRtPgPolicy = policyCondition("Max Retired Pages Limit")
+
+	// ThermalPolicy represents a Thermal Limit policy condition
 	ThermalPolicy = policyCondition("Thermal Limit")
-	PowerPolicy   = policyCondition("Power Limit")
-	NvlinkPolicy  = policyCondition("Nvlink Error")
-	XidPolicy     = policyCondition("XID Error")
+
+	// PowerPolicy represents a Power Limit policy condition
+	PowerPolicy = policyCondition("Power Limit")
+
+	// NvlinkPolicy represents an NVLink error policy condition
+	NvlinkPolicy = policyCondition("Nvlink Error")
+
+	// XidPolicy represents an XID error policy condition
+	XidPolicy = policyCondition("XID Error")
 )
 
+// PolicyViolation represents a detected violation of a policy condition
 type PolicyViolation struct {
+	// Condition specifies the type of policy that was violated
 	Condition policyCondition
+	// Timestamp indicates when the violation occurred
 	Timestamp time.Time
-	Data      interface{}
+	// Data contains violation-specific details
+	Data any
 }
 
 type policyIndex int
@@ -53,34 +73,51 @@ type policyConditionParam struct {
 	value uint32
 }
 
+// DbePolicyCondition contains details about a Double-bit ECC error
 type DbePolicyCondition struct {
-	Location  string
+	// Location specifies where the ECC error occurred
+	Location string
+	// NumErrors indicates the number of errors detected
 	NumErrors uint
 }
 
+// PciPolicyCondition contains details about a PCI error
 type PciPolicyCondition struct {
+	// ReplayCounter indicates the number of PCI replays
 	ReplayCounter uint
 }
 
+// RetiredPagesPolicyCondition contains details about retired memory pages
 type RetiredPagesPolicyCondition struct {
+	// SbePages indicates the number of pages retired due to single-bit errors
 	SbePages uint
+	// DbePages indicates the number of pages retired due to double-bit errors
 	DbePages uint
 }
 
+// ThermalPolicyCondition contains details about a thermal violation
 type ThermalPolicyCondition struct {
+	// ThermalViolation indicates the severity of the thermal violation
 	ThermalViolation uint
 }
 
+// PowerPolicyCondition contains details about a power violation
 type PowerPolicyCondition struct {
+	// PowerViolation indicates the severity of the power violation
 	PowerViolation uint
 }
 
+// NvlinkPolicyCondition contains details about an NVLink error
 type NvlinkPolicyCondition struct {
+	// FieldId identifies the specific NVLink field that had an error
 	FieldId uint16
+	// Counter indicates the number of errors detected
 	Counter uint
 }
 
+// XidPolicyCondition contains details about an XID error
 type XidPolicyCondition struct {
+	// ErrNum is the XID error number
 	ErrNum uint
 }
 
@@ -165,9 +202,9 @@ func makePolicyParmsMap() {
 func ViolationRegistration(data unsafe.Pointer) int {
 	var con policyCondition
 	var timestamp time.Time
-	var val interface{}
+	var val any
 
-	response := *(*C.dcgmPolicyCallbackResponse_t)(unsafe.Pointer(data))
+	response := *(*C.dcgmPolicyCallbackResponse_t)(data)
 
 	switch response.condition {
 	case C.DCGM_POLICY_COND_DBE:
@@ -260,7 +297,7 @@ func setPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t, paramList
 
 	// iterate on paramMap for given policy conditions
 	for _, key := range paramList {
-		conditionParam, exists := paramMap[policyIndex(key)]
+		conditionParam, exists := paramMap[key]
 		if !exists {
 			return fmt.Errorf("Error: Invalid Policy condition, %v does not exist", key)
 		}
@@ -288,59 +325,64 @@ func setPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t, paramList
 }
 
 func registerPolicy(ctx context.Context, groupId GroupHandle, typ ...policyCondition) (<-chan PolicyViolation, error) {
+	var err error
 	// init policy globals for internal API
 	makePolicyChannels()
 	makePolicyParmsMap()
 
 	// make a list of policy conditions for setting their parameters
-	var paramKeys []policyIndex
+	paramKeys := make([]policyIndex, len(typ))
 	// get all conditions to be set in setPolicy()
 	var condition C.dcgmPolicyCondition_t = 0
-	for _, t := range typ {
+
+	for i, t := range typ {
 		switch t {
 		case DbePolicy:
-			paramKeys = append(paramKeys, dbePolicyIndex)
+			paramKeys[i] = dbePolicyIndex
 			condition |= C.DCGM_POLICY_COND_DBE
 		case PCIePolicy:
-			paramKeys = append(paramKeys, pciePolicyIndex)
+			paramKeys[i] = pciePolicyIndex
 			condition |= C.DCGM_POLICY_COND_PCI
 		case MaxRtPgPolicy:
-			paramKeys = append(paramKeys, maxRtPgPolicyIndex)
+			paramKeys[i] = maxRtPgPolicyIndex
 			condition |= C.DCGM_POLICY_COND_MAX_PAGES_RETIRED
 		case ThermalPolicy:
-			paramKeys = append(paramKeys, thermalPolicyIndex)
+			paramKeys[i] = thermalPolicyIndex
 			condition |= C.DCGM_POLICY_COND_THERMAL
 		case PowerPolicy:
-			paramKeys = append(paramKeys, powerPolicyIndex)
+			paramKeys[i] = powerPolicyIndex
 			condition |= C.DCGM_POLICY_COND_POWER
 		case NvlinkPolicy:
-			paramKeys = append(paramKeys, nvlinkPolicyIndex)
+			paramKeys[i] = nvlinkPolicyIndex
 			condition |= C.DCGM_POLICY_COND_NVLINK
 		case XidPolicy:
-			paramKeys = append(paramKeys, xidPolicyIndex)
+			paramKeys[i] = xidPolicyIndex
 			condition |= C.DCGM_POLICY_COND_XID
 		}
 	}
 
-	var err error
-	if err = setPolicy(groupId, condition, paramKeys); err != nil {
+	err = setPolicy(groupId, condition, paramKeys)
+	if err != nil {
 		return nil, err
 	}
 
-	result := C.dcgmPolicyRegister_v2(handle.handle, groupId.handle, C.dcgmPolicyCondition_t(condition), C.fpRecvUpdates(C.violationNotify), C.ulong(0))
+	result := C.dcgmPolicyRegister_v2(handle.handle, groupId.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
 
 	if err = errorString(result); err != nil {
-		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
+
 	log.Println("Listening for violations...")
 
 	violation := make(chan PolicyViolation, len(typ))
+
 	go func() {
 		defer func() {
 			log.Println("unregister policy violation...")
 			close(violation)
 			unregisterPolicy(groupId, condition)
 		}()
+
 		for {
 			select {
 			case dbe := <-callbacks["dbe"]:

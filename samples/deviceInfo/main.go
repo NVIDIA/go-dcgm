@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"os"
 	"text/template"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 const (
@@ -43,10 +44,12 @@ func main() {
 	// 2. dcgm.Standalone -connect "addr", -socket "isSocket"
 	// 3. dcgm.StartHostengine
 	flag.Parse()
+
 	cleanup, err := dcgm.Init(dcgm.Standalone, *connectAddr, *isSocket)
 	if err != nil {
 		log.Panicln(err)
 	}
+
 	defer cleanup()
 
 	count, err := dcgm.GetAllDeviceCount()

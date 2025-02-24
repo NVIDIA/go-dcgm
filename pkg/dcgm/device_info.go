@@ -5,6 +5,7 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"fmt"
 	"math/rand"
@@ -13,6 +14,7 @@ import (
 	"github.com/bits-and-blooms/bitset"
 )
 
+// PCIInfo contains PCI bus related information for a GPU device
 type PCIInfo struct {
 	BusID     string
 	BAR1      uint  // MB
@@ -20,6 +22,7 @@ type PCIInfo struct {
 	Bandwidth int64 // MB/s
 }
 
+// DeviceIdentifiers contains various identification information for a GPU device
 type DeviceIdentifiers struct {
 	Brand               string
 	Model               string
@@ -29,6 +32,7 @@ type DeviceIdentifiers struct {
 	DriverVersion       string
 }
 
+// Device represents a GPU device and its properties
 type Device struct {
 	GPU           uint
 	DCGMSupported string
@@ -42,8 +46,10 @@ type Device struct {
 
 // getAllDeviceCount counts all GPUs on the system
 func getAllDeviceCount() (gpuCount uint, err error) {
-	var gpuIdList [C.DCGM_MAX_NUM_DEVICES]C.uint
-	var count C.int
+	var (
+		gpuIdList [C.DCGM_MAX_NUM_DEVICES]C.uint
+		count     C.int
+	)
 
 	result := C.dcgmGetAllDevices(handle.handle, &gpuIdList[0], &count)
 	if err = errorString(result); err != nil {
@@ -54,7 +60,8 @@ func getAllDeviceCount() (gpuCount uint, err error) {
 }
 
 // getAllDeviceCount counts all GPUs on the system
-func getEntityGroupEntities(entityGroup Field_Entity_Group) (entities []uint, err error) {
+func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
+	var err error
 	var pEntities [C.DCGM_MAX_NUM_DEVICES]C.uint
 	var count C.int = C.DCGM_MAX_NUM_DEVICES
 
@@ -63,8 +70,10 @@ func getEntityGroupEntities(entityGroup Field_Entity_Group) (entities []uint, er
 		return nil, fmt.Errorf("Error getting entity count: %s", err)
 	}
 
+	entities := make([]uint, count)
+
 	for i := 0; i < int(count); i++ {
-		entities = append(entities, uint(pEntities[i]))
+		entities[i] = uint(pEntities[i])
 	}
 	return entities, nil
 }
@@ -76,7 +85,7 @@ func getSupportedDevices() (gpus []uint, err error) {
 
 	result := C.dcgmGetAllSupportedDevices(handle.handle, &gpuIdList[0], &count)
 	if err = errorString(result); err != nil {
-		return gpus, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return gpus, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	numGpus := int(count)
@@ -157,14 +166,26 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	if err != nil {
 		return "N/A", err
 	}
-	defer FieldGroupDestroy(fieldsId)
+	defer func() {
+		ret := FieldGroupDestroy(fieldsId)
+
+		if ret != nil {
+			fmt.Println(err)
+		}
+	}()
 
 	groupName := fmt.Sprintf("cpuAff%d", rand.Uint64())
 	groupId, err := WatchFields(gpuId, fieldsId, groupName)
 	if err != nil {
 		return "N/A", err
 	}
-	defer DestroyGroup(groupId)
+	defer func() {
+		ret := DestroyGroup(groupId)
+
+		if ret != nil {
+			fmt.Println(ret)
+		}
+	}()
 
 	values, err := GetLatestValuesForFields(gpuId, affFields)
 	if err != nil {
@@ -188,7 +209,7 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 
 	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuid), &device)
 	if err = errorString(result); err != nil {
-		return deviceInfo, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return deviceInfo, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	// check if the given GPU is DCGM supported
@@ -213,8 +234,11 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 		return
 	}
 
-	var topology []P2PLink
-	var bandwidth int64
+	var (
+		topology  []P2PLink
+		bandwidth int64
+	)
+
 	// get device topology and bandwidth only if its a DCGM supported device
 	if supported == "Yes" {
 		topology, err = getDeviceTopology(gpuid)

@@ -20,8 +20,9 @@ package dcgm
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"log"
-	"math/rand"
 	"strings"
 	"testing"
 	"time"
@@ -30,6 +31,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// secureRandomUint returns a random uint in the range [1, max]
+func secureRandomUint(maxValue uint) (uint, error) {
+	var buf [8]byte
+	_, err := rand.Read(buf[:])
+	if err != nil {
+		return 0, err
+	}
+
+	// Convert to uint64 and reduce to our range
+	n := binary.BigEndian.Uint64(buf[:])
+	// Add 1 to shift range from [0, max-1] to [1, max]
+	return uint(n%uint64(maxValue)) + 1, nil
+}
+
 func TestPolicyErrors(t *testing.T) {
 	type testCase struct {
 		policy      []policyCondition
@@ -37,12 +52,13 @@ func TestPolicyErrors(t *testing.T) {
 		injectError func() error
 		assert      func(cb PolicyViolation, en int)
 	}
+
 	tests := []testCase{
 		{
 			policy:    []policyCondition{DbePolicy},
 			numErrors: 1,
 			injectError: func() error {
-				gpu := uint(rand.Intn(8) + 1)
+				gpu, _ := secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_ECC_DBE_VOL_DEV", gpu)
 				return InjectFieldValue(gpu,
 					DCGM_FI_DEV_ECC_DBE_VOL_DEV,
@@ -65,7 +81,7 @@ func TestPolicyErrors(t *testing.T) {
 			policy:    []policyCondition{PowerPolicy},
 			numErrors: 1,
 			injectError: func() error {
-				gpu := uint(rand.Intn(8) + 1)
+				gpu, _ := secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_POWER_USAGE", gpu)
 				return InjectFieldValue(gpu,
 					DCGM_FI_DEV_POWER_USAGE,
@@ -87,7 +103,7 @@ func TestPolicyErrors(t *testing.T) {
 			policy:    []policyCondition{PCIePolicy},
 			numErrors: 1,
 			injectError: func() error {
-				gpu := uint(rand.Intn(8) + 1)
+				gpu, _ := secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_POWER_USAGE", gpu)
 				return InjectFieldValue(gpu,
 					DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
@@ -109,7 +125,7 @@ func TestPolicyErrors(t *testing.T) {
 			policy:    []policyCondition{MaxRtPgPolicy},
 			numErrors: 1,
 			injectError: func() error {
-				gpu := uint(rand.Intn(8) + 1)
+				gpu, _ := secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_RETIRED_DBE", gpu)
 				err := InjectFieldValue(gpu,
 					DCGM_FI_DEV_RETIRED_DBE,
@@ -143,7 +159,7 @@ func TestPolicyErrors(t *testing.T) {
 			policy:    []policyCondition{ThermalPolicy},
 			numErrors: 1,
 			injectError: func() error {
-				gpu := uint(rand.Intn(8) + 1)
+				gpu, _ := secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_GPU_TEMP", gpu)
 				return InjectFieldValue(gpu,
 					DCGM_FI_DEV_GPU_TEMP,
@@ -165,7 +181,7 @@ func TestPolicyErrors(t *testing.T) {
 			policy:    []policyCondition{NvlinkPolicy},
 			numErrors: 1,
 			injectError: func() error {
-				gpu := uint(rand.Intn(8) + 1)
+				gpu, _ := secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL", gpu)
 				return InjectFieldValue(gpu,
 					DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL,
@@ -187,7 +203,7 @@ func TestPolicyErrors(t *testing.T) {
 			policy:    []policyCondition{XidPolicy},
 			numErrors: 1,
 			injectError: func() error {
-				gpu := uint(rand.Intn(8) + 1)
+				gpu, _ := secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_XID_ERRORS", gpu)
 				return InjectFieldValue(gpu,
 					DCGM_FI_DEV_XID_ERRORS,
@@ -210,7 +226,7 @@ func TestPolicyErrors(t *testing.T) {
 			policy:    []policyCondition{NvlinkPolicy, XidPolicy},
 			numErrors: 2,
 			injectError: func() error {
-				gpu := uint(rand.Intn(8) + 1)
+				gpu, _ := secureRandomUint(8)
 				// Inject a DBE error; since it has not registered DBEPolicy it will not get this event.
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_ECC_DBE_VOL_DEV", gpu)
 				err := InjectFieldValue(gpu,
@@ -224,7 +240,7 @@ func TestPolicyErrors(t *testing.T) {
 					return err
 				}
 
-				gpu = uint(rand.Intn(8) + 1)
+				gpu, _ = secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_XID_ERRORS", gpu)
 				err = InjectFieldValue(gpu,
 					DCGM_FI_DEV_XID_ERRORS,
@@ -308,12 +324,15 @@ func TestPolicyErrors(t *testing.T) {
 
 			err = tc.injectError()
 			require.NoError(t, err)
+
 			numCb := 0
 			select {
 			case callbackData := <-callback:
 				require.NotNil(t, callbackData)
+
 				numCb++
 				tc.assert(callbackData, numCb)
+
 				if numCb == tc.numErrors {
 					break
 				}
@@ -326,11 +345,14 @@ func TestPolicyErrors(t *testing.T) {
 
 func joinPolicy(policy []policyCondition, sep string) string {
 	var result strings.Builder
+
 	for i, v := range policy {
 		if i > 0 {
 			result.WriteString(sep)
 		}
+
 		result.WriteString(string(v))
 	}
+
 	return result.String()
 }

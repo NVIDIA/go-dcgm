@@ -28,20 +28,29 @@ import (
 	"unsafe"
 )
 
+// SystemWatch represents a health watch system and its status
 type SystemWatch struct {
-	Type   string
+	// Type identifies the type of health watch system
+	Type string
+	// Status indicates the current health status
 	Status string
-	Error  string
+	// Error contains any error message if status is not healthy
+	Error string
 }
 
+// DeviceHealth represents the health status of a GPU device
 type DeviceHealth struct {
-	GPU     uint
-	Status  string
+	// GPU is the ID of the GPU device
+	GPU uint
+	// Status indicates the overall health status of the GPU
+	Status string
+	// Watches contains the status of individual health watch systems
 	Watches []SystemWatch
 }
 
-// HealthSet enable the DCGM health check system for the given systems
-func HealthSet(groupId GroupHandle, systems HealthSystem) error {
+// HealthSet enables the DCGM health check system for the given systems.
+// It configures which health watch systems should be monitored for the specified group.
+func HealthSet(groupId GroupHandle, systems HealthSystem) (err error) {
 	result := C.dcgmHealthSet(handle.handle, groupId.handle, C.dcgmHealthSystems_t(systems))
 	if err := errorString(result); err != nil {
 		return fmt.Errorf("error setting health watches: %w", err)
@@ -49,7 +58,8 @@ func HealthSet(groupId GroupHandle, systems HealthSystem) error {
 	return nil
 }
 
-// HealthGet retrieve the current state of the DCGM health check system
+// HealthGet retrieves the current state of the DCGM health check system.
+// It returns which health watch systems are currently enabled for the specified group.
 func HealthGet(groupId GroupHandle) (HealthSystem, error) {
 	var systems C.dcgmHealthSystems_t
 
@@ -60,25 +70,36 @@ func HealthGet(groupId GroupHandle) (HealthSystem, error) {
 	return HealthSystem(systems), nil
 }
 
+// DiagErrorDetail contains detailed information about a health check error
 type DiagErrorDetail struct {
+	// Message contains a human-readable description of the error
 	Message string
-	Code    HealthCheckErrorCode
+	// Code identifies the specific type of error
+	Code HealthCheckErrorCode
 }
 
+// Incident represents a health check incident that occurred
 type Incident struct {
-	System     HealthSystem
-	Health     HealthResult
-	Error      DiagErrorDetail
+	// System identifies which health watch system detected the incident
+	System HealthSystem
+	// Health indicates the severity of the incident
+	Health HealthResult
+	// Error contains detailed information about the incident
+	Error DiagErrorDetail
+	// EntityInfo identifies the GPU or component where the incident occurred
 	EntityInfo GroupEntityPair
 }
 
+// HealthResponse contains the results of a health check operation
 type HealthResponse struct {
+	// OverallHealth indicates the aggregate health status across all watches
 	OverallHealth HealthResult
-	Incidents     []Incident
+	// Incidents contains details about any health issues detected
+	Incidents []Incident
 }
 
-// HealthCheck check the configured watches for any errors/failures/warnings that have occurred
-// since the last time this check was invoked.  On the first call, stateful information
+// HealthCheck checks the configured watches for any errors/failures/warnings that have occurred
+// since the last time this check was invoked. On the first call, stateful information
 // about all of the enabled watches within a group is created but no error results are
 // provided. On subsequent calls, any error information will be returned.
 func HealthCheck(groupId GroupHandle) (HealthResponse, error) {
@@ -88,14 +109,14 @@ func HealthCheck(groupId GroupHandle) (HealthResponse, error) {
 	result := C.dcgmHealthCheck(handle.handle, groupId.handle, (*C.dcgmHealthResponse_t)(unsafe.Pointer(&healthResults)))
 
 	if err := errorString(result); err != nil {
-		return HealthResponse{}, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return HealthResponse{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	response := HealthResponse{
 		OverallHealth: HealthResult(healthResults.overallHealth),
 	}
 
-	// number of watches that encountred error/warning
+	// number of watches that encountered error/warning
 	incidents := uint(healthResults.incidentCount)
 
 	response.Incidents = make([]Incident, incidents)
@@ -141,19 +162,17 @@ func healthCheckByGpuId(gpuId uint) (deviceHealth DeviceHealth, err error) {
 	}
 
 	status := healthStatus(result.OverallHealth)
-	watches := []SystemWatch{}
 
-	// number of watches that encountred error/warning
+	// number of watches that encountered error/warning
 	incidents := len(result.Incidents)
+	watches := make([]SystemWatch, incidents)
 
 	for j := 0; j < incidents; j++ {
-		watch := SystemWatch{
+		watches[j] = SystemWatch{
 			Type:   systemWatch(result.Incidents[j].System),
 			Status: healthStatus(result.Incidents[j].Health),
-
-			Error: result.Incidents[j].Error.Message,
+			Error:  result.Incidents[j].Error.Message,
 		}
-		watches = append(watches, watch)
 	}
 
 	deviceHealth = DeviceHealth{

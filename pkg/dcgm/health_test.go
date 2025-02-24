@@ -36,18 +36,19 @@ func TestHealthWhenInvalidGroupID(t *testing.T) {
 	runOnlyWithLiveGPUs(t)
 
 	var invalidGroupID uintptr = 99
+
 	gh := GroupHandle{}
 	gh.SetHandle(invalidGroupID)
 	err := HealthSet(gh, DCGM_HEALTH_WATCH_PCIE)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Setting not configured")
 
 	_, err = HealthGet(gh)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Setting not configured")
 
 	_, err = HealthGet(gh)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Setting not configured")
 }
 
@@ -130,9 +131,11 @@ func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen int, pcieLanes int, pc
 
 	groupID, err := CreateGroup("test1")
 	require.NoError(t, err)
+
 	defer func() {
 		_ = DestroyGroup(groupID)
 	}()
+
 	err = AddEntityToGroup(groupID, FE_GPU, gpuID)
 	require.NoError(t, err)
 
@@ -203,11 +206,13 @@ func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen int, pcieLanes int, pc
 func skipTestIfUnhealthy(t *testing.T, groupId GroupHandle) {
 	health, err := HealthCheck(groupId)
 	require.NoError(t, err)
+
 	if health.OverallHealth != DCGM_HEALTH_RESULT_PASS {
 		msg := "Skipping health check test because we are already unhealthy: "
-		incidents := []string{}
-		for _, incident := range health.Incidents {
-			incidents = append(incidents, incident.Error.Message)
+
+		incidents := make([]string, len(health.Incidents))
+		for i, incident := range health.Incidents {
+			incidents[i] = incident.Error.Message
 		}
 
 		t.Skip(msg + strings.Join(incidents, ", "))

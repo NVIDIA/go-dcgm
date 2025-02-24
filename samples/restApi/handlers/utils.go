@@ -3,18 +3,20 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"math"
 	"net/http"
 	"strconv"
 	"text/template"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 const (
 	base    = 10
 	bitsize = 32
 
+	// DeviceInfo is the template for formatting device information output
 	deviceInfo = `Driver Version         : {{.Identifiers.DriverVersion}}
 GPU                    : {{.GPU}}
 DCGMSupported          : {{.DCGMSupported}}
@@ -34,6 +36,7 @@ P2P Available          : {{if not .Topology}}None{{else}}{{range .Topology}}
     GPU{{.GPU}} - (BusID){{.BusID}} - {{.Link.PCIPaths}}{{end}}{{end}}
 ---------------------------------------------------------------------
 `
+	// DeviceStatus is the template for formatting device status output
 	deviceStatus = `Power (W)		: {{.Power}}
 Temperature (°C)        : {{.Temperature}}
 Sm Utilization (%)      : {{.Utilization.GPU}}
@@ -44,6 +47,7 @@ Memory Clock (MHz       : {{.Clocks.Memory}}
 SM Clock (MHz)          : {{.Clocks.Cores}}
 `
 
+	// ProcessInfo is the template for formatting process information output
 	processInfo = `----------------------------------------------------------------------
 GPU ID                       : {{.GPU}}
 ----------Execution Stats---------------------------------------------
@@ -76,6 +80,7 @@ Avg SM Utilization (%)       : {{or .ProcessUtilization.SmUtil "N/A"}}
 Avg Memory Utilization (%)   : {{or .ProcessUtilization.MemUtil "N/A"}}
 ----------------------------------------------------------------------
 `
+	// HealthStatus is the template for formatting health status output
 	healthStatus = `GPU                : {{.GPU}}
 Status             : {{.Status}}
 {{range .Watches}}
@@ -84,18 +89,23 @@ Status             : {{.Status}}
 Error              : {{.Error}}
 {{end}}`
 
+	// HostEngine is the template for formatting DCGM host engine status
 	hostengine = `Memory(KB)      : {{.Memory}}
 CPU(%)          : {{printf "%.2f" .CPU}}
 `
 )
 
+// getId converts a string key to a GPU ID
+// Returns math.MaxUint32 if the conversion fails
 func getId(resp http.ResponseWriter, req *http.Request, key string) uint {
 	id, err := strconv.ParseUint(key, base, bitsize)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusBadRequest)
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+
 		return math.MaxUint32
 	}
+
 	return uint(id)
 }
 
@@ -104,55 +114,67 @@ func getIdByUuid(resp http.ResponseWriter, req *http.Request, key string) uint {
 	if !exists {
 		http.NotFound(resp, req)
 		log.Printf("error: %v%v:  %v (page not found)", req.Host, req.URL, http.StatusNotFound)
+
 		return math.MaxUint32
 	}
+
 	return id
 }
 
+// isValidId checks if the given GPU ID exists and is valid
+// Returns true if the ID is valid, false otherwise
 func isValidId(id uint, resp http.ResponseWriter, req *http.Request) bool {
 	count, err := dcgm.GetAllDeviceCount()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+
 		return false
 	}
 
 	if id >= count {
 		http.NotFound(resp, req)
 		log.Printf("error: %v%v: %v (page not found)", req.Host, req.URL, http.StatusNotFound)
+
 		return false
 	}
+
 	return true
 }
 
+// isDcgmSupported checks if DCGM supports the given GPU
+// Returns true if supported, false otherwise
 func isDcgmSupported(gpuId uint, resp http.ResponseWriter, req *http.Request) bool {
 	gpus, err := dcgm.GetSupportedDevices()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+
 		return false
 	}
+
 	for _, gpu := range gpus {
 		if gpuId == gpu {
 			return true
 		}
 	}
-	err = fmt.Errorf("Error adding GPU %d to group: This GPU is not supported by DCGM", gpuId)
+
+	err = fmt.Errorf("error adding gpu %d to group: This gpu is not supported by dcgm", gpuId)
 	http.Error(resp, err.Error(), http.StatusInternalServerError)
 	log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+
 	return false
 }
 
+// isJson checks if the request URL ends with "json" to determine output format
+// Returns true if JSON output is requested
 func isJson(req *http.Request) bool {
-	url := fmt.Sprintf("%v", (req.URL))
-	if url[len(url)-4:] == "json" {
-		return true
-	}
-	return false
-
+	url := (req.URL).String()
+	return url[len(url)-4:] == "json"
 }
 
-func print(resp http.ResponseWriter, req *http.Request, stats interface{}, templ string) {
+// print formats and writes templated text output to the response
+func printer(resp http.ResponseWriter, req *http.Request, stats any, templ string) {
 	t := template.Must(template.New("").Parse(templ))
 	if err := t.Execute(resp, stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
@@ -160,20 +182,24 @@ func print(resp http.ResponseWriter, req *http.Request, stats interface{}, templ
 	}
 }
 
-func encode(resp http.ResponseWriter, req *http.Request, stats interface{}) {
+// encode writes JSON-formatted output to the response
+func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 	resp.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewEncoder(resp).Encode(stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 	}
 }
 
+// processPrint formats and writes process information to the response
 func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.ProcessInfo) {
 	t := template.Must(template.New("Process").Parse(processInfo))
-	for _, gpu := range pInfo {
-		if err := t.Execute(resp, gpu); err != nil {
+	for i := range pInfo {
+		if err := t.Execute(resp, pInfo[i]); err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+
 			return
 		}
 	}

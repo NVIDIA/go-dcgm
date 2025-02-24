@@ -5,19 +5,25 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"unsafe"
 )
 
+// MetricGroup represents a group of metrics for a specific GPU
 type MetricGroup struct {
 	Major    uint
 	Minor    uint
 	FieldIds []uint
 }
 
-func getSupportedMetricGroups(gpuId uint) (groups []MetricGroup, err error) {
+func getSupportedMetricGroups(gpuId uint) ([]MetricGroup, error) {
+	var (
+		groupInfo C.dcgmProfGetMetricGroups_t
+		err       error
+		groups    []MetricGroup
+	)
 
-	var groupInfo C.dcgmProfGetMetricGroups_t
 	groupInfo.version = makeVersion3(unsafe.Sizeof(groupInfo))
 
 	groupInfo.gpuId = C.uint(gpuId)
@@ -25,22 +31,22 @@ func getSupportedMetricGroups(gpuId uint) (groups []MetricGroup, err error) {
 	result := C.dcgmProfGetSupportedMetricGroups(handle.handle, &groupInfo)
 
 	if err = errorString(result); err != nil {
-		return groups, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
-	var count = uint(groupInfo.numMetricGroups)
+	count := uint(groupInfo.numMetricGroups)
 
+	groups = make([]MetricGroup, count)
 	for i := uint(0); i < count; i++ {
-		var group MetricGroup
-		group.Major = uint(groupInfo.metricGroups[i].majorId)
-		group.Minor = uint(groupInfo.metricGroups[i].minorId)
+		groups[i].Major = uint(groupInfo.metricGroups[i].majorId)
+		groups[i].Minor = uint(groupInfo.metricGroups[i].minorId)
 
-		var fieldCount = uint(groupInfo.metricGroups[i].numFieldIds)
+		fieldCount := uint(groupInfo.metricGroups[i].numFieldIds)
 
+		groups[i].FieldIds = make([]uint, fieldCount)
 		for j := uint(0); j < fieldCount; j++ {
-			group.FieldIds = append(group.FieldIds, uint(groupInfo.metricGroups[i].fieldIds[j]))
+			groups[i].FieldIds[j] = uint(groupInfo.metricGroups[i].fieldIds[j])
 		}
-		groups = append(groups, group)
 	}
 
 	return groups, nil

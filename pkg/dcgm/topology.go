@@ -5,27 +5,41 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"fmt"
 	"unsafe"
 )
 
+// P2PLinkType represents the type of peer-to-peer connection between GPUs
 type P2PLinkType uint
 
 const (
+	// P2PLinkUnknown represents an unknown link type
 	P2PLinkUnknown P2PLinkType = iota
+	// P2PLinkCrossCPU represents a connection across different CPUs
 	P2PLinkCrossCPU
+	// P2PLinkSameCPU represents a connection within the same CPU
 	P2PLinkSameCPU
+	// P2PLinkHostBridge represents a connection through the host bridge
 	P2PLinkHostBridge
+	// P2PLinkMultiSwitch represents a connection through multiple PCIe switches
 	P2PLinkMultiSwitch
+	// P2PLinkSingleSwitch represents a connection through a single PCIe switch
 	P2PLinkSingleSwitch
+	// P2PLinkSameBoard represents a connection on the same board
 	P2PLinkSameBoard
+	// SingleNVLINKLink represents a single NVLINK connection
 	SingleNVLINKLink
+	// TwoNVLINKLinks represents two NVLINK connections
 	TwoNVLINKLinks
+	// ThreeNVLINKLinks represents three NVLINK connections
 	ThreeNVLINKLinks
+	// FourNVLINKLinks represents four NVLINK connections
 	FourNVLINKLinks
 )
 
+// PCIPaths returns a string representation of the P2P link type
 func (l P2PLinkType) PCIPaths() string {
 	switch l {
 	case P2PLinkSameBoard:
@@ -53,10 +67,14 @@ func (l P2PLinkType) PCIPaths() string {
 	return "N/A"
 }
 
+// P2PLink contains information about a peer-to-peer connection
 type P2PLink struct {
-	GPU   uint
+	// GPU is the ID of the GPU
+	GPU uint
+	// BusID is the PCIe bus ID of the GPU
 	BusID string
-	Link  P2PLinkType
+	// Link is the type of P2P connection
+	Link P2PLinkType
 }
 
 func getP2PLink(path uint) P2PLinkType {
@@ -105,57 +123,64 @@ func getDeviceTopology(gpuid uint) (links []P2PLink, err error) {
 		return links, nil
 	}
 	if result != C.DCGM_ST_OK {
-		return links, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return links, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	busid, err := getBusid(gpuid)
 	if err != nil {
 		return
 	}
-
+	links = make([]P2PLink, topology.numGpus)
 	for i := uint(0); i < uint(topology.numGpus); i++ {
-		gpu := topology.gpuPaths[i].gpuId
-		p2pLink := P2PLink{
-			GPU:   uint(gpu),
-			BusID: busid,
-			Link:  getP2PLink(uint(topology.gpuPaths[i].path)),
-		}
-		links = append(links, p2pLink)
+		links[i].GPU = uint(topology.gpuPaths[i].gpuId)
+		links[i].BusID = busid
+		links[i].Link = getP2PLink(uint(topology.gpuPaths[i].path))
 	}
 	return
 }
 
+// Link_State represents the state of an NVLINK connection
 type Link_State uint
 
 const (
-	LS_NOT_SUPPORTED Link_State = iota // Link is unsupported (Default for GPUs)
-	LS_DISABLED                        // Link is supported but disabled (Default for NvSwitches)
-	LS_DOWN                            // Link link is down (inactive)
-	LS_UP                              // Link link is up (active)
+	// LS_NOT_SUPPORTED indicates the link is unsupported (Default for GPUs)
+	LS_NOT_SUPPORTED Link_State = iota
+	// LS_DISABLED indicates the link is supported but disabled (Default for NvSwitches)
+	LS_DISABLED
+	// LS_DOWN indicates the link is down (inactive)
+	LS_DOWN
+	// LS_UP indicates the link is up (active)
+	LS_UP
 )
 
+// NvLinkStatus contains information about an NVLINK connection status
 type NvLinkStatus struct {
-	ParentId   uint
+	// ParentId is the ID of the parent entity (GPU or NVSwitch)
+	ParentId uint
+	// ParentType is the type of the parent entity
 	ParentType Field_Entity_Group
-	State      Link_State
-	Index      uint
+	// State is the current state of the NVLINK
+	State Link_State
+	// Index is the link index number
+	Index uint
 }
 
 func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
 	var linkStatus C.dcgmNvLinkStatus_v4
 	linkStatus.version = makeVersion4(unsafe.Sizeof(linkStatus))
 
-	var links []NvLinkStatus
-
 	result := C.dcgmGetNvLinkLinkStatus(handle.handle, &linkStatus)
 	if result == C.DCGM_ST_NOT_SUPPORTED {
-		return links, nil
+		return nil, nil
 	}
 
 	if result != C.DCGM_ST_OK {
-		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
+	links := make([]NvLinkStatus, linkStatus.numGpus*C.DCGM_NVLINK_MAX_LINKS_PER_GPU+linkStatus.numNvSwitches*C.DCGM_NVLINK_MAX_LINKS_PER_NVSWITCH)
+
+	idx := 0
 	for i := uint(0); i < uint(linkStatus.numGpus); i++ {
 		for j := 0; j < int(C.DCGM_NVLINK_MAX_LINKS_PER_GPU); j++ {
 			link := NvLinkStatus{
@@ -165,7 +190,8 @@ func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
 				uint(j),
 			}
 
-			links = append(links, link)
+			links[idx] = link
+			idx++
 		}
 	}
 
@@ -178,7 +204,8 @@ func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
 				uint(j),
 			}
 
-			links = append(links, link)
+			links[idx] = link
+			idx++
 		}
 	}
 

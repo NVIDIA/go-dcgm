@@ -5,19 +5,27 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"fmt"
 	"math/rand"
 )
 
+// PerfState represents the performance state (P-state) of a GPU
 type PerfState uint
 
 const (
-	PerfStateMax     = 0
-	PerfStateMin     = 15
+	// PerfStateMax represents the highest performance state (P0)
+	PerfStateMax = 0
+
+	// PerfStateMin represents the lowest performance state (P15)
+	PerfStateMin = 15
+
+	// PerfStateUnknown represents an unknown performance state
 	PerfStateUnknown = 32
 )
 
+// String returns a string representation of the performance state
 func (p PerfState) String() string {
 	if p >= PerfStateMax && p <= PerfStateMin {
 		return fmt.Sprintf("P%d", p)
@@ -25,6 +33,7 @@ func (p PerfState) String() string {
 	return "Unknown"
 }
 
+// UtilizationInfo contains GPU utilization metrics
 type UtilizationInfo struct {
 	GPU     int64 // %
 	Memory  int64 // %
@@ -32,33 +41,39 @@ type UtilizationInfo struct {
 	Decoder int64 // %
 }
 
+// ECCErrorsInfo contains ECC memory error counts
 type ECCErrorsInfo struct {
 	SingleBit int64
 	DoubleBit int64
 }
 
+// MemoryInfo contains GPU memory usage and error information
 type MemoryInfo struct {
 	GlobalUsed int64
 	ECCErrors  ECCErrorsInfo
 }
 
+// ClockInfo contains GPU clock frequencies
 type ClockInfo struct {
 	Cores  int64 // MHz
 	Memory int64 // MHz
 }
 
+// PCIThroughputInfo contains PCI bus transfer metrics
 type PCIThroughputInfo struct {
 	Rx      int64 // MB
 	Tx      int64 // MB
 	Replays int64
 }
 
+// PCIStatusInfo contains PCI bus status information
 type PCIStatusInfo struct {
 	BAR1Used   int64 // MB
 	Throughput PCIThroughputInfo
 	FBUsed     int64
 }
 
+// DeviceStatus contains comprehensive GPU device status information
 type DeviceStatus struct {
 	Power       float64 // W
 	Temperature int64   // °C

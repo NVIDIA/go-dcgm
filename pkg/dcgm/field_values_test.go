@@ -17,14 +17,25 @@
 package dcgm
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// secureRandomUint64 returns a cryptographically secure random uint64
+func secureRandomUint64() (uint64, error) {
+	var buf [8]byte
+	_, err := rand.Read(buf[:])
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint64(buf[:]), nil
+}
 
 func TestGetValuesSince(t *testing.T) {
 	teardownTest := setupTest(t)
@@ -41,9 +52,13 @@ func TestGetValuesSince(t *testing.T) {
 	deviceFields := make([]Short, 1)
 	deviceFields[xid] = DCGM_FI_DEV_XID_ERRORS
 
-	fieldGroupName := fmt.Sprintf("fieldGroupName%d", rand.Uint64())
+	randID, err := secureRandomUint64()
+	require.NoError(t, err)
+	fieldGroupName := fmt.Sprintf("fieldGroupName%d", randID)
+
 	fieldsGroup, err := FieldGroupCreate(fieldGroupName, deviceFields)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
 	defer func() {
 		_ = FieldGroupDestroy(fieldsGroup)
 	}()
@@ -52,13 +67,14 @@ func TestGetValuesSince(t *testing.T) {
 		values, nextTime, err := GetValuesSince(GroupAllGPUs(),
 			fieldsGroup, time.Time{})
 		require.Error(t, err)
-		assert.Empty(t, nextTime)
-		assert.Len(t, values, 0)
+		require.Empty(t, nextTime)
+		require.Empty(t, values)
 	})
 
 	t.Run("When there are a few entries", func(t *testing.T) {
 		expectedNumberOfErrors := int64(43)
 		expectedInjectedValuesCount := 0
+
 		t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_XID_ERRORS", gpu)
 		err = InjectFieldValue(gpu,
 			DCGM_FI_DEV_XID_ERRORS,
@@ -68,7 +84,9 @@ func TestGetValuesSince(t *testing.T) {
 			expectedNumberOfErrors,
 		)
 		require.NoError(t, err)
+
 		expectedInjectedValuesCount++
+
 		for i := 4; i > 0; i-- {
 			err = InjectFieldValue(gpu,
 				DCGM_FI_DEV_XID_ERRORS,
@@ -78,19 +96,21 @@ func TestGetValuesSince(t *testing.T) {
 				int64(i),
 			)
 			require.NoError(t, err)
+
 			expectedInjectedValuesCount++
 		}
 		// Force an update of the fields so that we can fetch initial values.
 		err = UpdateAllFields()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		values, nextTime, err := GetValuesSince(GroupAllGPUs(), fieldsGroup, time.Time{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Greater(t, nextTime, time.Time{})
 		assert.Len(t, values, expectedInjectedValuesCount)
 		assert.Equal(t, FE_GPU, values[0].EntityGroupId)
 		assert.Equal(t, gpu, values[0].EntityId)
 		assert.Equal(t, uint(DCGM_FI_DEV_XID_ERRORS), values[0].FieldId)
 		assert.Equal(t, expectedNumberOfErrors, values[0].Int64())
+
 		for i := 1; i < 5; i++ {
 			assert.Equal(t, FE_GPU, values[i].EntityGroupId)
 			assert.Equal(t, gpu, values[i].EntityId)

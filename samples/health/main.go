@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"text/template"
 	"time"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 const (
@@ -43,6 +44,7 @@ func main() {
 	defer ticker.Stop()
 
 	t := template.Must(template.New("Health").Parse(healthStatus))
+
 	for {
 		select {
 		case <-ticker.C:

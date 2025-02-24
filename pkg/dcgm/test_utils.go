@@ -34,8 +34,10 @@ func setupTest(tb testing.TB) func(testing.TB) {
 
 func runOnlyWithLiveGPUs(t *testing.T) {
 	t.Helper()
+
 	gpus, err := getSupportedDevices()
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
 	if len(gpus) < 1 {
 		t.Skip("Skipping test that requires live GPUs. None were found")
 	}
@@ -56,5 +58,6 @@ func withInjectionGPUs(tb testing.TB, count int) ([]uint, error) {
 			Entity: GroupEntityPair{EntityGroupId: FE_GPU},
 		}
 	}
+
 	return CreateFakeEntities(entityList)
 }

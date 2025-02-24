@@ -18,7 +18,7 @@ package dcgm
 
 /*
 #cgo linux LDFLAGS: -ldl -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files
-#cgo darwin LDFLAGS: -ldl -Wl,--export-dynamic -Wl,-undefined,dynamic_lookup
+#cgo darwin LDFLAGS: -ldl -Wl,-undefined,dynamic_lookup
 
 #include <dlfcn.h>
 #include "dcgm_agent.h"
@@ -28,13 +28,17 @@ package dcgm
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 	"unsafe"
+
+	"github.com/Masterminds/semver"
 )
 
 type mode int
@@ -77,9 +81,9 @@ func initDcgm(m mode, args ...string) (err error) {
 		return connectStandalone(args...)
 	case StartHostengine:
 		return startHostengine()
+	default:
+		panic(ErrInvalidMode)
 	}
-
-	return nil
 }
 
 func shutdown() (err error) {
@@ -125,24 +129,27 @@ func stopEmbedded() (err error) {
 }
 
 func connectStandalone(args ...string) (err error) {
+	var (
+		cHandle       C.dcgmHandle_t
+		connectParams C.dcgmConnectV2Params_v2
+	)
+
 	if len(args) < 2 {
-		return fmt.Errorf("Missing dcgm address and / or port")
+		return errors.New("missing dcgm address and / or port")
 	}
 
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error initializing DCGM: %s", err)
+		return fmt.Errorf("error initializing DCGM: %s", err)
 	}
 
-	var cHandle C.dcgmHandle_t
 	addr := C.CString(args[0])
 	defer freeCString(addr)
-	var connectParams C.dcgmConnectV2Params_v2
 	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
 
 	sck, err := strconv.ParseUint(args[1], 10, 32)
 	if err != nil {
-		return fmt.Errorf("Error parsing %s: %v\n", args[1], err)
+		return fmt.Errorf("error parsing %s: %v", args[1], err)
 	}
 	connectParams.addressIsUnixSocket = C.uint(sck)
 
@@ -152,14 +159,6 @@ func connectStandalone(args ...string) (err error) {
 	}
 
 	handle = dcgmHandle{cHandle}
-
-	// This check is disabled for now
-	/*
-		err = checkHostengineVersion()
-		if err != nil {
-			return fmt.Errorf("Error connecting to remote nv-hostengine: %s", err)
-		}
-	*/
 
 	return
 }
@@ -178,11 +177,16 @@ func disconnectStandalone() (err error) {
 }
 
 func startHostengine() (err error) {
+	var (
+		procAttr      syscall.ProcAttr
+		cHandle       C.dcgmHandle_t
+		connectParams C.dcgmConnectV2Params_v2
+	)
+
 	bin, err := exec.LookPath("nv-hostengine")
 	if err != nil {
 		return fmt.Errorf("Error finding nv-hostengine: %s", err)
 	}
-	var procAttr syscall.ProcAttr
 	procAttr.Files = []uintptr{
 		uintptr(syscall.Stdin),
 		uintptr(syscall.Stdout),
@@ -209,8 +213,6 @@ func startHostengine() (err error) {
 		return fmt.Errorf("Error initializing DCGM: %s", err)
 	}
 
-	var cHandle C.dcgmHandle_t
-	var connectParams C.dcgmConnectV2Params_v2
 	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
 	isSocket := C.uint(1)
 	connectParams.addressIsUnixSocket = isSocket
@@ -235,7 +237,83 @@ func stopHostengine() (err error) {
 	if err = cmd.Run(); err != nil {
 		return fmt.Errorf("Error terminating nv-hostengine: %s", err)
 	}
+
 	log.Println("Successfully terminated nv-hostengine.")
 
 	return syscall.Kill(hostengineAsChildPid, syscall.SIGKILL)
+}
+
+func checkHostengineVersion() (err error) {
+	var hostEngineVersionInfo C.dcgmVersionInfo_t
+	hostEngineVersionInfo.version = makeVersion2(unsafe.Sizeof(hostEngineVersionInfo))
+	result := C.dcgmHostengineVersionInfo(handle.handle, &hostEngineVersionInfo)
+	if err = errorString(result); err != nil {
+		return fmt.Errorf("Could not retrieve running hostengine version: %s", err)
+	}
+
+	var versionInfo C.dcgmVersionInfo_t
+	versionInfo.version = makeVersion2(unsafe.Sizeof(versionInfo))
+	result = C.dcgmVersionInfo(&versionInfo)
+	if err = errorString(result); err != nil {
+		return fmt.Errorf("Could not retrieve dcgm version: %s", err)
+	}
+
+	/* Version string looks like: "version:2.1.2;arch:x86_64;buildtype:Debug;
+	 * buildid:;builddate:2021-03-03;commit:v2.1.1-5-gc27ab30f;branch:master;
+	 * buildplatform:Linux 5.4.0-66-generic #74~18.04.2-Ubuntu SMP Fri Feb 5
+	 * 11:17:31 UTC 2021 x86_64;;crc:bd60aadd63245021163ef008d0907ae7"
+	 */
+	heVersionStr := C.GoString(&hostEngineVersionInfo.rawBuildInfoString[0])
+	myVersionStr := C.GoString(&versionInfo.rawBuildInfoString[0])
+	foundVersion := false
+
+	he := strings.Split(heVersionStr, ";")
+
+	// Find version pair within build information
+	for _, line := range he {
+		if strings.HasPrefix(line, "version:") {
+			heVersionStr = line
+			foundVersion = true
+		}
+	}
+
+	if foundVersion == false {
+		return fmt.Errorf("Could not determine remote version")
+	}
+
+	foundVersion = false
+	my := strings.Split(myVersionStr, ";")
+
+	for _, line := range my {
+		if strings.HasPrefix(line, "version:") {
+			myVersionStr = line
+			foundVersion = true
+		}
+	}
+
+	if foundVersion == false {
+		return fmt.Errorf("Could not determine local version")
+	}
+
+	// Parse out version and compare
+	he = strings.Split(heVersionStr, ":")
+	my = strings.Split(myVersionStr, ":")
+
+	if (len(he) != 2) && (len(my) != 2) {
+		return fmt.Errorf("Could not parse versions")
+	}
+
+	heVersion, err := semver.NewVersion(he[1])
+	if err != nil {
+		return fmt.Errorf("Could not determine remote version: %s", err)
+	}
+	myVersion, err := semver.NewVersion(my[1])
+	if err != nil {
+		return fmt.Errorf("Could not determine local version: %s", err)
+	}
+	if heVersion.Major() != myVersion.Major() {
+		return fmt.Errorf("remote %v != local %v", he[1], my[1])
+	}
+
+	return
 }

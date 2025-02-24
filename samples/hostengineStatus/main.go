@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 // dcgmi introspect --enable

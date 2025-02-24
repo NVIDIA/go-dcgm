@@ -1,3 +1,4 @@
+// Package dcgm provides bindings for NVIDIA's Data Center GPU Manager (DCGM)
 package dcgm
 
 /*
@@ -5,23 +6,27 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"unsafe"
 )
 
-type DcgmStatus struct {
+// Status represents the current resource utilization of the DCGM hostengine process
+type Status struct {
+	// Memory represents the current memory usage of the DCGM hostengine in kilobytes
 	Memory int64
-	CPU    float64
+	// CPU represents the current CPU utilization of the DCGM hostengine as a percentage (0-100)
+	CPU float64
 }
 
-func introspect() (engine DcgmStatus, err error) {
+func introspect() (engine Status, err error) {
 	var memory C.dcgmIntrospectMemory_t
 	memory.version = makeVersion1(unsafe.Sizeof(memory))
 	waitIfNoData := 1
 	result := C.dcgmIntrospectGetHostengineMemoryUsage(handle.handle, &memory, C.int(waitIfNoData))
 
 	if err = errorString(result); err != nil {
-		return engine, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return engine, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	var cpu C.dcgmIntrospectCpuUtil_t
@@ -30,10 +35,10 @@ func introspect() (engine DcgmStatus, err error) {
 	result = C.dcgmIntrospectGetHostengineCpuUtilization(handle.handle, &cpu, C.int(waitIfNoData))
 
 	if err = errorString(result); err != nil {
-		return engine, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return engine, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
-	engine = DcgmStatus{
+	engine = Status{
 		Memory: toInt64(memory.bytesUsed) / 1024,
 		CPU:    *dblToFloat(cpu.total) * 100,
 	}
