@@ -5,6 +5,7 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"unsafe"
 )
@@ -72,37 +73,6 @@ func swTestName(t int) string {
 		return "inforom corruption"
 	}
 
-	return ""
-}
-
-func gpuTestName(t int) string {
-
-	switch t {
-	case C.DCGM_MEMORY_INDEX:
-		return "Memory"
-	case C.DCGM_DIAGNOSTIC_INDEX:
-		return "Diagnostic"
-	case C.DCGM_PCI_INDEX:
-		return "PCIe"
-	case C.DCGM_SM_STRESS_INDEX:
-		return "SM Stress"
-	case C.DCGM_TARGETED_STRESS_INDEX:
-		return "Targeted Stress"
-	case C.DCGM_TARGETED_POWER_INDEX:
-		return "Targeted Power"
-	case C.DCGM_MEMORY_BANDWIDTH_INDEX:
-		return "Memory bandwidth"
-	case C.DCGM_MEMTEST_INDEX:
-		return "Memtest"
-	case C.DCGM_PULSE_TEST_INDEX:
-		return "Pulse"
-	case C.DCGM_EUD_TEST_INDEX:
-		return "EUD"
-	case C.DCGM_SOFTWARE_INDEX:
-		return "Software"
-	case C.DCGM_CONTEXT_CREATE_INDEX:
-		return "Context create"
-	}
 	return ""
 }
 

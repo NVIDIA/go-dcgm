@@ -5,9 +5,9 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"strings"
@@ -196,7 +196,7 @@ func getProcessInfo(groupId GroupHandle, pid uint) (processInfo []ProcessInfo, e
 
 func processName(pid uint) (string, error) {
 	f := fmt.Sprintf("/proc/%d/comm", pid)
-	b, err := ioutil.ReadFile(f)
+	b, err := os.ReadFile(f)
 	if err != nil {
 		// TOCTOU: process terminated
 		if os.IsNotExist(err) {

@@ -60,7 +60,7 @@ func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHan
 func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 	result := C.dcgmFieldGroupDestroy(handle.handle, fieldsGroup.handle)
 	if err = errorString(result); err != nil {
-		fmt.Errorf("Error destroying DCGM fields group: %s", err)
+		err = fmt.Errorf("Error destroying DCGM fields group: %s", err)
 	}
 
 	return
@@ -110,14 +110,14 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 
 var fieldValuePool = sync.Pool{
 	New: func() any {
-		slice := make([]C.dcgmFieldValue_v1, 0, 95)
+		slice := make([]C.dcgmFieldValue_v1, 0, fieldValuesSliceSize)
 		return &slice
 	},
 }
 
 var fieldValueV2Pool = sync.Pool{
 	New: func() any {
-		slice := make([]C.dcgmFieldValue_v2, 0, 95)
+		slice := make([]C.dcgmFieldValue_v2, 0, fieldValuesSliceSize)
 		return &slice
 	},
 }
@@ -368,7 +368,7 @@ func ToFieldMeta(fieldInfo C.dcgm_field_meta_p) FieldMeta {
 		FieldId:     Short(fieldInfo.fieldId),
 		FieldType:   byte(fieldInfo.fieldType),
 		Size:        byte(fieldInfo.size),
-		Tag:         *stringPtr((*C.char)(unsafe.Pointer(&fieldInfo.tag[0]))),
+		Tag:         C.GoString((*C.char)(unsafe.Pointer(&fieldInfo.tag[0]))),
 		Scope:       int(fieldInfo.scope),
 		NvmlFieldId: int(fieldInfo.nvmlFieldId),
 		EntityLevel: Field_Entity_Group(fieldInfo.entityLevel),

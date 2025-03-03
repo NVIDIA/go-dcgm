@@ -22,20 +22,6 @@ func uintPtr(c C.uint) *uint {
 	return &i
 }
 
-func uintPtrInt(c C.int) *uint {
-	i := uint(c)
-	return &i
-}
-
-func uintPtrUnsafe(p unsafe.Pointer) *uint {
-	if p == nil {
-		return nil
-	}
-	uintP := (*uint)(unsafe.Pointer(p))
-	val := *uintP
-	return &val
-}
-
 func uint64Ptr(c C.longlong) *uint64 {
 	i := uint64(c)
 	return &i
@@ -46,42 +32,14 @@ func int64Ptr(c C.longlong) *int64 {
 	return &i
 }
 
-func uint64PtrUint(c C.uint) *uint64 {
-	i := uint64(c)
-	return &i
-}
-
-func uint64PtrUnsafe(p unsafe.Pointer) *uint64 {
-	if p == nil {
-		return nil
-	}
-	uintP := (*uint64)(unsafe.Pointer(p))
-	val := *uintP
-	return &val
-}
-
 func toInt64(c C.longlong) int64 {
 	i := int64(c)
 	return i
 }
 
-func dblToUint(val C.double) *uint {
-	i := uint(val)
-	return &i
-}
-
 func dblToFloat(val C.double) *float64 {
 	i := float64(val)
 	return &i
-}
-
-func dblToFloatUnsafe(val unsafe.Pointer) *float64 {
-	if val == nil {
-		return nil
-	}
-	dblP := (*C.double)(unsafe.Pointer(val))
-	floatP := float64(*dblP)
-	return &floatP
 }
 
 func stringPtr(c *C.char) *string {
@@ -109,31 +67,11 @@ func freeCString(cStr *C.char) {
 }
 
 func IsInt32Blank(value int) bool {
-	if value >= dcgmInt32Blank {
-		return true
-	}
-	return false
+	return value >= dcgmInt32Blank
 }
 
 func IsInt64Blank(value int64) bool {
-	if value >= dcgmInt64Blank {
-		return true
-	}
-	return false
-}
-
-func blank64(val *int64) *int64 {
-	if val != nil && IsInt64Blank(*val) {
-		return nil
-	}
-	return val
-}
-
-func blank32(val *uint) *uint {
-	if val != nil && IsInt32Blank(int(*val)) {
-		return nil
-	}
-	return val
+	return value >= dcgmInt64Blank
 }
 
 func makeVersion1(struct_type uintptr) C.uint {
@@ -158,16 +96,6 @@ func makeVersion4(struct_type uintptr) C.uint {
 
 func makeVersion5(struct_type uintptr) C.uint {
 	version := C.uint(struct_type | 5<<24)
-	return version
-}
-
-func makeVersion8(struct_type uintptr) C.uint {
-	version := C.uint(struct_type | 8<<24)
-	return version
-}
-
-func makeVersion9(struct_type uintptr) C.uint {
-	version := C.uint(struct_type | 9<<24)
 	return version
 }
 
