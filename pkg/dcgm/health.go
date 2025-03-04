@@ -41,12 +41,12 @@ type DeviceHealth struct {
 }
 
 // HealthSet enable the DCGM health check system for the given systems
-func HealthSet(groupId GroupHandle, systems HealthSystem) (err error) {
+func HealthSet(groupId GroupHandle, systems HealthSystem) error {
 	result := C.dcgmHealthSet(handle.handle, groupId.handle, C.dcgmHealthSystems_t(systems))
-	if err = errorString(result); err != nil {
+	if err := errorString(result); err != nil {
 		return fmt.Errorf("error setting health watches: %w", err)
 	}
-	return
+	return nil
 }
 
 // HealthGet retrieve the current state of the DCGM health check system

@@ -5,9 +5,11 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"encoding/binary"
 	"fmt"
+	"sync"
 	"unicode"
 	"unsafe"
 )
@@ -16,6 +18,7 @@ const (
 	defaultUpdateFreq     = 30000000 // usec
 	defaultMaxKeepAge     = 0        // sec
 	defaultMaxKeepSamples = 1        // Keep one sample by default since we only ask for latest
+	fieldValuesSliceSize  = 175      // 175 is a number of fields in the DCGM.See: https://docs.nvidia.com/datacenter/dcgm/latest/dcgm-api/dcgm-api-field-ids.html
 )
 
 type FieldMeta struct {
@@ -57,7 +60,7 @@ func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHan
 func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 	result := C.dcgmFieldGroupDestroy(handle.handle, fieldsGroup.handle)
 	if err = errorString(result); err != nil {
-		fmt.Errorf("Error destroying DCGM fields group: %s", err)
+		err = fmt.Errorf("Error destroying DCGM fields group: %s", err)
 	}
 
 	return
@@ -105,8 +108,57 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 	return WatchFieldsWithGroupEx(fieldsGroup, group, defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
 }
 
+var fieldValuePool = sync.Pool{
+	New: func() any {
+		slice := make([]C.dcgmFieldValue_v1, 0, fieldValuesSliceSize)
+		return &slice
+	},
+}
+
+var fieldValueV2Pool = sync.Pool{
+	New: func() any {
+		slice := make([]C.dcgmFieldValue_v2, 0, fieldValuesSliceSize)
+		return &slice
+	},
+}
+
+func acquireSlice[T any](pool *sync.Pool, size int) []T {
+	slicePtr := pool.Get().(*[]T)
+	slice := *slicePtr
+	if cap(slice) < size {
+		// If the slice from pool is too small, create a new one
+		pool.Put(slicePtr)
+		newSlice := make([]T, size)
+		return newSlice
+	}
+	*slicePtr = slice[:size]
+	return *slicePtr
+}
+
+func releaseSlice[T any](pool *sync.Pool, slice []T) {
+	pool.Put(&slice)
+}
+
+func acquireFieldValueSlice(size int) []C.dcgmFieldValue_v1 {
+	return acquireSlice[C.dcgmFieldValue_v1](&fieldValuePool, size)
+}
+
+func releaseFieldValueSlice(slice []C.dcgmFieldValue_v1) {
+	releaseSlice(&fieldValuePool, slice)
+}
+
+func acquireFieldValueV2Slice(size int) []C.dcgmFieldValue_v2 {
+	return acquireSlice[C.dcgmFieldValue_v2](&fieldValueV2Pool, size)
+}
+
+func releaseFieldValueV2Slice(slice []C.dcgmFieldValue_v2) {
+	releaseSlice(&fieldValueV2Pool, slice)
+}
+
 func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error) {
-	values := make([]C.dcgmFieldValue_v1, len(fields))
+	values := acquireFieldValueSlice(len(fields))
+	defer releaseFieldValueSlice(values)
+
 	cfields := *(*[]C.ushort)(unsafe.Pointer(&fields))
 
 	result := C.dcgmGetLatestValuesForFields(handle.handle, C.int(gpu), &cfields[0], C.uint(len(fields)), &values[0])
@@ -114,19 +166,20 @@ func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error)
 		return nil, fmt.Errorf("Error watching fields: %s", err)
 	}
 
+	// Convert to our return type before returning
 	return toFieldValue(values), nil
 }
 
 func LinkGetLatestValues(index uint, parentId uint, fields []Short) ([]FieldValue_v1, error) {
 	slice := []byte{uint8(FE_SWITCH), uint8(index), uint8(parentId), 0}
-
 	entityId := binary.LittleEndian.Uint32(slice)
-
 	return EntityGetLatestValues(FE_LINK, uint(entityId), fields)
 }
 
 func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields []Short) ([]FieldValue_v1, error) {
-	values := make([]C.dcgmFieldValue_v1, len(fields))
+	values := acquireFieldValueSlice(len(fields))
+	defer releaseFieldValueSlice(values)
+
 	cfields := (*C.ushort)(unsafe.Pointer(&fields[0]))
 
 	result := C.dcgmEntityGetLatestValues(handle.handle, C.dcgm_field_entity_group_t(entityGroup), C.int(entityId),
@@ -139,7 +192,9 @@ func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields
 }
 
 func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags uint) ([]FieldValue_v2, error) {
-	values := make([]C.dcgmFieldValue_v2, len(fields)*len(entities))
+	values := acquireFieldValueV2Slice(len(fields) * len(entities))
+	defer releaseFieldValueV2Slice(values)
+
 	cfields := (*C.ushort)(unsafe.Pointer(&fields[0]))
 	cEntities := make([]C.dcgmGroupEntityPair_t, len(entities))
 	cPtrEntities := *(*[]C.dcgmGroupEntityPair_t)(unsafe.Pointer(&cEntities))
@@ -313,7 +368,7 @@ func ToFieldMeta(fieldInfo C.dcgm_field_meta_p) FieldMeta {
 		FieldId:     Short(fieldInfo.fieldId),
 		FieldType:   byte(fieldInfo.fieldType),
 		Size:        byte(fieldInfo.size),
-		Tag:         *stringPtr((*C.char)(unsafe.Pointer(&fieldInfo.tag[0]))),
+		Tag:         C.GoString((*C.char)(unsafe.Pointer(&fieldInfo.tag[0]))),
 		Scope:       int(fieldInfo.scope),
 		NvmlFieldId: int(fieldInfo.nvmlFieldId),
 		EntityLevel: Field_Entity_Group(fieldInfo.entityLevel),

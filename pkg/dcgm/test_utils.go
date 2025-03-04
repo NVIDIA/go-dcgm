@@ -23,11 +23,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTest(t *testing.T) func(t *testing.T) {
+func setupTest(tb testing.TB) func(testing.TB) {
 	cleanup, err := Init(Embedded)
-	assert.NoError(t, err)
+	assert.NoError(tb, err)
 
-	return func(t *testing.T) {
+	return func(tb testing.TB) {
 		defer cleanup()
 	}
 }
@@ -41,16 +41,16 @@ func runOnlyWithLiveGPUs(t *testing.T) {
 	}
 }
 
-func withInjectionGPUs(t *testing.T, gpuCount int) ([]uint, error) {
-	t.Helper()
+func withInjectionGPUs(tb testing.TB, count int) ([]uint, error) {
+	tb.Helper()
 	numGPUs, err := GetAllDeviceCount()
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	if numGPUs+1 > MAX_NUM_DEVICES {
-		t.Skipf("Unable to add fake GPU with more than %d gpus", MAX_NUM_DEVICES)
+		tb.Skipf("Unable to add fake GPU with more than %d gpus", MAX_NUM_DEVICES)
 	}
 
-	entityList := make([]MigHierarchyInfo, gpuCount)
+	entityList := make([]MigHierarchyInfo, count)
 	for i := range entityList {
 		entityList[i] = MigHierarchyInfo{
 			Entity: GroupEntityPair{EntityGroupId: FE_GPU},
