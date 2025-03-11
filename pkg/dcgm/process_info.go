@@ -206,3 +206,13 @@ func processName(pid uint) (string, error) {
 	}
 	return strings.TrimSuffix(string(b), "\n"), nil
 }
+
+// watchPidFieldsWithGroup is the same as WatchPidFields, but allows for specifying the group to which the watches should be added.
+func watchPidFieldsWithGroup(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, groupId GroupHandle) error {
+	result := C.dcgmWatchPidFields(handle.handle, groupId.handle, C.longlong(updateFreq.Microseconds()), C.double(maxKeepAge.Seconds()), C.int(maxKeepSamples))
+	if err := errorString(result); err != nil {
+		return &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+	}
+	_ = UpdateAllFields()
+	return nil
+}
