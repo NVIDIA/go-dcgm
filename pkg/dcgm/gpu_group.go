@@ -7,6 +7,7 @@ package dcgm
 import "C"
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 )
@@ -74,8 +75,8 @@ func AddToGroup(groupId GroupHandle, gpuId uint) (err error) {
 	return
 }
 
-// AddLinkEntityToGroup adds a link entity to an existing group
-func AddLinkEntityToGroup(groupId GroupHandle, index, parentId uint) (err error) {
+// AddLinkEntityToGroup adds a link entity to the group
+func AddLinkEntityToGroup(groupId GroupHandle, index uint, parentId uint) (err error) {
 	/* Only supported on little-endian systems currently */
 	slice := []byte{uint8(FE_SWITCH), uint8(index), uint8(parentId), 0}
 
@@ -135,4 +136,14 @@ func GetGroupInfo(groupId GroupHandle) (*GroupInfo, error) {
 	}
 
 	return &ret, nil
+}
+
+// CreateGroupWithContext creates a new group with a context
+func CreateGroupWithContext(ctx context.Context, groupName string) (GroupHandle, error) {
+	select {
+	case <-ctx.Done():
+		return GroupHandle{}, ctx.Err()
+	default:
+		return CreateGroup(groupName)
+	}
 }

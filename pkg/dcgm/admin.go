@@ -277,8 +277,8 @@ func checkHostengineVersion() (err error) {
 		}
 	}
 
-	if foundVersion == false {
-		return fmt.Errorf("Could not determine remote version")
+	if !foundVersion {
+		return errors.New("could not determine remote version")
 	}
 
 	foundVersion = false
@@ -291,25 +291,25 @@ func checkHostengineVersion() (err error) {
 		}
 	}
 
-	if foundVersion == false {
-		return fmt.Errorf("Could not determine local version")
+	if !foundVersion {
+		return errors.New("could not determine local version")
 	}
 
 	// Parse out version and compare
 	he = strings.Split(heVersionStr, ":")
 	my = strings.Split(myVersionStr, ":")
 
-	if (len(he) != 2) && (len(my) != 2) {
-		return fmt.Errorf("Could not parse versions")
+	if len(he) != 2 || len(my) != 2 {
+		return errors.New("could not parse versions")
 	}
 
 	heVersion, err := semver.NewVersion(he[1])
 	if err != nil {
-		return fmt.Errorf("Could not determine remote version: %s", err)
+		return fmt.Errorf("could not determine remote version: %s", err)
 	}
 	myVersion, err := semver.NewVersion(my[1])
 	if err != nil {
-		return fmt.Errorf("Could not determine local version: %s", err)
+		return fmt.Errorf("could not determine local version: %s", err)
 	}
 	if heVersion.Major() != myVersion.Major() {
 		return fmt.Errorf("remote %v != local %v", he[1], my[1])

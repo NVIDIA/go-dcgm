@@ -62,7 +62,10 @@ func (f *FieldHandle) GetHandle() uintptr {
 // Returns the field group handle and any error encountered.
 func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHandle, err error) {
 	var fieldsGroup C.dcgmFieldGrp_t
-	cfields := *(*[]C.ushort)(unsafe.Pointer(&fields))
+	cfields := make([]C.ushort, len(fields))
+	for i, f := range fields {
+		cfields[i] = C.ushort(f)
+	}
 
 	groupName := C.CString(fieldsGroupName)
 	defer freeCString(groupName)
@@ -160,16 +163,12 @@ var fieldValueV2Pool = sync.Pool{
 }
 
 func acquireSlice[T any](pool *sync.Pool, size int) []T {
-	slicePtr := pool.Get().(*[]T)
-	slice := *slicePtr
-	if cap(slice) < size {
-		// If the slice from pool is too small, create a new one
-		pool.Put(slicePtr)
-		newSlice := make([]T, size)
-		return newSlice
+	if v := pool.Get(); v != nil {
+		if slice, ok := v.([]T); ok && cap(slice) >= size {
+			return slice[:size]
+		}
 	}
-	*slicePtr = slice[:size]
-	return *slicePtr
+	return make([]T, size)
 }
 
 func releaseSlice[T any](pool *sync.Pool, slice []T) {
@@ -200,7 +199,10 @@ func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error)
 	values := acquireFieldValueSlice(len(fields))
 	defer releaseFieldValueSlice(values)
 
-	cfields := *(*[]C.ushort)(unsafe.Pointer(&fields))
+	cfields := make([]C.ushort, len(fields))
+	for i, f := range fields {
+		cfields[i] = C.ushort(f)
+	}
 
 	result := C.dcgmGetLatestValuesForFields(handle.handle, C.int(gpu), &cfields[0], C.uint(len(fields)), &values[0])
 	if err := errorString(result); err != nil {
@@ -231,10 +233,13 @@ func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields
 	values := acquireFieldValueSlice(len(fields))
 	defer releaseFieldValueSlice(values)
 
-	cfields := (*C.ushort)(unsafe.Pointer(&fields[0]))
+	cfields := make([]C.ushort, len(fields))
+	for i, f := range fields {
+		cfields[i] = C.ushort(f)
+	}
 
 	result := C.dcgmEntityGetLatestValues(handle.handle, C.dcgm_field_entity_group_t(entityGroup), C.int(entityId),
-		cfields, C.uint(len(fields)), &values[0])
+		&cfields[0], C.uint(len(fields)), &values[0])
 	if result != C.DCGM_ST_OK {
 		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
@@ -251,7 +256,10 @@ func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags u
 	values := acquireFieldValueV2Slice(len(fields) * len(entities))
 	defer releaseFieldValueV2Slice(values)
 
-	cfields := (*C.ushort)(unsafe.Pointer(&fields[0]))
+	cfields := make([]C.ushort, len(fields))
+	for i, f := range fields {
+		cfields[i] = C.ushort(f)
+	}
 	cEntities := make([]C.dcgmGroupEntityPair_t, len(entities))
 	cPtrEntities := *(*[]C.dcgmGroupEntityPair_t)(unsafe.Pointer(&cEntities))
 	for i, entity := range entities {
@@ -261,7 +269,7 @@ func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags u
 		}
 	}
 
-	result := C.dcgmEntitiesGetLatestValues(handle.handle, &cPtrEntities[0], C.uint(len(entities)), cfields,
+	result := C.dcgmEntitiesGetLatestValues(handle.handle, &cPtrEntities[0], C.uint(len(entities)), &cfields[0],
 		C.uint(len(fields)), C.uint(flags), &values[0])
 	if err := errorString(result); err != nil {
 		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}

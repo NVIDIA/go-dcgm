@@ -22,20 +22,6 @@ func uintPtr(c C.uint) *uint {
 	return &i
 }
 
-func uintPtrInt(c C.int) *uint {
-	i := uint(c)
-	return &i
-}
-
-func uintPtrUnsafe(p unsafe.Pointer) *uint {
-	if p == nil {
-		return nil
-	}
-	uintP := (*uint)(p)
-	val := *uintP
-	return &val
-}
-
 func uint64Ptr(c C.longlong) *uint64 {
 	i := uint64(c)
 	return &i
@@ -46,20 +32,6 @@ func int64Ptr(c C.longlong) *int64 {
 	return &i
 }
 
-func uint64PtrUint(c C.uint) *uint64 {
-	i := uint64(c)
-	return &i
-}
-
-func uint64PtrUnsafe(p unsafe.Pointer) *uint64 {
-	if p == nil {
-		return nil
-	}
-	uintP := (*uint64)(p)
-	val := *uintP
-	return &val
-}
-
 func toInt64(c C.longlong) int64 {
 	i := int64(c)
 	return i
@@ -68,15 +40,6 @@ func toInt64(c C.longlong) int64 {
 func dblToFloat(val C.double) *float64 {
 	i := float64(val)
 	return &i
-}
-
-func dblToFloatUnsafe(val unsafe.Pointer) *float64 {
-	if val == nil {
-		return nil
-	}
-	dblP := (*C.double)(val)
-	floatP := float64(*dblP)
-	return &floatP
 }
 
 func stringPtr(c *C.char) *string {
@@ -114,20 +77,6 @@ func IsInt32Blank(value int) bool {
 // These values indicate that no valid data is available for the field.
 func IsInt64Blank(value int64) bool {
 	return value >= dcgmInt64Blank
-}
-
-func blank64(val *int64) *int64 {
-	if val != nil && IsInt64Blank(*val) {
-		return nil
-	}
-	return val
-}
-
-func blank32(val *uint) *uint {
-	if val != nil && IsInt32Blank(int(*val)) {
-		return nil
-	}
-	return val
 }
 
 func makeVersion1(struct_type uintptr) C.uint {
