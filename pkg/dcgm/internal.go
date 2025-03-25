@@ -44,7 +44,7 @@ type MigHierarchyInfo struct {
 
 // CreateFakeEntities creates test entities with the specified MIG hierarchy information.
 // This function is intended for testing purposes only.
-// Returns a slice of GPU IDs for the created entities and any error encountered.
+// Returns a slice of Entity IDs for the created entities and any error encountered.
 func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 	ccfe := C.dcgmCreateFakeEntities_v2{
 		version:     C.dcgmCreateFakeEntities_version2,
@@ -74,12 +74,12 @@ func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 	if err := errorString(result); err != nil {
 		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
-	gpuIDs := make([]uint, ccfe.numToCreate)
+	entityIDs := make([]uint, ccfe.numToCreate)
 	for i := 0; i < int(ccfe.numToCreate); i++ {
-		gpuIDs[i] = uint(ccfe.entityList[i].entity.entityId)
+		entityIDs[i] = uint(ccfe.entityList[i].entity.entityId)
 	}
 
-	return gpuIDs, nil
+	return entityIDs, nil
 }
 
 // InjectFieldValue injects a test value for a specific field into DCGM's field manager.

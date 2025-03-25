@@ -2,3 +2,4 @@
 *.swo
 tags
 .idea/
+.*
