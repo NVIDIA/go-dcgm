@@ -53,18 +53,18 @@ func TestCpuQuery(t *testing.T) {
 
 	defer cleanup()
 
-	hierarchy, err := dcgm.GetCpuHierarchy()
+	hierarchy, err := dcgm.GetCPUHierarchy()
 	check(t, err)
 
-	if hierarchy.NumCpus == 0 {
+	if hierarchy.NumCPUs == 0 {
 		t.Errorf("Found no CPUs")
 	}
 
-	for i := uint(0); i < hierarchy.NumCpus; i++ {
+	for i := uint(0); i < hierarchy.NumCPUs; i++ {
 		coresFound := false
 
 		for j := uint(0); j < dcgm.MAX_CPU_CORE_BITMASK_COUNT; j++ {
-			if hierarchy.Cpus[i].OwnedCores[j] != 0 {
+			if hierarchy.CPUs[i].OwnedCores[j] != 0 {
 				coresFound = true
 			}
 		}

@@ -286,7 +286,7 @@ func ViolationRegistration(data unsafe.Pointer) int {
 	return 0
 }
 
-func setPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t, paramList []policyIndex) (err error) {
+func setPolicy(groupID GroupHandle, condition C.dcgmPolicyCondition_t, paramList []policyIndex) (err error) {
 	var policy C.dcgmPolicy_t
 	policy.version = makeVersion1(unsafe.Sizeof(policy))
 	policy.mode = C.dcgmPolicyMode_t(C.DCGM_OPERATION_MODE_AUTO)
@@ -314,7 +314,7 @@ func setPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t, paramList
 
 	var statusHandle C.dcgmStatus_t
 
-	result := C.dcgmPolicySet(handle.handle, groupId.handle, &policy, statusHandle)
+	result := C.dcgmPolicySet(handle.handle, groupID.handle, &policy, statusHandle)
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("error setting policies: %s", err)
 	}
@@ -324,7 +324,7 @@ func setPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t, paramList
 	return
 }
 
-func registerPolicy(ctx context.Context, groupId GroupHandle, typ ...policyCondition) (<-chan PolicyViolation, error) {
+func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...policyCondition) (<-chan PolicyViolation, error) {
 	var err error
 	// init policy globals for internal API
 	makePolicyChannels()
@@ -361,12 +361,12 @@ func registerPolicy(ctx context.Context, groupId GroupHandle, typ ...policyCondi
 		}
 	}
 
-	err = setPolicy(groupId, condition, paramKeys)
+	err = setPolicy(groupID, condition, paramKeys)
 	if err != nil {
 		return nil, err
 	}
 
-	result := C.dcgmPolicyRegister_v2(handle.handle, groupId.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
+	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
 
 	if err = errorString(result); err != nil {
 		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
@@ -380,7 +380,7 @@ func registerPolicy(ctx context.Context, groupId GroupHandle, typ ...policyCondi
 		defer func() {
 			log.Println("unregister policy violation...")
 			close(violation)
-			unregisterPolicy(groupId, condition)
+			unregisterPolicy(groupID, condition)
 		}()
 
 		for {
@@ -408,8 +408,8 @@ func registerPolicy(ctx context.Context, groupId GroupHandle, typ ...policyCondi
 	return violation, err
 }
 
-func unregisterPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t) {
-	result := C.dcgmPolicyUnregister(handle.handle, groupId.handle, condition)
+func unregisterPolicy(groupID GroupHandle, condition C.dcgmPolicyCondition_t) {
+	result := C.dcgmPolicyUnregister(handle.handle, groupID.handle, condition)
 
 	if err := errorString(result); err != nil {
 		log.Println(fmt.Errorf("error unregistering policy: %s", err))

@@ -92,6 +92,6 @@ func verifyProfileNames(tb testing.TB, entityIds []uint, isGpuInstance bool) {
 	for i := range values {
 		assert.Equal(tb, expectedFakeName, values[i].String(),
 			"Fake profile name appears to be wrong for entity %d. Expected '%s', found '%s'",
-			values[i].EntityId, expectedFakeName, values[i].String())
+			values[i].EntityID, expectedFakeName, values[i].String())
 	}
 }

@@ -50,8 +50,8 @@ type DeviceHealth struct {
 
 // HealthSet enables the DCGM health check system for the given systems.
 // It configures which health watch systems should be monitored for the specified group.
-func HealthSet(groupId GroupHandle, systems HealthSystem) (err error) {
-	result := C.dcgmHealthSet(handle.handle, groupId.handle, C.dcgmHealthSystems_t(systems))
+func HealthSet(groupID GroupHandle, systems HealthSystem) (err error) {
+	result := C.dcgmHealthSet(handle.handle, groupID.handle, C.dcgmHealthSystems_t(systems))
 	if err := errorString(result); err != nil {
 		return fmt.Errorf("error setting health watches: %w", err)
 	}
@@ -60,10 +60,10 @@ func HealthSet(groupId GroupHandle, systems HealthSystem) (err error) {
 
 // HealthGet retrieves the current state of the DCGM health check system.
 // It returns which health watch systems are currently enabled for the specified group.
-func HealthGet(groupId GroupHandle) (HealthSystem, error) {
+func HealthGet(groupID GroupHandle) (HealthSystem, error) {
 	var systems C.dcgmHealthSystems_t
 
-	result := C.dcgmHealthGet(handle.handle, groupId.handle, (*C.dcgmHealthSystems_t)(unsafe.Pointer(&systems)))
+	result := C.dcgmHealthGet(handle.handle, groupID.handle, (*C.dcgmHealthSystems_t)(unsafe.Pointer(&systems)))
 	if err := errorString(result); err != nil {
 		return HealthSystem(0), err
 	}
@@ -102,11 +102,11 @@ type HealthResponse struct {
 // since the last time this check was invoked. On the first call, stateful information
 // about all of the enabled watches within a group is created but no error results are
 // provided. On subsequent calls, any error information will be returned.
-func HealthCheck(groupId GroupHandle) (HealthResponse, error) {
+func HealthCheck(groupID GroupHandle) (HealthResponse, error) {
 	var healthResults C.dcgmHealthResponse_v5
 	healthResults.version = makeVersion5(unsafe.Sizeof(healthResults))
 
-	result := C.dcgmHealthCheck(handle.handle, groupId.handle, (*C.dcgmHealthResponse_t)(unsafe.Pointer(&healthResults)))
+	result := C.dcgmHealthCheck(handle.handle, groupID.handle, (*C.dcgmHealthResponse_t)(unsafe.Pointer(&healthResults)))
 
 	if err := errorString(result); err != nil {
 		return HealthResponse{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
@@ -139,24 +139,24 @@ func HealthCheck(groupId GroupHandle) (HealthResponse, error) {
 	return response, nil
 }
 
-func healthCheckByGpuId(gpuId uint) (deviceHealth DeviceHealth, err error) {
+func healthCheckByGpuId(gpuID uint) (deviceHealth DeviceHealth, err error) {
 	name := fmt.Sprintf("health%d", rand.Uint64())
-	groupId, err := CreateGroup(name)
+	groupID, err := CreateGroup(name)
 	if err != nil {
 		return
 	}
 
-	err = AddToGroup(groupId, gpuId)
+	err = AddToGroup(groupID, gpuID)
 	if err != nil {
 		return
 	}
 
-	err = HealthSet(groupId, DCGM_HEALTH_WATCH_ALL)
+	err = HealthSet(groupID, DCGM_HEALTH_WATCH_ALL)
 	if err != nil {
 		return
 	}
 
-	result, err := HealthCheck(groupId)
+	result, err := HealthCheck(groupID)
 	if err != nil {
 		return
 	}
@@ -176,11 +176,11 @@ func healthCheckByGpuId(gpuId uint) (deviceHealth DeviceHealth, err error) {
 	}
 
 	deviceHealth = DeviceHealth{
-		GPU:     gpuId,
+		GPU:     gpuID,
 		Status:  status,
 		Watches: watches,
 	}
-	_ = DestroyGroup(groupId)
+	_ = DestroyGroup(groupID)
 	return
 }
 

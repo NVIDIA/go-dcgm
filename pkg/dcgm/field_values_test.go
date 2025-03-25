@@ -107,14 +107,14 @@ func TestGetValuesSince(t *testing.T) {
 		assert.Greater(t, nextTime, time.Time{})
 		assert.Len(t, values, expectedInjectedValuesCount)
 		assert.Equal(t, FE_GPU, values[0].EntityGroupId)
-		assert.Equal(t, gpu, values[0].EntityId)
-		assert.Equal(t, uint(DCGM_FI_DEV_XID_ERRORS), values[0].FieldId)
+		assert.Equal(t, gpu, values[0].EntityID)
+		assert.Equal(t, uint(DCGM_FI_DEV_XID_ERRORS), values[0].FieldID)
 		assert.Equal(t, expectedNumberOfErrors, values[0].Int64())
 
 		for i := 1; i < 5; i++ {
 			assert.Equal(t, FE_GPU, values[i].EntityGroupId)
-			assert.Equal(t, gpu, values[i].EntityId)
-			assert.Equal(t, uint(DCGM_FI_DEV_XID_ERRORS), values[i].FieldId)
+			assert.Equal(t, gpu, values[i].EntityID)
+			assert.Equal(t, uint(DCGM_FI_DEV_XID_ERRORS), values[i].FieldID)
 			assert.Equal(t, int64(5-i), values[i].Int64())
 		}
 	})

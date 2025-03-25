@@ -34,12 +34,12 @@ const (
 // characteristics and properties of fields that can be monitored or queried
 // through DCGM.
 type FieldMeta struct {
-	FieldId     Short              // Unique identifier for the field
+	FieldID     Short              // Unique identifier for the field
 	FieldType   byte               // Type of the field (e.g., integer, float, string)
 	Size        byte               // Size of the field in bytes
 	Tag         string             // Human-readable tag/name for the field
 	Scope       int                // Scope of the field
-	NvmlFieldId int                // Corresponding NVML field identifier
+	NvmlFieldID int                // Corresponding NVML field identifier
 	EntityLevel Field_Entity_Group // Entity level/group this field belongs to
 }
 
@@ -95,13 +95,13 @@ func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 // fieldsGroup is the handle of the field group to watch.
 // groupName is a name for the watch group.
 // Returns a group handle and any error encountered.
-func WatchFields(gpuId uint, fieldsGroup FieldHandle, groupName string) (groupId GroupHandle, err error) {
+func WatchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId GroupHandle, err error) {
 	group, err := CreateGroup(groupName)
 	if err != nil {
 		return
 	}
 
-	err = AddToGroup(group, gpuId)
+	err = AddToGroup(group, gpuID)
 	if err != nil {
 		return
 	}
@@ -292,7 +292,7 @@ func toFieldValue(cfields []C.dcgmFieldValue_v1) []FieldValue_v1 {
 	for i := range cfields {
 		fields[i] = FieldValue_v1{
 			Version:   uint(cfields[i].version),
-			FieldId:   uint(cfields[i].fieldId),
+			FieldID:   uint(cfields[i].fieldId),
 			FieldType: uint(cfields[i].fieldType),
 			Status:    int(cfields[i].status),
 			TS:        int64(cfields[i].ts),
@@ -330,8 +330,8 @@ func toFieldValue_v2(cfields []C.dcgmFieldValue_v2) []FieldValue_v2 {
 			fields[i] = FieldValue_v2{
 				Version:       uint(cfields[i].version),
 				EntityGroupId: Field_Entity_Group(cfields[i].entityGroupId),
-				EntityId:      uint(cfields[i].entityId),
-				FieldId:       uint(cfields[i].fieldId),
+				EntityID:      uint(cfields[i].entityId),
+				FieldID:       uint(cfields[i].fieldId),
 				FieldType:     uint(cfields[i].fieldType),
 				Status:        int(cfields[i].status),
 				TS:            int64(cfields[i].ts),
@@ -342,8 +342,8 @@ func toFieldValue_v2(cfields []C.dcgmFieldValue_v2) []FieldValue_v2 {
 			fields[i] = FieldValue_v2{
 				Version:       uint(cfields[i].version),
 				EntityGroupId: Field_Entity_Group(cfields[i].entityGroupId),
-				EntityId:      uint(cfields[i].entityId),
-				FieldId:       uint(cfields[i].fieldId),
+				EntityID:      uint(cfields[i].entityId),
+				FieldID:       uint(cfields[i].fieldId),
 				FieldType:     uint(cfields[i].fieldType),
 				Status:        int(cfields[i].status),
 				TS:            int64(cfields[i].ts),
@@ -364,8 +364,8 @@ func dcgmFieldValue_v1ToFieldValue_v2(
 		fields[i] = FieldValue_v2{
 			Version:       C.dcgmFieldValue_version2,
 			EntityGroupId: fieldEntityGroup,
-			EntityId:      entityId,
-			FieldId:       uint(cfields[i].fieldId),
+			EntityID:      entityId,
+			FieldID:       uint(cfields[i].fieldId),
 			FieldType:     uint(cfields[i].fieldType),
 			Status:        int(cfields[i].status),
 			TS:            int64(cfields[i].ts),
@@ -430,12 +430,12 @@ func Fv2_Blob(fv FieldValue_v2) [4096]byte {
 // ToFieldMeta converts a C DCGM field metadata structure to a Go FieldMeta struct.
 func ToFieldMeta(fieldInfo C.dcgm_field_meta_p) FieldMeta {
 	return FieldMeta{
-		FieldId:     Short(fieldInfo.fieldId),
+		FieldID:     Short(fieldInfo.fieldId),
 		FieldType:   byte(fieldInfo.fieldType),
 		Size:        byte(fieldInfo.size),
 		Tag:         C.GoString((*C.char)(unsafe.Pointer(&fieldInfo.tag[0]))),
 		Scope:       int(fieldInfo.scope),
-		NvmlFieldId: int(fieldInfo.nvmlFieldId),
+		NvmlFieldID: int(fieldInfo.nvmlFieldId),
 		EntityLevel: Field_Entity_Group(fieldInfo.entityLevel),
 	}
 }

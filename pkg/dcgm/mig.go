@@ -112,8 +112,8 @@ type MigHierarchy_v2 struct {
 	EntityList [C.DCGM_MAX_HIERARCHY_INFO]MigHierarchyInfo_v2
 }
 
-// GetGpuInstanceHierarchy retrieves the complete MIG hierarchy information
-func GetGpuInstanceHierarchy() (hierarchy MigHierarchy_v2, err error) {
+// GetGPUInstanceHierarchy retrieves the complete MIG hierarchy information
+func GetGPUInstanceHierarchy() (hierarchy MigHierarchy_v2, err error) {
 	var c_hierarchy C.dcgmMigHierarchy_v2
 	c_hierarchy.version = C.dcgmMigHierarchy_version2
 	ptr_hierarchy := (*C.dcgmMigHierarchy_v2)(unsafe.Pointer(&c_hierarchy))

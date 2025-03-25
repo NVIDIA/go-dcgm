@@ -48,11 +48,11 @@ type Device struct {
 // getAllDeviceCount counts all GPUs on the system
 func getAllDeviceCount() (gpuCount uint, err error) {
 	var (
-		gpuIdList [C.DCGM_MAX_NUM_DEVICES]C.uint
+		gpuIDList [C.DCGM_MAX_NUM_DEVICES]C.uint
 		count     C.int
 	)
 
-	result := C.dcgmGetAllDevices(handle.handle, &gpuIdList[0], &count)
+	result := C.dcgmGetAllDevices(handle.handle, &gpuIDList[0], &count)
 	if err = errorString(result); err != nil {
 		return gpuCount, fmt.Errorf("error getting devices count: %s", err)
 	}
@@ -81,10 +81,10 @@ func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 
 // getSupportedDevices returns DCGM supported GPUs
 func getSupportedDevices() (gpus []uint, err error) {
-	var gpuIdList [C.DCGM_MAX_NUM_DEVICES]C.uint
+	var gpuIDList [C.DCGM_MAX_NUM_DEVICES]C.uint
 	var count C.int
 
-	result := C.dcgmGetAllSupportedDevices(handle.handle, &gpuIdList[0], &count)
+	result := C.dcgmGetAllSupportedDevices(handle.handle, &gpuIDList[0], &count)
 	if err = errorString(result); err != nil {
 		return gpus, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
@@ -92,12 +92,12 @@ func getSupportedDevices() (gpus []uint, err error) {
 	numGpus := int(count)
 	gpus = make([]uint, numGpus)
 	for i := 0; i < numGpus; i++ {
-		gpus[i] = uint(gpuIdList[i])
+		gpus[i] = uint(gpuIDList[i])
 	}
 	return
 }
 
-func getPciBandwidth(gpuId uint) (int64, error) {
+func getPciBandwidth(gpuID uint) (int64, error) {
 	const (
 		maxLinkGen int = iota
 		maxLinkWidth
@@ -110,30 +110,30 @@ func getPciBandwidth(gpuId uint) (int64, error) {
 
 	fieldsName := fmt.Sprintf("pciBandwidthFields%d", rand.Uint64())
 
-	fieldsId, err := FieldGroupCreate(fieldsName, pciFields)
+	fieldsID, err := FieldGroupCreate(fieldsName, pciFields)
 	if err != nil {
 		return 0, err
 	}
 
 	groupName := fmt.Sprintf("pciBandwidth%d", rand.Uint64())
-	groupId, err := WatchFields(gpuId, fieldsId, groupName)
+	groupID, err := WatchFields(gpuID, fieldsID, groupName)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
+		_ = FieldGroupDestroy(fieldsID)
 		return 0, err
 	}
 
-	values, err := GetLatestValuesForFields(gpuId, pciFields)
+	values, err := GetLatestValuesForFields(gpuID, pciFields)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
-		_ = DestroyGroup(groupId)
+		_ = FieldGroupDestroy(fieldsID)
+		_ = DestroyGroup(groupID)
 		return 0, fmt.Errorf("error getting Pcie bandwidth: %s", err)
 	}
 
 	gen := values[maxLinkGen].Int64()
 	width := values[maxLinkWidth].Int64()
 
-	_ = FieldGroupDestroy(fieldsId)
-	_ = DestroyGroup(groupId)
+	_ = FieldGroupDestroy(fieldsID)
+	_ = DestroyGroup(groupID)
 
 	genMap := map[int64]int64{
 		1: 250, // MB/s
@@ -146,7 +146,7 @@ func getPciBandwidth(gpuId uint) (int64, error) {
 	return bandwidth, nil
 }
 
-func getCPUAffinity(gpuId uint) (string, error) {
+func getCPUAffinity(gpuID uint) (string, error) {
 	const (
 		affinity0 int = iota
 		affinity1
@@ -176,19 +176,19 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	}()
 
 	groupName := fmt.Sprintf("cpuAff%d", rand.Uint64())
-	groupId, err := WatchFields(gpuId, fieldsId, groupName)
+	groupID, err := WatchFields(gpuID, fieldsId, groupName)
 	if err != nil {
 		return "N/A", err
 	}
 	defer func() {
-		ret := DestroyGroup(groupId)
+		ret := DestroyGroup(groupID)
 
 		if ret != nil {
 			log.Printf("error destroying group: %v", ret)
 		}
 	}()
 
-	values, err := GetLatestValuesForFields(gpuId, affFields)
+	values, err := GetLatestValuesForFields(gpuID, affFields)
 	if err != nil {
 		return "N/A", fmt.Errorf("error getting cpu affinity: %s", err)
 	}
@@ -204,11 +204,11 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	return b.String(), nil
 }
 
-func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
+func getDeviceInfo(gpuID uint) (deviceInfo Device, err error) {
 	var device C.dcgmDeviceAttributes_t
 	device.version = makeVersion3(unsafe.Sizeof(device))
 
-	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuid), &device)
+	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), &device)
 	if err = errorString(result); err != nil {
 		return deviceInfo, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
@@ -222,7 +222,7 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 	supported := "No"
 
 	for _, gpu := range gpus {
-		if gpuid == gpu {
+		if gpuID == gpu {
 			supported = "Yes"
 			break
 		}
@@ -230,7 +230,7 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 
 	busid := *stringPtr(&device.identifiers.pciBusId[0])
 
-	cpuAffinity, err := getCPUAffinity(gpuid)
+	cpuAffinity, err := getCPUAffinity(gpuID)
 	if err != nil {
 		return
 	}
@@ -242,11 +242,11 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 
 	// get device topology and bandwidth only if its a DCGM supported device
 	if supported == "Yes" {
-		topology, err = getDeviceTopology(gpuid)
+		topology, err = getDeviceTopology(gpuID)
 		if err != nil {
 			return
 		}
-		bandwidth, err = getPciBandwidth(gpuid)
+		bandwidth, err = getPciBandwidth(gpuID)
 		if err != nil {
 			return
 		}
@@ -272,7 +272,7 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 	}
 
 	deviceInfo = Device{
-		GPU:           gpuid,
+		GPU:           gpuID,
 		DCGMSupported: supported,
 		UUID:          uuid,
 		Power:         power,

@@ -103,22 +103,22 @@ func getP2PLink(path uint) P2PLinkType {
 	return P2PLinkUnknown
 }
 
-func getBusid(gpuid uint) (string, error) {
+func getBusID(gpuID uint) (string, error) {
 	var device C.dcgmDeviceAttributes_v3
 	device.version = makeVersion3(unsafe.Sizeof(device))
 
-	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuid), &device)
+	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), &device)
 	if err := errorString(result); err != nil {
 		return "", fmt.Errorf("error getting device busid: %s", err)
 	}
 	return *stringPtr(&device.identifiers.pciBusId[0]), nil
 }
 
-func getDeviceTopology(gpuid uint) (links []P2PLink, err error) {
+func getDeviceTopology(gpuID uint) (links []P2PLink, err error) {
 	var topology C.dcgmDeviceTopology_v1
 	topology.version = makeVersion1(unsafe.Sizeof(topology))
 
-	result := C.dcgmGetDeviceTopology(handle.handle, C.uint(gpuid), &topology)
+	result := C.dcgmGetDeviceTopology(handle.handle, C.uint(gpuID), &topology)
 	if result == C.DCGM_ST_NOT_SUPPORTED {
 		return links, nil
 	}
@@ -126,7 +126,7 @@ func getDeviceTopology(gpuid uint) (links []P2PLink, err error) {
 		return links, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
-	busid, err := getBusid(gpuid)
+	busid, err := getBusID(gpuID)
 	if err != nil {
 		return
 	}

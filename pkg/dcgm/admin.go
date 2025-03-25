@@ -56,7 +56,7 @@ var (
 	hostengineAsChildPid int
 )
 
-func initDcgm(m mode, args ...string) (err error) {
+func initDCGM(m mode, args ...string) (err error) {
 	const (
 		dcgmLib = "libdcgm.so.4"
 	)

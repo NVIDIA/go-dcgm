@@ -97,7 +97,6 @@ func swTestName(t int) string {
 }
 
 func gpuTestName(t int) string {
-
 	switch t {
 	case C.DCGM_MEMORY_INDEX:
 		return "Memory"
@@ -192,11 +191,11 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 // Returns:
 //   - DiagResults containing the results of all diagnostic tests
 //   - error if the diagnostics failed to run
-func RunDiag(diagType DiagType, groupId GroupHandle) (DiagResults, error) {
+func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
 	var diagResults C.dcgmDiagResponse_v11
 	diagResults.version = makeVersion11(unsafe.Sizeof(diagResults))
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupId.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v11)(unsafe.Pointer(&diagResults)))
+	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v11)(unsafe.Pointer(&diagResults)))
 	if err := errorString(result); err != nil {
 		return DiagResults{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}

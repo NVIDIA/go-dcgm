@@ -37,68 +37,68 @@ func GroupAllGPUs() GroupHandle {
 
 // CreateGroup creates a new empty GPU group with the specified name
 func CreateGroup(groupName string) (goGroupId GroupHandle, err error) {
-	var cGroupId C.dcgmGpuGrp_t
+	var cGroupID C.dcgmGpuGrp_t
 	cname := C.CString(groupName)
 	defer freeCString(cname)
 
-	result := C.dcgmGroupCreate(handle.handle, C.DCGM_GROUP_EMPTY, cname, &cGroupId)
+	result := C.dcgmGroupCreate(handle.handle, C.DCGM_GROUP_EMPTY, cname, &cGroupID)
 	if err = errorString(result); err != nil {
 		return goGroupId, fmt.Errorf("error creating group: %s", err)
 	}
 
-	goGroupId = GroupHandle{cGroupId}
+	goGroupId = GroupHandle{cGroupID}
 	return
 }
 
 // NewDefaultGroup creates a new group with default GPUs and the specified name
 func NewDefaultGroup(groupName string) (GroupHandle, error) {
-	var cGroupId C.dcgmGpuGrp_t
+	var cGroupID C.dcgmGpuGrp_t
 
 	cname := C.CString(groupName)
 	defer freeCString(cname)
 
-	result := C.dcgmGroupCreate(handle.handle, C.DCGM_GROUP_DEFAULT, cname, &cGroupId)
+	result := C.dcgmGroupCreate(handle.handle, C.DCGM_GROUP_DEFAULT, cname, &cGroupID)
 	if err := errorString(result); err != nil {
 		return GroupHandle{}, fmt.Errorf("error creating group: %s", err)
 	}
 
-	return GroupHandle{cGroupId}, nil
+	return GroupHandle{cGroupID}, nil
 }
 
 // AddToGroup adds a GPU to an existing group
-func AddToGroup(groupId GroupHandle, gpuId uint) (err error) {
-	result := C.dcgmGroupAddDevice(handle.handle, groupId.handle, C.uint(gpuId))
+func AddToGroup(groupID GroupHandle, gpuID uint) (err error) {
+	result := C.dcgmGroupAddDevice(handle.handle, groupID.handle, C.uint(gpuID))
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error adding GPU %v to group: %s", gpuId, err)
+		return fmt.Errorf("error adding GPU %v to group: %s", gpuID, err)
 	}
 
 	return
 }
 
 // AddLinkEntityToGroup adds a link entity to the group
-func AddLinkEntityToGroup(groupId GroupHandle, index, parentId uint) (err error) {
+func AddLinkEntityToGroup(groupID GroupHandle, index, parentID uint) (err error) {
 	/* Only supported on little-endian systems currently */
-	slice := []byte{uint8(FE_SWITCH), uint8(index), uint8(parentId), 0}
+	slice := []byte{uint8(FE_SWITCH), uint8(index), uint8(parentID), 0}
 
 	entityId := binary.LittleEndian.Uint32(slice)
 
-	return AddEntityToGroup(groupId, FE_LINK, uint(entityId))
+	return AddEntityToGroup(groupID, FE_LINK, uint(entityId))
 }
 
 // AddEntityToGroup adds an entity to an existing group
-func AddEntityToGroup(groupId GroupHandle, entityGroupId Field_Entity_Group, entityId uint) (err error) {
-	result := C.dcgmGroupAddEntity(handle.handle, groupId.handle, C.dcgm_field_entity_group_t(entityGroupId),
-		C.uint(entityId))
+func AddEntityToGroup(groupID GroupHandle, entityGroupID Field_Entity_Group, entityID uint) (err error) {
+	result := C.dcgmGroupAddEntity(handle.handle, groupID.handle, C.dcgm_field_entity_group_t(entityGroupID),
+		C.uint(entityID))
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error adding entity group type %v, entity %v to group: %s", entityGroupId, entityId, err)
+		return fmt.Errorf("error adding entity group type %v, entity %v to group: %s", entityGroupID, entityID, err)
 	}
 
 	return
 }
 
 // DestroyGroup destroys an existing GPU group
-func DestroyGroup(groupId GroupHandle) (err error) {
-	result := C.dcgmGroupDestroy(handle.handle, groupId.handle)
+func DestroyGroup(groupID GroupHandle) (err error) {
+	result := C.dcgmGroupDestroy(handle.handle, groupID.handle)
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("error destroying group: %s", err)
 	}
@@ -114,12 +114,12 @@ type GroupInfo struct {
 }
 
 // GetGroupInfo retrieves information about a DCGM group
-func GetGroupInfo(groupId GroupHandle) (*GroupInfo, error) {
+func GetGroupInfo(groupID GroupHandle) (*GroupInfo, error) {
 	response := C.dcgmGroupInfo_v3{
 		version: C.dcgmGroupInfo_version3,
 	}
 
-	result := C.dcgmGroupGetInfo(handle.handle, groupId.handle, &response)
+	result := C.dcgmGroupGetInfo(handle.handle, groupID.handle, &response)
 	if err := errorString(result); err != nil {
 		return nil, err
 	}

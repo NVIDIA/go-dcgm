@@ -31,7 +31,7 @@ func Init(m mode, args ...string) (cleanup func(), err error) {
 	}
 
 	if dcgmInitCounter == 0 {
-		err = initDcgm(m, args...)
+		err = initDCGM(m, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -81,18 +81,18 @@ func GetSupportedDevices() ([]uint, error) {
 }
 
 // GetDeviceInfo returns detailed information about the specified GPU
-func GetDeviceInfo(gpuId uint) (Device, error) {
-	return getDeviceInfo(gpuId)
+func GetDeviceInfo(gpuID uint) (Device, error) {
+	return getDeviceInfo(gpuID)
 }
 
 // GetDeviceStatus returns current status information about the specified GPU
-func GetDeviceStatus(gpuId uint) (DeviceStatus, error) {
-	return latestValuesForDevice(gpuId)
+func GetDeviceStatus(gpuID uint) (DeviceStatus, error) {
+	return latestValuesForDevice(gpuID)
 }
 
 // GetDeviceTopology returns the topology (connectivity) information for the specified GPU
-func GetDeviceTopology(gpuId uint) ([]P2PLink, error) {
-	return getDeviceTopology(gpuId)
+func GetDeviceTopology(gpuID uint) ([]P2PLink, error) {
+	return getDeviceTopology(gpuID)
 }
 
 // WatchPidFields configures DCGM to start recording stats for GPU processes
@@ -107,15 +107,15 @@ func GetProcessInfo(group GroupHandle, pid uint) ([]ProcessInfo, error) {
 }
 
 // HealthCheckByGpuId performs a health check on the specified GPU
-func HealthCheckByGpuId(gpuId uint) (DeviceHealth, error) {
-	return healthCheckByGpuId(gpuId)
+func HealthCheckByGpuId(gpuID uint) (DeviceHealth, error) {
+	return healthCheckByGpuId(gpuID)
 }
 
 // ListenForPolicyViolations sets up monitoring for the specified policy conditions on all GPUs
 // Returns a channel that receives policy violations and any error encountered
 func ListenForPolicyViolations(ctx context.Context, typ ...policyCondition) (<-chan PolicyViolation, error) {
-	groupId := GroupAllGPUs()
-	return ListenForPolicyViolationsForGroup(ctx, groupId, typ...)
+	groupID := GroupAllGPUs()
+	return ListenForPolicyViolationsForGroup(ctx, groupID, typ...)
 }
 
 // ListenForPolicyViolationsForGroup sets up policy monitoring for the specified GPU group
@@ -130,8 +130,8 @@ func Introspect() (Status, error) {
 }
 
 // GetSupportedMetricGroups returns all supported metric groups for the specified GPU
-func GetSupportedMetricGroups(gpuId uint) ([]MetricGroup, error) {
-	return getSupportedMetricGroups(gpuId)
+func GetSupportedMetricGroups(gpuID uint) ([]MetricGroup, error) {
+	return getSupportedMetricGroups(gpuID)
 }
 
 // GetNvLinkLinkStatus returns the status of all NVLink connections

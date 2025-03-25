@@ -127,12 +127,12 @@ func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gp
 	return group, nil
 }
 
-func getProcessInfo(groupId GroupHandle, pid uint) (processInfo []ProcessInfo, err error) {
+func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, err error) {
 	var pidInfo C.dcgmPidInfo_t
 	pidInfo.version = makeVersion2(unsafe.Sizeof(pidInfo))
 	pidInfo.pid = C.uint(pid)
 
-	result := C.dcgmGetPidInfo(handle.handle, groupId.handle, &pidInfo)
+	result := C.dcgmGetPidInfo(handle.handle, groupID.handle, &pidInfo)
 
 	if err = errorString(result); err != nil {
 		return processInfo, &Error{msg: C.GoString(C.errorString(result)), Code: result}
