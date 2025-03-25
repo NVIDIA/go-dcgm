@@ -171,7 +171,7 @@ func getCPUAffinity(gpuId uint) (string, error) {
 		ret := FieldGroupDestroy(fieldsId)
 
 		if ret != nil {
-			fmt.Println(err)
+			log.Printf("error destroying field group: %v", ret)
 		}
 	}()
 
