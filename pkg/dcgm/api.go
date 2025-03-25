@@ -27,7 +27,7 @@ func Init(m mode, args ...string) (cleanup func(), err error) {
 
 	if dcgmInitCounter < 0 {
 		count := strconv.Itoa(dcgmInitCounter)
-		err = fmt.Errorf("Shutdown() is called %s times, before Init()", count[1:])
+		err = fmt.Errorf("shutdown() is called %s times, before init()", count[1:])
 	}
 
 	if dcgmInitCounter == 0 {
@@ -53,7 +53,7 @@ func Shutdown() (err error) {
 	defer mux.Unlock()
 
 	if dcgmInitCounter <= 0 {
-		err = errors.New("Init() needs to be called before Shutdown()")
+		err = errors.New("init() needs to be called before shutdown()")
 	}
 
 	if dcgmInitCounter == 1 {

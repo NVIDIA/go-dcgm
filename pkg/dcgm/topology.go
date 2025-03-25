@@ -109,7 +109,7 @@ func getBusid(gpuid uint) (string, error) {
 
 	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuid), &device)
 	if err := errorString(result); err != nil {
-		return "", fmt.Errorf("Error getting device busid: %s", err)
+		return "", fmt.Errorf("error getting device busid: %s", err)
 	}
 	return *stringPtr(&device.identifiers.pciBusId[0]), nil
 }

@@ -8,6 +8,7 @@ import "C"
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"unsafe"
 
@@ -53,7 +54,7 @@ func getAllDeviceCount() (gpuCount uint, err error) {
 
 	result := C.dcgmGetAllDevices(handle.handle, &gpuIdList[0], &count)
 	if err = errorString(result); err != nil {
-		return gpuCount, fmt.Errorf("Error getting devices count: %s", err)
+		return gpuCount, fmt.Errorf("error getting devices count: %s", err)
 	}
 	gpuCount = uint(count)
 	return
@@ -67,7 +68,7 @@ func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 
 	result := C.dcgmGetEntityGroupEntities(handle.handle, C.dcgm_field_entity_group_t(entityGroup), &pEntities[0], &count, 0)
 	if err = errorString(result); err != nil {
-		return nil, fmt.Errorf("Error getting entity count: %s", err)
+		return nil, fmt.Errorf("error getting entity count: %s", err)
 	}
 
 	entities := make([]uint, count)
@@ -125,7 +126,7 @@ func getPciBandwidth(gpuId uint) (int64, error) {
 	if err != nil {
 		_ = FieldGroupDestroy(fieldsId)
 		_ = DestroyGroup(groupId)
-		return 0, fmt.Errorf("Error getting Pcie bandwidth: %s", err)
+		return 0, fmt.Errorf("error getting Pcie bandwidth: %s", err)
 	}
 
 	gen := values[maxLinkGen].Int64()
@@ -183,13 +184,13 @@ func getCPUAffinity(gpuId uint) (string, error) {
 		ret := DestroyGroup(groupId)
 
 		if ret != nil {
-			fmt.Println(ret)
+			log.Printf("error destroying group: %v", ret)
 		}
 	}()
 
 	values, err := GetLatestValuesForFields(gpuId, affFields)
 	if err != nil {
-		return "N/A", fmt.Errorf("Error getting cpu affinity: %s", err)
+		return "N/A", fmt.Errorf("error getting cpu affinity: %s", err)
 	}
 
 	bits := make([]uint64, 4)

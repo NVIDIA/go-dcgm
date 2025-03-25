@@ -299,7 +299,7 @@ func setPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t, paramList
 	for _, key := range paramList {
 		conditionParam, exists := paramMap[key]
 		if !exists {
-			return fmt.Errorf("Error: Invalid Policy condition, %v does not exist", key)
+			return fmt.Errorf("invalid policy condition: %v does not exist", key)
 		}
 		// set policy condition parameters
 		// set condition type (bool or longlong)
@@ -316,7 +316,7 @@ func setPolicy(groupId GroupHandle, condition C.dcgmPolicyCondition_t, paramList
 
 	result := C.dcgmPolicySet(handle.handle, groupId.handle, &policy, statusHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error setting policies: %s", err)
+		return fmt.Errorf("error setting policies: %s", err)
 	}
 
 	log.Println("Policy successfully set.")

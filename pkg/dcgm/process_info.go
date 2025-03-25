@@ -140,7 +140,7 @@ func getProcessInfo(groupId GroupHandle, pid uint) (processInfo []ProcessInfo, e
 
 	name, err := processName(pid)
 	if err != nil {
-		return processInfo, fmt.Errorf("Error getting process name: %s", err)
+		return processInfo, fmt.Errorf("error getting process name: %s", err)
 	}
 
 	processInfo = make([]ProcessInfo, pidInfo.numGpus)
