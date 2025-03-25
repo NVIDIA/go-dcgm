@@ -26,11 +26,12 @@ import (
 )
 
 const (
-	// DCGM_NVSDM_MOCK_YAML environment variable for mock configuration
+	// DCGM_NVSDM_MOCK_YAML environment variable for enabling NVSDM mock configuration
 	DCGM_NVSDM_MOCK_YAML = "DCGM_NVSDM_MOCK_YAML"
-	// Environment variables for DCGM debugging
+	// DCGM_DBG_FILE is environment variables which enables DCGM to write debug logs to a specific file
 	DCGM_DBG_FILE = "__DCGM_DBG_FILE"
-	DCGM_DBG_LVL  = "__DCGM_DBG_LVL"
+	// DCGM_DBG_LVL is environment variables which enables DCGM logging level
+	DCGM_DBG_LVL = "__DCGM_DBG_LVL"
 )
 
 func setupTest(tb testing.TB) func(testing.TB) {

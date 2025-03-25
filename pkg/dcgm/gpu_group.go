@@ -76,7 +76,7 @@ func AddToGroup(groupId GroupHandle, gpuId uint) (err error) {
 }
 
 // AddLinkEntityToGroup adds a link entity to the group
-func AddLinkEntityToGroup(groupId GroupHandle, index uint, parentId uint) (err error) {
+func AddLinkEntityToGroup(groupId GroupHandle, index, parentId uint) (err error) {
 	/* Only supported on little-endian systems currently */
 	slice := []byte{uint8(FE_SWITCH), uint8(index), uint8(parentId), 0}
 
