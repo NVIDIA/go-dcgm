@@ -94,7 +94,7 @@ func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 //   - value: The value to inject (must match fieldType)
 //
 // Returns an error if the injection fails
-func InjectFieldValue(gpu, fieldID, fieldType uint, status int, ts int64, value any) error {
+func InjectFieldValue(gpu uint, fieldID Short, fieldType uint, status int, ts int64, value any) error {
 	field := C.dcgmInjectFieldValue_t{
 		version:   C.dcgmInjectFieldValue_version1,
 		fieldId:   C.ushort(fieldID),

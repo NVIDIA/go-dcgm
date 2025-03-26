@@ -44,7 +44,7 @@ func TestGetLatestValuesForFields(t *testing.T) {
 	}()
 
 	// Setup field group
-	fieldId := Short(DCGM_FI_DEV_XID_ERRORS)
+	fieldId := DCGM_FI_DEV_XID_ERRORS
 	n, err := crand.Int(crand.Reader, big.NewInt(1000000))
 	require.NoError(t, err)
 	fieldGroupName := fmt.Sprintf("fieldGroupName%d", n.Int64())
@@ -107,24 +107,24 @@ func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 
 	// Use the same fields as in the main benchmark
 	allFieldIds := []Short{
-		Short(DCGM_FI_DEV_XID_ERRORS),
-		Short(DCGM_FI_DEV_DIAG_MEMORY_RESULT),
-		Short(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION),
-		Short(DCGM_FI_DEV_GPU_TEMP),
-		Short(DCGM_FI_DEV_MEMORY_TEMP),
-		Short(DCGM_FI_DEV_GPU_UTIL),
-		Short(DCGM_FI_DEV_MEM_COPY_UTIL),
-		Short(DCGM_FI_DEV_ENC_UTIL),
-		Short(DCGM_FI_DEV_DEC_UTIL),
-		Short(DCGM_FI_DEV_FB_FREE),
-		Short(DCGM_FI_DEV_FB_USED),
-		Short(DCGM_FI_DEV_PCIE_REPLAY_COUNTER),
-		Short(DCGM_FI_DEV_SM_CLOCK),
-		Short(DCGM_FI_DEV_RETIRED_PENDING),
-		Short(DCGM_FI_DEV_RETIRED_SBE),
-		Short(DCGM_FI_DEV_RETIRED_DBE),
-		Short(DCGM_FI_DEV_POWER_VIOLATION),
-		Short(DCGM_FI_DEV_THERMAL_VIOLATION),
+		DCGM_FI_DEV_XID_ERRORS,
+		DCGM_FI_DEV_DIAG_MEMORY_RESULT,
+		DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION,
+		DCGM_FI_DEV_GPU_TEMP,
+		DCGM_FI_DEV_MEMORY_TEMP,
+		DCGM_FI_DEV_GPU_UTIL,
+		DCGM_FI_DEV_MEM_COPY_UTIL,
+		DCGM_FI_DEV_ENC_UTIL,
+		DCGM_FI_DEV_DEC_UTIL,
+		DCGM_FI_DEV_FB_FREE,
+		DCGM_FI_DEV_FB_USED,
+		DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
+		DCGM_FI_DEV_SM_CLOCK,
+		DCGM_FI_DEV_RETIRED_PENDING,
+		DCGM_FI_DEV_RETIRED_SBE,
+		DCGM_FI_DEV_RETIRED_DBE,
+		DCGM_FI_DEV_POWER_VIOLATION,
+		DCGM_FI_DEV_THERMAL_VIOLATION,
 	}
 
 	// Test different field counts
@@ -156,7 +156,7 @@ func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 			// Inject values for all fields
 			for _, fieldId := range fieldIds {
 				err = InjectFieldValue(gpuId,
-					uint(fieldId),
+					fieldId,
 					DCGM_FT_INT64,
 					0,
 					time.Now().Add(-time.Duration(5)*time.Second).UnixMicro(),
