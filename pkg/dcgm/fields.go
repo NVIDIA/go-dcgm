@@ -292,7 +292,7 @@ func toFieldValue(cfields []C.dcgmFieldValue_v1) []FieldValue_v1 {
 	for i := range cfields {
 		fields[i] = FieldValue_v1{
 			Version:   uint(cfields[i].version),
-			FieldID:   uint(cfields[i].fieldId),
+			FieldID:   Short(cfields[i].fieldId),
 			FieldType: uint(cfields[i].fieldType),
 			Status:    int(cfields[i].status),
 			TS:        int64(cfields[i].ts),
@@ -331,7 +331,7 @@ func toFieldValue_v2(cfields []C.dcgmFieldValue_v2) []FieldValue_v2 {
 				Version:       uint(cfields[i].version),
 				EntityGroupId: Field_Entity_Group(cfields[i].entityGroupId),
 				EntityID:      uint(cfields[i].entityId),
-				FieldID:       uint(cfields[i].fieldId),
+				FieldID:       Short(cfields[i].fieldId),
 				FieldType:     uint(cfields[i].fieldType),
 				Status:        int(cfields[i].status),
 				TS:            int64(cfields[i].ts),
@@ -343,7 +343,7 @@ func toFieldValue_v2(cfields []C.dcgmFieldValue_v2) []FieldValue_v2 {
 				Version:       uint(cfields[i].version),
 				EntityGroupId: Field_Entity_Group(cfields[i].entityGroupId),
 				EntityID:      uint(cfields[i].entityId),
-				FieldID:       uint(cfields[i].fieldId),
+				FieldID:       Short(cfields[i].fieldId),
 				FieldType:     uint(cfields[i].fieldType),
 				Status:        int(cfields[i].status),
 				TS:            int64(cfields[i].ts),
@@ -365,7 +365,7 @@ func dcgmFieldValue_v1ToFieldValue_v2(
 			Version:       C.dcgmFieldValue_version2,
 			EntityGroupId: fieldEntityGroup,
 			EntityID:      entityId,
-			FieldID:       uint(cfields[i].fieldId),
+			FieldID:       Short(cfields[i].fieldId),
 			FieldType:     uint(cfields[i].fieldType),
 			Status:        int(cfields[i].status),
 			TS:            int64(cfields[i].ts),
@@ -440,8 +440,8 @@ func ToFieldMeta(fieldInfo C.dcgm_field_meta_p) FieldMeta {
 	}
 }
 
-// FieldGetById retrieves field metadata for the specified field ID.
-func FieldGetById(fieldId Short) FieldMeta {
+// FieldGetByID retrieves field metadata for the specified field ID.
+func FieldGetByID(fieldId Short) FieldMeta {
 	return ToFieldMeta(C.DcgmFieldGetById(C.ushort(fieldId)))
 }
 

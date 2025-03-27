@@ -11,7 +11,7 @@ type Short C.ushort
 // FieldValue_v1 represents a field value in version 1
 type FieldValue_v1 struct {
 	Version   uint
-	FieldID   uint
+	FieldID   Short
 	FieldType uint
 	Status    int
 	TS        int64
@@ -23,7 +23,7 @@ type FieldValue_v2 struct {
 	Version       uint
 	EntityGroupId Field_Entity_Group
 	EntityID      uint
-	FieldID       uint
+	FieldID       Short
 	FieldType     uint
 	Status        int
 	TS            int64

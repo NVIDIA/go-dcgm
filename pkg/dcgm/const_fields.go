@@ -27,7 +27,7 @@ const (
 	DCGM_FI_PROCESS_NAME Short = 3
 	// DCGM_FI_DEV_COUNT represents the number of devices on the node
 	DCGM_FI_DEV_COUNT Short = 4
-	// DCGM_FI_CUDA_DRIVER_VERSION represents the CUDA driver version. Returns a number with the major value in the thousands place and the minor value in the hundreds place (e.g. CUDA 11.1 = 11100)
+	// DCGM_FI_CUDA_DRIVER_VERSION represents the CUDA driver version. Retrieves a number with the major value in the thousands place and the minor value in the hundreds place. (e.g. CUDA 11.1 = 11100)
 	DCGM_FI_CUDA_DRIVER_VERSION Short = 5
 	// DCGM_FI_DEV_NAME represents the name of the GPU device
 	DCGM_FI_DEV_NAME Short = 50
@@ -174,8 +174,9 @@ const (
 	// DCGM_FI_DEV_VALID_POWER_PROFILE_MASK represents the valid workload power profile mask (Blackwell and newer)
 	DCGM_FI_DEV_VALID_POWER_PROFILE_MASK Short = 167
 	// DCGM_FI_DEV_FABRIC_MANAGER_STATUS is the value for fabric manager status
-	DCGM_FI_DEV_FABRIC_MANAGER_STATUS Short = 168
+	DCGM_FI_DEV_FABRIC_MANAGER_STATUS Short = 170
 	// DCGM_FI_DEV_FABRIC_MANAGER_ERROR_CODE is the value for fabric manager error code
+	// NOTE: this is not populated unless the fabric manager completed startup
 	DCGM_FI_DEV_FABRIC_MANAGER_ERROR_CODE Short = 171
 	// DCGM_FI_DEV_FABRIC_CLUSTER_UUID is the value for fabric cluster UUID
 	DCGM_FI_DEV_FABRIC_CLUSTER_UUID Short = 172
@@ -771,34 +772,106 @@ const (
 	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L10 Short = 835
 	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L11 represents the transmit bandwidth for NVLink lane 11 in KB/s
 	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L11 Short = 836
+	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L12 represents the NV Link TX Bandwidth Counter for Lane 12
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L12 Short = 837
+	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L13 represents the NV Link TX Bandwidth Counter for Lane 13
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L13 Short = 838
+	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L14 represents the NV Link TX Bandwidth Counter for Lane 14
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L14 Short = 839
+	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L15 represents the NV Link TX Bandwidth Counter for Lane 15
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L15 Short = 840
+	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L16 represents the NV Link TX Bandwidth Counter for Lane 16
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L16 Short = 841
+	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L17 represents the NV Link TX Bandwidth Counter for Lane 17
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L17 Short = 842
+	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL represents the NV Link Bandwidth Counter total for all TX Lanes
+	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL Short = 843
+	// DCGM_FI_DEV_NVSWITCH_FATAL_ERRORS represents the NVSwitch fatal error information.
+	// Note: value field indicates the specific SXid reported
+	DCGM_FI_DEV_NVSWITCH_FATAL_ERRORS Short = 856
+	// DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS represents the NVSwitch non fatal error information.
+	DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS Short = 857
+	// DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT represents the NVSwitch current temperature.
+	DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT Short = 858
+	// DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SLOWDOWN represents the NVSwitch limit slowdown temperature
+	DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SLOWDOWN Short = 859
+	// DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SHUTDOWN represents the NVSwitch limit shutdown temperature
+	DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SHUTDOWN Short = 860
+	// DCGM_FI_DEV_NVSWITCH_THROUGHPUT_TX represents the NVSwitch throughput Tx
+	DCGM_FI_DEV_NVSWITCH_THROUGHPUT_TX Short = 861
+	// DCGM_FI_DEV_NVSWITCH_THROUGHPUT_RX represents the NVSwitch throughput Rx
+	DCGM_FI_DEV_NVSWITCH_THROUGHPUT_RX Short = 862
+	// DCGM_FI_DEV_NVSWITCH_PHYS_ID represents the NVSwitch physical ID
+	DCGM_FI_DEV_NVSWITCH_PHYS_ID Short = 863
+	// DCGM_FI_DEV_NVSWITCH_RESET_REQUIRED represents the NVSwitch reset required
+	DCGM_FI_DEV_NVSWITCH_RESET_REQUIRED Short = 864
+	// DCGM_FI_DEV_NVSWITCH_LINK_ID represents the NVSwitch link ID
+	DCGM_FI_DEV_NVSWITCH_LINK_ID Short = 865
+	// DCGM_FI_DEV_NVSWITCH_PCIE_DOMAIN represents the NVSwitch PCIe domain
+	DCGM_FI_DEV_NVSWITCH_PCIE_DOMAIN Short = 866
+	// DCGM_FI_DEV_NVSWITCH_PCIE_BUS represents the NVSwitch PCIe bus
+	DCGM_FI_DEV_NVSWITCH_PCIE_BUS Short = 867
+	// DCGM_FI_DEV_NVSWITCH_PCIE_DEVICE represents the NVSwitch PCIe device
+	DCGM_FI_DEV_NVSWITCH_PCIE_DEVICE Short = 868
+	// DCGM_FI_DEV_NVSWITCH_PCIE_FUNCTION represents the NVSwitch PCIe function
+	DCGM_FI_DEV_NVSWITCH_PCIE_FUNCTION Short = 869
+	// DCGM_FI_DEV_NVSWITCH_LINK_STATUS represents the NVSwitch link status UNKNOWN:-1 OFF:0 SAFE:1 ACTIVE:2 ERROR:3
+	DCGM_FI_DEV_NVSWITCH_LINK_STATUS Short = 870
+	// DCGM_FI_DEV_NVSWITCH_LINK_TYPE represents the NVSwitch link type GPU/Switch
+	DCGM_FI_DEV_NVSWITCH_LINK_TYPE Short = 871
+	// DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_DOMAIN represents the NVSwitch remote PCIe domain
+	DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_DOMAIN Short = 872
+	// DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_BUS represents the NVSwitch remote PCIe bus
+	DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_BUS Short = 873
+	// DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_DEVICE represents the NVSwitch remote PCIe device
+	DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_DEVICE Short = 874
+	// DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_FUNCTION represents the NVSwitch remote PCIe function
+	DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_FUNCTION Short = 875
+	// DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_ID represents the NVSwitch link device link ID
+	DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_ID Short = 876
+	// DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_SID represents the NVSwitch link device link SID
+	DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_SID Short = 877
+	// DCGM_FI_DEV_NVSWITCH_DEVICE_UUID represents the NVSwitch device UUID
+	DCGM_FI_DEV_NVSWITCH_DEVICE_UUID Short = 878
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0 represents the receive bandwidth for NVLink lane 0 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0 Short = 837
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0 Short = 879
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1 represents the receive bandwidth for NVLink lane 1 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1 Short = 838
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1 Short = 880
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2 represents the receive bandwidth for NVLink lane 2 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2 Short = 839
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2 Short = 881
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3 represents the receive bandwidth for NVLink lane 3 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3 Short = 840
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3 Short = 882
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4 represents the receive bandwidth for NVLink lane 4 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4 Short = 841
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4 Short = 883
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5 represents the receive bandwidth for NVLink lane 5 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5 Short = 842
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5 Short = 884
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6 represents the receive bandwidth for NVLink lane 6 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6 Short = 843
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6 Short = 885
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7 represents the receive bandwidth for NVLink lane 7 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7 Short = 844
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7 Short = 886
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8 represents the receive bandwidth for NVLink lane 8 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8 Short = 845
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8 Short = 887
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9 represents the receive bandwidth for NVLink lane 9 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9 Short = 846
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9 Short = 888
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10 represents the receive bandwidth for NVLink lane 10 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10 Short = 847
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10 Short = 889
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11 represents the receive bandwidth for NVLink lane 11 in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11 Short = 848
-	// DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL represents the total transmit bandwidth for all NVLink lanes in KB/s
-	DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL Short = 849
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11 Short = 890
+	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L12 represents the receive bandwidth for NVLink lane 12 in KB/s
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L12 Short = 891
+	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L13 represents the receive bandwidth for NVLink lane 13 in KB/s
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L13 Short = 892
+	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L14 represents the receive bandwidth for NVLink lane 14 in KB/s
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L14 Short = 893
+	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L15 represents the receive bandwidth for NVLink lane 15 in KB/s
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L15 Short = 894
+	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L16 represents the receive bandwidth for NVLink lane 16 in KB/s
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L16 Short = 895
+	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L17 represents the receive bandwidth for NVLink lane 17 in KB/s
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L17 Short = 896
 	// DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL represents the total receive bandwidth for all NVLink lanes in KB/s
-	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL Short = 850
+	DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL Short = 897
+
 	// DCGM_FI_PROF_GR_ENGINE_ACTIVE represents the percentage of time the graphics engine was active
 	DCGM_FI_PROF_GR_ENGINE_ACTIVE Short = 1001
 	// DCGM_FI_PROF_SM_ACTIVE represents the percentage of time the streaming multiprocessors (SM) were active
@@ -946,3 +1019,502 @@ const (
 	// DCGM_FI_MAX_FIELDS represents 1 greater than maximum fields above. This is the 1 greater than the maximum field id that could be allocated
 	DCGM_FI_MAX_FIELDS Short = 1311
 )
+
+var dcgmFields = map[string]Short{
+	// Field types
+	"DCGM_FT_BINARY":    Short('b'),
+	"DCGM_FT_DOUBLE":    Short('d'),
+	"DCGM_FT_INT64":     Short('i'),
+	"DCGM_FT_STRING":    Short('s'),
+	"DCGM_FT_TIMESTAMP": Short('t'),
+
+	"DCGM_FI_UNKNOWN":                                 DCGM_FI_UNKNOWN,                                 // 0
+	"DCGM_FI_DRIVER_VERSION":                          DCGM_FI_DRIVER_VERSION,                          // 1
+	"DCGM_FI_NVML_VERSION":                            DCGM_FI_NVML_VERSION,                            // 2
+	"DCGM_FI_PROCESS_NAME":                            DCGM_FI_PROCESS_NAME,                            // 3
+	"DCGM_FI_DEV_COUNT":                               DCGM_FI_DEV_COUNT,                               // 4
+	"DCGM_FI_CUDA_DRIVER_VERSION":                     DCGM_FI_CUDA_DRIVER_VERSION,                     // 5
+	"DCGM_FI_DEV_NAME":                                DCGM_FI_DEV_NAME,                                // 50
+	"DCGM_FI_DEV_BRAND":                               DCGM_FI_DEV_BRAND,                               // 51
+	"DCGM_FI_DEV_NVML_INDEX":                          DCGM_FI_DEV_NVML_INDEX,                          // 52
+	"DCGM_FI_DEV_SERIAL":                              DCGM_FI_DEV_SERIAL,                              // 53
+	"DCGM_FI_DEV_UUID":                                DCGM_FI_DEV_UUID,                                // 54
+	"DCGM_FI_DEV_MINOR_NUMBER":                        DCGM_FI_DEV_MINOR_NUMBER,                        // 55
+	"DCGM_FI_DEV_OEM_INFOROM_VER":                     DCGM_FI_DEV_OEM_INFOROM_VER,                     // 56
+	"DCGM_FI_DEV_PCI_BUSID":                           DCGM_FI_DEV_PCI_BUSID,                           // 57
+	"DCGM_FI_DEV_PCI_COMBINED_ID":                     DCGM_FI_DEV_PCI_COMBINED_ID,                     // 58
+	"DCGM_FI_DEV_PCI_SUBSYS_ID":                       DCGM_FI_DEV_PCI_SUBSYS_ID,                       // 59
+	"DCGM_FI_GPU_TOPOLOGY_PCI":                        DCGM_FI_GPU_TOPOLOGY_PCI,                        // 60
+	"DCGM_FI_GPU_TOPOLOGY_NVLINK":                     DCGM_FI_GPU_TOPOLOGY_NVLINK,                     // 61
+	"DCGM_FI_GPU_TOPOLOGY_AFFINITY":                   DCGM_FI_GPU_TOPOLOGY_AFFINITY,                   // 62
+	"DCGM_FI_DEV_CUDA_COMPUTE_CAPABILITY":             DCGM_FI_DEV_CUDA_COMPUTE_CAPABILITY,             // 63
+	"DCGM_FI_DEV_COMPUTE_MODE":                        DCGM_FI_DEV_COMPUTE_MODE,                        // 65
+	"DCGM_FI_DEV_PERSISTENCE_MODE":                    DCGM_FI_DEV_PERSISTENCE_MODE,                    // 66
+	"DCGM_FI_DEV_MIG_MODE":                            DCGM_FI_DEV_MIG_MODE,                            // 67
+	"DCGM_FI_DEV_CUDA_VISIBLE_DEVICES_STR":            DCGM_FI_DEV_CUDA_VISIBLE_DEVICES_STR,            // 68
+	"DCGM_FI_DEV_MIG_MAX_SLICES":                      DCGM_FI_DEV_MIG_MAX_SLICES,                      // 69
+	"DCGM_FI_DEV_CPU_AFFINITY_0":                      DCGM_FI_DEV_CPU_AFFINITY_0,                      // 70
+	"DCGM_FI_DEV_CPU_AFFINITY_1":                      DCGM_FI_DEV_CPU_AFFINITY_1,                      // 71
+	"DCGM_FI_DEV_CPU_AFFINITY_2":                      DCGM_FI_DEV_CPU_AFFINITY_2,                      // 72
+	"DCGM_FI_DEV_CPU_AFFINITY_3":                      DCGM_FI_DEV_CPU_AFFINITY_3,                      // 73
+	"DCGM_FI_DEV_CC_MODE":                             DCGM_FI_DEV_CC_MODE,                             // 74
+	"DCGM_FI_DEV_MIG_ATTRIBUTES":                      DCGM_FI_DEV_MIG_ATTRIBUTES,                      // 75
+	"DCGM_FI_DEV_MIG_GI_INFO":                         DCGM_FI_DEV_MIG_GI_INFO,                         // 76
+	"DCGM_FI_DEV_MIG_CI_INFO":                         DCGM_FI_DEV_MIG_CI_INFO,                         // 77
+	"DCGM_FI_DEV_ECC_INFOROM_VER":                     DCGM_FI_DEV_ECC_INFOROM_VER,                     // 80
+	"DCGM_FI_DEV_POWER_INFOROM_VER":                   DCGM_FI_DEV_POWER_INFOROM_VER,                   // 81
+	"DCGM_FI_DEV_INFOROM_IMAGE_VER":                   DCGM_FI_DEV_INFOROM_IMAGE_VER,                   // 82
+	"DCGM_FI_DEV_INFOROM_CONFIG_CHECK":                DCGM_FI_DEV_INFOROM_CONFIG_CHECK,                // 83
+	"DCGM_FI_DEV_INFOROM_CONFIG_VALID":                DCGM_FI_DEV_INFOROM_CONFIG_VALID,                // 84
+	"DCGM_FI_DEV_VBIOS_VERSION":                       DCGM_FI_DEV_VBIOS_VERSION,                       // 85
+	"DCGM_FI_DEV_MEM_AFFINITY_0":                      DCGM_FI_DEV_MEM_AFFINITY_0,                      // 86
+	"DCGM_FI_DEV_MEM_AFFINITY_1":                      DCGM_FI_DEV_MEM_AFFINITY_1,                      // 87
+	"DCGM_FI_DEV_MEM_AFFINITY_2":                      DCGM_FI_DEV_MEM_AFFINITY_2,                      // 88
+	"DCGM_FI_DEV_MEM_AFFINITY_3":                      DCGM_FI_DEV_MEM_AFFINITY_3,                      // 89
+	"DCGM_FI_DEV_BAR1_TOTAL":                          DCGM_FI_DEV_BAR1_TOTAL,                          // 90
+	"DCGM_FI_SYNC_BOOST":                              DCGM_FI_SYNC_BOOST,                              // 91
+	"DCGM_FI_DEV_BAR1_USED":                           DCGM_FI_DEV_BAR1_USED,                           // 92
+	"DCGM_FI_DEV_BAR1_FREE":                           DCGM_FI_DEV_BAR1_FREE,                           // 93
+	"DCGM_FI_DEV_GPM_SUPPORT":                         DCGM_FI_DEV_GPM_SUPPORT,                         // 94
+	"DCGM_FI_DEV_SM_CLOCK":                            DCGM_FI_DEV_SM_CLOCK,                            // 100
+	"DCGM_FI_DEV_MEM_CLOCK":                           DCGM_FI_DEV_MEM_CLOCK,                           // 101
+	"DCGM_FI_DEV_VIDEO_CLOCK":                         DCGM_FI_DEV_VIDEO_CLOCK,                         // 102
+	"DCGM_FI_DEV_APP_SM_CLOCK":                        DCGM_FI_DEV_APP_SM_CLOCK,                        // 110
+	"DCGM_FI_DEV_APP_MEM_CLOCK":                       DCGM_FI_DEV_APP_MEM_CLOCK,                       // 111
+	"DCGM_FI_DEV_CLOCKS_EVENT_REASONS":                DCGM_FI_DEV_CLOCKS_EVENT_REASONS,                // 112
+	"DCGM_FI_DEV_MAX_SM_CLOCK":                        DCGM_FI_DEV_MAX_SM_CLOCK,                        // 113
+	"DCGM_FI_DEV_MAX_MEM_CLOCK":                       DCGM_FI_DEV_MAX_MEM_CLOCK,                       // 114
+	"DCGM_FI_DEV_MAX_VIDEO_CLOCK":                     DCGM_FI_DEV_MAX_VIDEO_CLOCK,                     // 115
+	"DCGM_FI_DEV_AUTOBOOST":                           DCGM_FI_DEV_AUTOBOOST,                           // 120
+	"DCGM_FI_DEV_SUPPORTED_CLOCKS":                    DCGM_FI_DEV_SUPPORTED_CLOCKS,                    // 130
+	"DCGM_FI_DEV_MEMORY_TEMP":                         DCGM_FI_DEV_MEMORY_TEMP,                         // 140
+	"DCGM_FI_DEV_GPU_TEMP":                            DCGM_FI_DEV_GPU_TEMP,                            // 150
+	"DCGM_FI_DEV_MEM_MAX_OP_TEMP":                     DCGM_FI_DEV_MEM_MAX_OP_TEMP,                     // 151
+	"DCGM_FI_DEV_GPU_MAX_OP_TEMP":                     DCGM_FI_DEV_GPU_MAX_OP_TEMP,                     // 152
+	"DCGM_FI_DEV_GPU_TEMP_LIMIT":                      DCGM_FI_DEV_GPU_TEMP_LIMIT,                      // 153
+	"DCGM_FI_DEV_POWER_USAGE":                         DCGM_FI_DEV_POWER_USAGE,                         // 155
+	"DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION":            DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION,            // 156
+	"DCGM_FI_DEV_POWER_USAGE_INSTANT":                 DCGM_FI_DEV_POWER_USAGE_INSTANT,                 // 157
+	"DCGM_FI_DEV_SLOWDOWN_TEMP":                       DCGM_FI_DEV_SLOWDOWN_TEMP,                       // 158
+	"DCGM_FI_DEV_SHUTDOWN_TEMP":                       DCGM_FI_DEV_SHUTDOWN_TEMP,                       // 159
+	"DCGM_FI_DEV_POWER_MGMT_LIMIT":                    DCGM_FI_DEV_POWER_MGMT_LIMIT,                    // 160
+	"DCGM_FI_DEV_POWER_MGMT_LIMIT_MIN":                DCGM_FI_DEV_POWER_MGMT_LIMIT_MIN,                // 161
+	"DCGM_FI_DEV_POWER_MGMT_LIMIT_MAX":                DCGM_FI_DEV_POWER_MGMT_LIMIT_MAX,                // 162
+	"DCGM_FI_DEV_POWER_MGMT_LIMIT_DEF":                DCGM_FI_DEV_POWER_MGMT_LIMIT_DEF,                // 163
+	"DCGM_FI_DEV_ENFORCED_POWER_LIMIT":                DCGM_FI_DEV_ENFORCED_POWER_LIMIT,                // 164
+	"DCGM_FI_DEV_REQUESTED_POWER_PROFILE_MASK":        DCGM_FI_DEV_REQUESTED_POWER_PROFILE_MASK,        // 165
+	"DCGM_FI_DEV_ENFORCED_POWER_PROFILE_MASK":         DCGM_FI_DEV_ENFORCED_POWER_PROFILE_MASK,         // 166
+	"DCGM_FI_DEV_VALID_POWER_PROFILE_MASK":            DCGM_FI_DEV_VALID_POWER_PROFILE_MASK,            // 167
+	"DCGM_FI_DEV_FABRIC_MANAGER_STATUS":               DCGM_FI_DEV_FABRIC_MANAGER_STATUS,               // 170
+	"DCGM_FI_DEV_FABRIC_MANAGER_ERROR_CODE":           DCGM_FI_DEV_FABRIC_MANAGER_ERROR_CODE,           // 171
+	"DCGM_FI_DEV_FABRIC_CLUSTER_UUID":                 DCGM_FI_DEV_FABRIC_CLUSTER_UUID,                 // 172
+	"DCGM_FI_DEV_FABRIC_CLIQUE_ID":                    DCGM_FI_DEV_FABRIC_CLIQUE_ID,                    // 173
+	"DCGM_FI_DEV_PSTATE":                              DCGM_FI_DEV_PSTATE,                              // 190
+	"DCGM_FI_DEV_FAN_SPEED":                           DCGM_FI_DEV_FAN_SPEED,                           // 191
+	"DCGM_FI_DEV_PCIE_TX_THROUGHPUT":                  DCGM_FI_DEV_PCIE_TX_THROUGHPUT,                  // 200
+	"DCGM_FI_DEV_PCIE_RX_THROUGHPUT":                  DCGM_FI_DEV_PCIE_RX_THROUGHPUT,                  // 201
+	"DCGM_FI_DEV_PCIE_REPLAY_COUNTER":                 DCGM_FI_DEV_PCIE_REPLAY_COUNTER,                 // 202
+	"DCGM_FI_DEV_GPU_UTIL":                            DCGM_FI_DEV_GPU_UTIL,                            // 203
+	"DCGM_FI_DEV_MEM_COPY_UTIL":                       DCGM_FI_DEV_MEM_COPY_UTIL,                       // 204
+	"DCGM_FI_DEV_ACCOUNTING_DATA":                     DCGM_FI_DEV_ACCOUNTING_DATA,                     // 205
+	"DCGM_FI_DEV_ENC_UTIL":                            DCGM_FI_DEV_ENC_UTIL,                            // 206
+	"DCGM_FI_DEV_DEC_UTIL":                            DCGM_FI_DEV_DEC_UTIL,                            // 207
+	"DCGM_FI_DEV_XID_ERRORS":                          DCGM_FI_DEV_XID_ERRORS,                          // 230
+	"DCGM_FI_DEV_PCIE_MAX_LINK_GEN":                   DCGM_FI_DEV_PCIE_MAX_LINK_GEN,                   // 235
+	"DCGM_FI_DEV_PCIE_MAX_LINK_WIDTH":                 DCGM_FI_DEV_PCIE_MAX_LINK_WIDTH,                 // 236
+	"DCGM_FI_DEV_PCIE_LINK_GEN":                       DCGM_FI_DEV_PCIE_LINK_GEN,                       // 237
+	"DCGM_FI_DEV_PCIE_LINK_WIDTH":                     DCGM_FI_DEV_PCIE_LINK_WIDTH,                     // 238
+	"DCGM_FI_DEV_POWER_VIOLATION":                     DCGM_FI_DEV_POWER_VIOLATION,                     // 240
+	"DCGM_FI_DEV_THERMAL_VIOLATION":                   DCGM_FI_DEV_THERMAL_VIOLATION,                   // 241
+	"DCGM_FI_DEV_SYNC_BOOST_VIOLATION":                DCGM_FI_DEV_SYNC_BOOST_VIOLATION,                // 242
+	"DCGM_FI_DEV_BOARD_LIMIT_VIOLATION":               DCGM_FI_DEV_BOARD_LIMIT_VIOLATION,               // 243
+	"DCGM_FI_DEV_LOW_UTIL_VIOLATION":                  DCGM_FI_DEV_LOW_UTIL_VIOLATION,                  // 244
+	"DCGM_FI_DEV_RELIABILITY_VIOLATION":               DCGM_FI_DEV_RELIABILITY_VIOLATION,               // 245
+	"DCGM_FI_DEV_TOTAL_APP_CLOCKS_VIOLATION":          DCGM_FI_DEV_TOTAL_APP_CLOCKS_VIOLATION,          // 246
+	"DCGM_FI_DEV_TOTAL_BASE_CLOCKS_VIOLATION":         DCGM_FI_DEV_TOTAL_BASE_CLOCKS_VIOLATION,         // 247
+	"DCGM_FI_DEV_FB_TOTAL":                            DCGM_FI_DEV_FB_TOTAL,                            // 250
+	"DCGM_FI_DEV_FB_FREE":                             DCGM_FI_DEV_FB_FREE,                             // 251
+	"DCGM_FI_DEV_FB_USED":                             DCGM_FI_DEV_FB_USED,                             // 252
+	"DCGM_FI_DEV_FB_RESERVED":                         DCGM_FI_DEV_FB_RESERVED,                         // 253
+	"DCGM_FI_DEV_FB_USED_PERCENT":                     DCGM_FI_DEV_FB_USED_PERCENT,                     // 254
+	"DCGM_FI_DEV_C2C_LINK_COUNT":                      DCGM_FI_DEV_C2C_LINK_COUNT,                      // 285
+	"DCGM_FI_DEV_C2C_LINK_STATUS":                     DCGM_FI_DEV_C2C_LINK_STATUS,                     // 286
+	"DCGM_FI_DEV_C2C_MAX_BANDWIDTH":                   DCGM_FI_DEV_C2C_MAX_BANDWIDTH,                   // 287
+	"DCGM_FI_DEV_ECC_CURRENT":                         DCGM_FI_DEV_ECC_CURRENT,                         // 220
+	"DCGM_FI_DEV_ECC_PENDING":                         DCGM_FI_DEV_ECC_PENDING,                         // 221
+	"DCGM_FI_DEV_ECC_SBE_VOL_TOTAL":                   DCGM_FI_DEV_ECC_SBE_VOL_TOTAL,                   // 310
+	"DCGM_FI_DEV_ECC_DBE_VOL_TOTAL":                   DCGM_FI_DEV_ECC_DBE_VOL_TOTAL,                   // 311
+	"DCGM_FI_DEV_ECC_SBE_AGG_TOTAL":                   DCGM_FI_DEV_ECC_SBE_AGG_TOTAL,                   // 312
+	"DCGM_FI_DEV_ECC_DBE_AGG_TOTAL":                   DCGM_FI_DEV_ECC_DBE_AGG_TOTAL,                   // 313
+	"DCGM_FI_DEV_ECC_SBE_VOL_L1":                      DCGM_FI_DEV_ECC_SBE_VOL_L1,                      // 314
+	"DCGM_FI_DEV_ECC_DBE_VOL_L1":                      DCGM_FI_DEV_ECC_DBE_VOL_L1,                      // 315
+	"DCGM_FI_DEV_ECC_SBE_VOL_L2":                      DCGM_FI_DEV_ECC_SBE_VOL_L2,                      // 316
+	"DCGM_FI_DEV_ECC_DBE_VOL_L2":                      DCGM_FI_DEV_ECC_DBE_VOL_L2,                      // 317
+	"DCGM_FI_DEV_ECC_SBE_VOL_DEV":                     DCGM_FI_DEV_ECC_SBE_VOL_DEV,                     // 318
+	"DCGM_FI_DEV_ECC_DBE_VOL_DEV":                     DCGM_FI_DEV_ECC_DBE_VOL_DEV,                     // 319
+	"DCGM_FI_DEV_ECC_SBE_VOL_REG":                     DCGM_FI_DEV_ECC_SBE_VOL_REG,                     // 320
+	"DCGM_FI_DEV_ECC_DBE_VOL_REG":                     DCGM_FI_DEV_ECC_DBE_VOL_REG,                     // 321
+	"DCGM_FI_DEV_ECC_SBE_VOL_TEX":                     DCGM_FI_DEV_ECC_SBE_VOL_TEX,                     // 322
+	"DCGM_FI_DEV_ECC_DBE_VOL_TEX":                     DCGM_FI_DEV_ECC_DBE_VOL_TEX,                     // 323
+	"DCGM_FI_DEV_ECC_SBE_AGG_L1":                      DCGM_FI_DEV_ECC_SBE_AGG_L1,                      // 324
+	"DCGM_FI_DEV_ECC_DBE_AGG_L1":                      DCGM_FI_DEV_ECC_DBE_AGG_L1,                      // 325
+	"DCGM_FI_DEV_ECC_SBE_AGG_L2":                      DCGM_FI_DEV_ECC_SBE_AGG_L2,                      // 326
+	"DCGM_FI_DEV_ECC_DBE_AGG_L2":                      DCGM_FI_DEV_ECC_DBE_AGG_L2,                      // 327
+	"DCGM_FI_DEV_ECC_SBE_AGG_DEV":                     DCGM_FI_DEV_ECC_SBE_AGG_DEV,                     // 328
+	"DCGM_FI_DEV_ECC_DBE_AGG_DEV":                     DCGM_FI_DEV_ECC_DBE_AGG_DEV,                     // 329
+	"DCGM_FI_DEV_ECC_SBE_AGG_REG":                     DCGM_FI_DEV_ECC_SBE_AGG_REG,                     // 330
+	"DCGM_FI_DEV_ECC_DBE_AGG_REG":                     DCGM_FI_DEV_ECC_DBE_AGG_REG,                     // 331
+	"DCGM_FI_DEV_ECC_SBE_AGG_TEX":                     DCGM_FI_DEV_ECC_SBE_AGG_TEX,                     // 332
+	"DCGM_FI_DEV_ECC_DBE_AGG_TEX":                     DCGM_FI_DEV_ECC_DBE_AGG_TEX,                     // 333
+	"DCGM_FI_DEV_ECC_SBE_VOL_SHM":                     DCGM_FI_DEV_ECC_SBE_VOL_SHM,                     // 334
+	"DCGM_FI_DEV_ECC_DBE_VOL_SHM":                     DCGM_FI_DEV_ECC_DBE_VOL_SHM,                     // 335
+	"DCGM_FI_DEV_ECC_SBE_VOL_CBU":                     DCGM_FI_DEV_ECC_SBE_VOL_CBU,                     // 336
+	"DCGM_FI_DEV_ECC_DBE_VOL_CBU":                     DCGM_FI_DEV_ECC_DBE_VOL_CBU,                     // 337
+	"DCGM_FI_DEV_ECC_SBE_AGG_SHM":                     DCGM_FI_DEV_ECC_SBE_AGG_SHM,                     // 338
+	"DCGM_FI_DEV_ECC_DBE_AGG_SHM":                     DCGM_FI_DEV_ECC_DBE_AGG_SHM,                     // 339
+	"DCGM_FI_DEV_ECC_SBE_AGG_CBU":                     DCGM_FI_DEV_ECC_SBE_AGG_CBU,                     // 340
+	"DCGM_FI_DEV_ECC_DBE_AGG_CBU":                     DCGM_FI_DEV_ECC_DBE_AGG_CBU,                     // 341
+	"DCGM_FI_DEV_ECC_SBE_VOL_SRM":                     DCGM_FI_DEV_ECC_SBE_VOL_SRM,                     // 342
+	"DCGM_FI_DEV_ECC_DBE_VOL_SRM":                     DCGM_FI_DEV_ECC_DBE_VOL_SRM,                     // 343
+	"DCGM_FI_DEV_ECC_SBE_AGG_SRM":                     DCGM_FI_DEV_ECC_SBE_AGG_SRM,                     // 344
+	"DCGM_FI_DEV_ECC_DBE_AGG_SRM":                     DCGM_FI_DEV_ECC_DBE_AGG_SRM,                     // 345
+	"DCGM_FI_DEV_DIAG_MEMORY_RESULT":                  DCGM_FI_DEV_DIAG_MEMORY_RESULT,                  // 350
+	"DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT":              DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT,              // 351
+	"DCGM_FI_DEV_DIAG_PCIE_RESULT":                    DCGM_FI_DEV_DIAG_PCIE_RESULT,                    // 352
+	"DCGM_FI_DEV_DIAG_TARGETED_STRESS_RESULT":         DCGM_FI_DEV_DIAG_TARGETED_STRESS_RESULT,         // 353
+	"DCGM_FI_DEV_DIAG_TARGETED_POWER_RESULT":          DCGM_FI_DEV_DIAG_TARGETED_POWER_RESULT,          // 354
+	"DCGM_FI_DEV_DIAG_MEMORY_BANDWIDTH_RESULT":        DCGM_FI_DEV_DIAG_MEMORY_BANDWIDTH_RESULT,        // 355
+	"DCGM_FI_DEV_DIAG_MEMTEST_RESULT":                 DCGM_FI_DEV_DIAG_MEMTEST_RESULT,                 // 356
+	"DCGM_FI_DEV_DIAG_PULSE_TEST_RESULT":              DCGM_FI_DEV_DIAG_PULSE_TEST_RESULT,              // 357
+	"DCGM_FI_DEV_DIAG_EUD_RESULT":                     DCGM_FI_DEV_DIAG_EUD_RESULT,                     // 358
+	"DCGM_FI_DEV_DIAG_CPU_EUD_RESULT":                 DCGM_FI_DEV_DIAG_CPU_EUD_RESULT,                 // 359
+	"DCGM_FI_DEV_DIAG_SOFTWARE_RESULT":                DCGM_FI_DEV_DIAG_SOFTWARE_RESULT,                // 360
+	"DCGM_FI_DEV_DIAG_NVBANDWIDTH_RESULT":             DCGM_FI_DEV_DIAG_NVBANDWIDTH_RESULT,             // 361
+	"DCGM_FI_DEV_DIAG_STATUS":                         DCGM_FI_DEV_DIAG_STATUS,                         // 362
+	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_MAX":          DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_MAX,          // 385
+	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_HIGH":         DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_HIGH,         // 386
+	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_PARTIAL":      DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_PARTIAL,      // 387
+	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_LOW":          DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_LOW,          // 388
+	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_NONE":         DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_NONE,         // 389
+	"DCGM_FI_DEV_RETIRED_SBE":                         DCGM_FI_DEV_RETIRED_SBE,                         // 390
+	"DCGM_FI_DEV_RETIRED_DBE":                         DCGM_FI_DEV_RETIRED_DBE,                         // 391
+	"DCGM_FI_DEV_RETIRED_PENDING":                     DCGM_FI_DEV_RETIRED_PENDING,                     // 392
+	"DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS":         DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS,         // 393
+	"DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS":           DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS,           // 394
+	"DCGM_FI_DEV_ROW_REMAP_FAILURE":                   DCGM_FI_DEV_ROW_REMAP_FAILURE,                   // 395
+	"DCGM_FI_DEV_ROW_REMAP_PENDING":                   DCGM_FI_DEV_ROW_REMAP_PENDING,                   // 396
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L0":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L0,      // 400
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L1":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L1,      // 401
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L2":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L2,      // 402
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L3":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L3,      // 403
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L4":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L4,      // 404
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L5":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L5,      // 405
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL":   DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL,   // 409
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L0":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L0,      // 410
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L1":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L1,      // 411
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L2":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L2,      // 412
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L3":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L3,      // 413
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L4":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L4,      // 414
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L5":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L5,      // 415
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_TOTAL":   DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_TOTAL,   // 419
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L0":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L0,        // 420
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L1":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L1,        // 421
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L2":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L2,        // 422
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L3":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L3,        // 423
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L4":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L4,        // 424
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L5":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L5,        // 425
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_TOTAL":     DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_TOTAL,     // 429
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L0":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L0,      // 430
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L1":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L1,      // 431
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L2":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L2,      // 432
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L3":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L3,      // 433
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L4":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L4,      // 434
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L5":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L5,      // 435
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_TOTAL":   DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_TOTAL,   // 439
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L0":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L0,                 // 440
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L1":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L1,                 // 441
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L2":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L2,                 // 442
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L3":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L3,                 // 443
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L4":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L4,                 // 444
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L5":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L5,                 // 445
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL":              DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL,              // 449
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L6":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L6,      // 451
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L7":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L7,      // 452
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L8":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L8,      // 453
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L9":      DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L9,      // 454
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L10":     DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L10,     // 455
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L11":     DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L11,     // 456
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L6":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L6,      // 457
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L7":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L7,      // 458
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L8":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L8,      // 459
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L9":      DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L9,      // 460
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L10":     DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L10,     // 461
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L11":     DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L11,     // 462
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L6":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L6,        // 463
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L7":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L7,        // 464
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L8":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L8,        // 465
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L9":        DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L9,        // 466
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L10":       DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L10,       // 467
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L11":       DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L11,       // 468
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L6":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L6,      // 469
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L7":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L7,      // 470
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L8":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L8,      // 471
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L9":      DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L9,      // 472
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L10":     DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L10,     // 473
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L11":     DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L11,     // 474
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L6":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L6,                 // 475
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L7":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L7,                 // 476
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L8":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L8,                 // 477
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L9":                 DCGM_FI_DEV_NVLINK_BANDWIDTH_L9,                 // 478
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L10":                DCGM_FI_DEV_NVLINK_BANDWIDTH_L10,                // 479
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L11":                DCGM_FI_DEV_NVLINK_BANDWIDTH_L11,                // 480
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L12":     DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L12,     // 406
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L13":     DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L13,     // 408
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L14":     DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L14,     // 409
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L15":     DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L15,     // 481
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L16":     DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L16,     // 482
+	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L17":     DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L17,     // 483
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L12":     DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L12,     // 416
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L13":     DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L13,     // 417
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L14":     DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L14,     // 418
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L15":     DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L15,     // 484
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L16":     DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L16,     // 485
+	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L17":     DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L17,     // 486
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L12":       DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L12,       // 426
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L13":       DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L13,       // 427
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L14":       DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L14,       // 428
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L15":       DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L15,       // 487
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L16":       DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L16,       // 488
+	"DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L17":       DCGM_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L17,       // 489
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L12":     DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L12,     // 436
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L13":     DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L13,     // 437
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L14":     DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L14,     // 438
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L15":     DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L15,     // 491
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L16":     DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L16,     // 492
+	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L17":     DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L17,     // 493
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L12":                DCGM_FI_DEV_NVLINK_BANDWIDTH_L12,                // 446
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L13":                DCGM_FI_DEV_NVLINK_BANDWIDTH_L13,                // 447
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L14":                DCGM_FI_DEV_NVLINK_BANDWIDTH_L14,                // 448
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L15":                DCGM_FI_DEV_NVLINK_BANDWIDTH_L15,                // 494
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L16":                DCGM_FI_DEV_NVLINK_BANDWIDTH_L16,                // 495
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L17":                DCGM_FI_DEV_NVLINK_BANDWIDTH_L17,                // 496
+	"DCGM_FI_DEV_NVLINK_ERROR_DL_CRC":                 DCGM_FI_DEV_NVLINK_ERROR_DL_CRC,                 // 497
+	"DCGM_FI_DEV_NVLINK_ERROR_DL_RECOVERY":            DCGM_FI_DEV_NVLINK_ERROR_DL_RECOVERY,            // 498
+	"DCGM_FI_DEV_NVLINK_ERROR_DL_REPLAY":              DCGM_FI_DEV_NVLINK_ERROR_DL_REPLAY,              // 499
+	"DCGM_FI_DEV_VIRTUAL_MODE":                        DCGM_FI_DEV_VIRTUAL_MODE,                        // 500
+	"DCGM_FI_DEV_SUPPORTED_TYPE_INFO":                 DCGM_FI_DEV_SUPPORTED_TYPE_INFO,                 // 501
+	"DCGM_FI_DEV_CREATABLE_VGPU_TYPE_IDS":             DCGM_FI_DEV_CREATABLE_VGPU_TYPE_IDS,             // 502
+	"DCGM_FI_DEV_VGPU_INSTANCE_IDS":                   DCGM_FI_DEV_VGPU_INSTANCE_IDS,                   // 503
+	"DCGM_FI_DEV_VGPU_UTILIZATIONS":                   DCGM_FI_DEV_VGPU_UTILIZATIONS,                   // 504
+	"DCGM_FI_DEV_VGPU_PER_PROCESS_UTILIZATION":        DCGM_FI_DEV_VGPU_PER_PROCESS_UTILIZATION,        // 505
+	"DCGM_FI_DEV_ENC_STATS":                           DCGM_FI_DEV_ENC_STATS,                           // 506
+	"DCGM_FI_DEV_FBC_STATS":                           DCGM_FI_DEV_FBC_STATS,                           // 507
+	"DCGM_FI_DEV_FBC_SESSIONS_INFO":                   DCGM_FI_DEV_FBC_SESSIONS_INFO,                   // 508
+	"DCGM_FI_DEV_SUPPORTED_VGPU_TYPE_IDS":             DCGM_FI_DEV_SUPPORTED_VGPU_TYPE_IDS,             // 509
+	"DCGM_FI_DEV_VGPU_TYPE_INFO":                      DCGM_FI_DEV_VGPU_TYPE_INFO,                      // 510
+	"DCGM_FI_DEV_VGPU_TYPE_NAME":                      DCGM_FI_DEV_VGPU_TYPE_NAME,                      // 511
+	"DCGM_FI_DEV_VGPU_TYPE_CLASS":                     DCGM_FI_DEV_VGPU_TYPE_CLASS,                     // 512
+	"DCGM_FI_DEV_VGPU_TYPE_LICENSE":                   DCGM_FI_DEV_VGPU_TYPE_LICENSE,                   // 513
+	"DCGM_FI_DEV_VGPU_VM_ID":                          DCGM_FI_DEV_VGPU_VM_ID,                          // 520
+	"DCGM_FI_DEV_VGPU_VM_NAME":                        DCGM_FI_DEV_VGPU_VM_NAME,                        // 521
+	"DCGM_FI_DEV_VGPU_TYPE":                           DCGM_FI_DEV_VGPU_TYPE,                           // 522
+	"DCGM_FI_DEV_VGPU_UUID":                           DCGM_FI_DEV_VGPU_UUID,                           // 523
+	"DCGM_FI_DEV_VGPU_DRIVER_VERSION":                 DCGM_FI_DEV_VGPU_DRIVER_VERSION,                 // 524
+	"DCGM_FI_DEV_VGPU_MEMORY_USAGE":                   DCGM_FI_DEV_VGPU_MEMORY_USAGE,                   // 525
+	"DCGM_FI_DEV_VGPU_LICENSE_STATUS":                 DCGM_FI_DEV_VGPU_LICENSE_STATUS,                 // 526
+	"DCGM_FI_DEV_VGPU_FRAME_RATE_LIMIT":               DCGM_FI_DEV_VGPU_FRAME_RATE_LIMIT,               // 527
+	"DCGM_FI_DEV_VGPU_ENC_STATS":                      DCGM_FI_DEV_VGPU_ENC_STATS,                      // 528
+	"DCGM_FI_DEV_VGPU_ENC_SESSIONS_INFO":              DCGM_FI_DEV_VGPU_ENC_SESSIONS_INFO,              // 529
+	"DCGM_FI_DEV_VGPU_FBC_STATS":                      DCGM_FI_DEV_VGPU_FBC_STATS,                      // 530
+	"DCGM_FI_DEV_VGPU_FBC_SESSIONS_INFO":              DCGM_FI_DEV_VGPU_FBC_SESSIONS_INFO,              // 531
+	"DCGM_FI_DEV_VGPU_INSTANCE_LICENSE_STATE":         DCGM_FI_DEV_VGPU_INSTANCE_LICENSE_STATE,         // 532
+	"DCGM_FI_DEV_VGPU_PCI_ID":                         DCGM_FI_DEV_VGPU_PCI_ID,                         // 533
+	"DCGM_FI_DEV_VGPU_VM_GPU_INSTANCE_ID":             DCGM_FI_DEV_VGPU_VM_GPU_INSTANCE_ID,             // 534
+	"DCGM_FI_FIRST_VGPU_FIELD_ID":                     DCGM_FI_FIRST_VGPU_FIELD_ID,                     // 520
+	"DCGM_FI_LAST_VGPU_FIELD_ID":                      DCGM_FI_LAST_VGPU_FIELD_ID,                      // 570
+	"DCGM_FI_DEV_PLATFORM_INFINIBAND_GUID":            DCGM_FI_DEV_PLATFORM_INFINIBAND_GUID,            // 571
+	"DCGM_FI_DEV_PLATFORM_CHASSIS_SERIAL_NUMBER":      DCGM_FI_DEV_PLATFORM_CHASSIS_SERIAL_NUMBER,      // 572
+	"DCGM_FI_DEV_PLATFORM_CHASSIS_SLOT_NUMBER":        DCGM_FI_DEV_PLATFORM_CHASSIS_SLOT_NUMBER,        // 573
+	"DCGM_FI_DEV_PLATFORM_TRAY_INDEX":                 DCGM_FI_DEV_PLATFORM_TRAY_INDEX,                 // 574
+	"DCGM_FI_DEV_PLATFORM_HOST_ID":                    DCGM_FI_DEV_PLATFORM_HOST_ID,                    // 575
+	"DCGM_FI_DEV_PLATFORM_PEER_TYPE":                  DCGM_FI_DEV_PLATFORM_PEER_TYPE,                  // 576
+	"DCGM_FI_DEV_PLATFORM_MODULE_ID":                  DCGM_FI_DEV_PLATFORM_MODULE_ID,                  // 577
+	"DCGM_FI_FIRST_NVSWITCH_FIELD_ID":                 DCGM_FI_FIRST_NVSWITCH_FIELD_ID,                 // 700
+	"DCGM_FI_DEV_NVSWITCH_VOLTAGE_MVOLT":              DCGM_FI_DEV_NVSWITCH_VOLTAGE_MVOLT,              // 701
+	"DCGM_FI_DEV_NVSWITCH_CURRENT_IDDQ":               DCGM_FI_DEV_NVSWITCH_CURRENT_IDDQ,               // 702
+	"DCGM_FI_DEV_NVSWITCH_CURRENT_IDDQ_REV":           DCGM_FI_DEV_NVSWITCH_CURRENT_IDDQ_REV,           // 703
+	"DCGM_FI_DEV_NVSWITCH_CURRENT_IDDQ_DVDD":          DCGM_FI_DEV_NVSWITCH_CURRENT_IDDQ_DVDD,          // 704
+	"DCGM_FI_DEV_NVSWITCH_POWER_VDD":                  DCGM_FI_DEV_NVSWITCH_POWER_VDD,                  // 705
+	"DCGM_FI_DEV_NVSWITCH_POWER_DVDD":                 DCGM_FI_DEV_NVSWITCH_POWER_DVDD,                 // 706
+	"DCGM_FI_DEV_NVSWITCH_POWER_HVDD":                 DCGM_FI_DEV_NVSWITCH_POWER_HVDD,                 // 707
+	"DCGM_FI_DEV_NVSWITCH_LINK_THROUGHPUT_TX":         DCGM_FI_DEV_NVSWITCH_LINK_THROUGHPUT_TX,         // 780
+	"DCGM_FI_DEV_NVSWITCH_LINK_THROUGHPUT_RX":         DCGM_FI_DEV_NVSWITCH_LINK_THROUGHPUT_RX,         // 781
+	"DCGM_FI_DEV_NVSWITCH_LINK_FATAL_ERRORS":          DCGM_FI_DEV_NVSWITCH_LINK_FATAL_ERRORS,          // 782
+	"DCGM_FI_DEV_NVSWITCH_LINK_NON_FATAL_ERRORS":      DCGM_FI_DEV_NVSWITCH_LINK_NON_FATAL_ERRORS,      // 783
+	"DCGM_FI_DEV_NVSWITCH_LINK_REPLAY_ERRORS":         DCGM_FI_DEV_NVSWITCH_LINK_REPLAY_ERRORS,         // 784
+	"DCGM_FI_DEV_NVSWITCH_LINK_RECOVERY_ERRORS":       DCGM_FI_DEV_NVSWITCH_LINK_RECOVERY_ERRORS,       // 785
+	"DCGM_FI_DEV_NVSWITCH_LINK_FLIT_ERRORS":           DCGM_FI_DEV_NVSWITCH_LINK_FLIT_ERRORS,           // 786
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS":            DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS,            // 787
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS":            DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS,            // 788
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_LOW_VC0":       DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_LOW_VC0,       // 789
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_LOW_VC1":       DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_LOW_VC1,       // 790
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_LOW_VC2":       DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_LOW_VC2,       // 791
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_LOW_VC3":       DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_LOW_VC3,       // 792
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_MEDIUM_VC0":    DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_MEDIUM_VC0,    // 793
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_MEDIUM_VC1":    DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_MEDIUM_VC1,    // 794
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_MEDIUM_VC2":    DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_MEDIUM_VC2,    // 795
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_MEDIUM_VC3":    DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_MEDIUM_VC3,    // 796
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_HIGH_VC0":      DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_HIGH_VC0,      // 797
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_HIGH_VC1":      DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_HIGH_VC1,      // 798
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_HIGH_VC2":      DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_HIGH_VC2,      // 799
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_HIGH_VC3":      DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_HIGH_VC3,      // 800
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_PANIC_VC0":     DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_PANIC_VC0,     // 801
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_PANIC_VC1":     DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_PANIC_VC1,     // 802
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_PANIC_VC2":     DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_PANIC_VC2,     // 803
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_PANIC_VC3":     DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_PANIC_VC3,     // 804
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_COUNT_VC0":     DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_COUNT_VC0,     // 805
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_COUNT_VC1":     DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_COUNT_VC1,     // 806
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_COUNT_VC2":     DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_COUNT_VC2,     // 807
+	"DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_COUNT_VC3":     DCGM_FI_DEV_NVSWITCH_LINK_LATENCY_COUNT_VC3,     // 808
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE0":      DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE0,      // 809
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE1":      DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE1,      // 810
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE2":      DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE2,      // 811
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE3":      DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE3,      // 812
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE0":      DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE0,      // 813
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE1":      DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE1,      // 814
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE2":      DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE2,      // 815
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE3":      DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE3,      // 816
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE4":      DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE4,      // 817
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE5":      DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE5,      // 818
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE6":      DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE6,      // 819
+	"DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE7":      DCGM_FI_DEV_NVSWITCH_LINK_CRC_ERRORS_LANE7,      // 820
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE4":      DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE4,      // 821
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE5":      DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE5,      // 822
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE6":      DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE6,      // 823
+	"DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE7":      DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE7,      // 824
+	"DCGM_FI_DEV_NVSWITCH_FATAL_ERRORS":               DCGM_FI_DEV_NVSWITCH_FATAL_ERRORS,               // 856
+	"DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS":           DCGM_FI_DEV_NVSWITCH_NON_FATAL_ERRORS,           // 857
+	"DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT":        DCGM_FI_DEV_NVSWITCH_TEMPERATURE_CURRENT,        // 858
+	"DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SLOWDOWN": DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SLOWDOWN, // 859
+	"DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SHUTDOWN": DCGM_FI_DEV_NVSWITCH_TEMPERATURE_LIMIT_SHUTDOWN, // 860
+	"DCGM_FI_DEV_NVSWITCH_THROUGHPUT_TX":              DCGM_FI_DEV_NVSWITCH_THROUGHPUT_TX,              // 861
+	"DCGM_FI_DEV_NVSWITCH_THROUGHPUT_RX":              DCGM_FI_DEV_NVSWITCH_THROUGHPUT_RX,              // 862
+	"DCGM_FI_DEV_NVSWITCH_PHYS_ID":                    DCGM_FI_DEV_NVSWITCH_PHYS_ID,                    // 863
+	"DCGM_FI_DEV_NVSWITCH_RESET_REQUIRED":             DCGM_FI_DEV_NVSWITCH_RESET_REQUIRED,             // 864
+	"DCGM_FI_DEV_NVSWITCH_LINK_ID":                    DCGM_FI_DEV_NVSWITCH_LINK_ID,                    // 865
+	"DCGM_FI_DEV_NVSWITCH_PCIE_DOMAIN":                DCGM_FI_DEV_NVSWITCH_PCIE_DOMAIN,                // 866
+	"DCGM_FI_DEV_NVSWITCH_PCIE_BUS":                   DCGM_FI_DEV_NVSWITCH_PCIE_BUS,                   // 867
+	"DCGM_FI_DEV_NVSWITCH_PCIE_DEVICE":                DCGM_FI_DEV_NVSWITCH_PCIE_DEVICE,                // 868
+	"DCGM_FI_DEV_NVSWITCH_PCIE_FUNCTION":              DCGM_FI_DEV_NVSWITCH_PCIE_FUNCTION,              // 869
+	"DCGM_FI_DEV_NVSWITCH_LINK_STATUS":                DCGM_FI_DEV_NVSWITCH_LINK_STATUS,                // 870
+	"DCGM_FI_DEV_NVSWITCH_LINK_TYPE":                  DCGM_FI_DEV_NVSWITCH_LINK_TYPE,                  // 871
+	"DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_DOMAIN":    DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_DOMAIN,    // 872
+	"DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_BUS":       DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_BUS,       // 873
+	"DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_DEVICE":    DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_DEVICE,    // 874
+	"DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_FUNCTION":  DCGM_FI_DEV_NVSWITCH_LINK_REMOTE_PCIE_FUNCTION,  // 875
+	"DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_ID":        DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_ID,        // 876
+	"DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_SID":       DCGM_FI_DEV_NVSWITCH_LINK_DEVICE_LINK_SID,       // 877
+	"DCGM_FI_DEV_NVSWITCH_DEVICE_UUID":                DCGM_FI_DEV_NVSWITCH_DEVICE_UUID,                // 878
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0,              // 879
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1,              // 880
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2,              // 881
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3,              // 882
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4,              // 883
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5,              // 884
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6,              // 885
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7,              // 886
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8,              // 887
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9":              DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9,              // 888
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10":             DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10,             // 889
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11":             DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11,             // 890
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L12":             DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L12,             // 891
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L13":             DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L13,             // 892
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L14":             DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L14,             // 893
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L15":             DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L15,             // 894
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L16":             DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L16,             // 895
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L17":             DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L17,             // 896
+	"DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL":           DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL,           // 897
+	"DCGM_FI_MAX_FIELDS":                              DCGM_FI_MAX_FIELDS,                              // 1311
+}
+
+var legacyDCGMFields = map[string]Short{
+	"dcgm_sm_clock":                          100,
+	"dcgm_memory_clock":                      101,
+	"dcgm_memory_temp":                       140,
+	"dcgm_gpu_temp":                          150,
+	"dcgm_power_usage":                       155,
+	"dcgm_total_energy_consumption":          156,
+	"dcgm_pcie_tx_throughput":                200,
+	"dcgm_pcie_rx_throughput":                201,
+	"dcgm_pcie_replay_counter":               202,
+	"dcgm_gpu_utilization":                   203,
+	"dcgm_mem_copy_utilization":              204,
+	"dcgm_enc_utilization":                   206,
+	"dcgm_dec_utilization":                   207,
+	"dcgm_xid_errors":                        230,
+	"dcgm_power_violation":                   240,
+	"dcgm_thermal_violation":                 241,
+	"dcgm_sync_boost_violation":              242,
+	"dcgm_board_limit_violation":             243,
+	"dcgm_low_util_violation":                244,
+	"dcgm_reliability_violation":             245,
+	"dcgm_fb_free":                           251,
+	"dcgm_fb_used":                           252,
+	"dcgm_ecc_sbe_volatile_total":            310,
+	"dcgm_ecc_dbe_volatile_total":            311,
+	"dcgm_ecc_sbe_aggregate_total":           312,
+	"dcgm_ecc_dbe_aggregate_total":           313,
+	"dcgm_retired_pages_sbe":                 390,
+	"dcgm_retired_pages_dbe":                 391,
+	"dcgm_retired_pages_pending":             392,
+	"dcgm_nvlink_flit_crc_error_count_total": 409,
+	"dcgm_nvlink_data_crc_error_count_total": 419,
+	"dcgm_nvlink_replay_error_count_total":   429,
+	"dcgm_nvlink_recovery_error_count_total": 439,
+	"dcgm_nvlink_bandwidth_total":            449,
+	"dcgm_fi_prof_gr_engine_active":          1001,
+	"dcgm_fi_prof_sm_active":                 1002,
+	"dcgm_fi_prof_sm_occupancy":              1003,
+	"dcgm_fi_prof_pipe_tensor_active":        1004,
+	"dcgm_fi_prof_dram_active":               1005,
+	"dcgm_fi_prof_pcie_tx_bytes":             1009,
+	"dcgm_fi_prof_pcie_rx_bytes":             1010,
+}
+
+// GetFieldID returns the DCGM field ID for a given field name and whether it was found
+// It first checks the current field IDs, then falls back to legacy field IDs if not found
+func GetFieldID(fieldName string) (Short, bool) {
+	// First check current field IDs
+	if fieldID, ok := dcgmFields[fieldName]; ok {
+		return fieldID, true
+	}
+
+	// Then check legacy field IDs
+	if fieldID, ok := legacyDCGMFields[fieldName]; ok {
+		return fieldID, true
+	}
+
+	return 0, false
+}
+
+// GetFieldIDOrPanic returns the DCGM field ID for a given field name
+// It panics if the field name is not found in either current or legacy maps
+func GetFieldIDOrPanic(fieldName string) Short {
+	fieldID, ok := GetFieldID(fieldName)
+	if !ok {
+		panic("field name not found: " + fieldName)
+	}
+	return fieldID
+}
+
+// IsLegacyField returns true if the given field name is a legacy field
+func IsLegacyField(fieldName string) bool {
+	_, ok := legacyDCGMFields[fieldName]
+	return ok
+}
+
+// IsCurrentField returns true if the given field name is a current field
+func IsCurrentField(fieldName string) bool {
+	_, ok := dcgmFields[fieldName]
+	return ok
+}
