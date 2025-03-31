@@ -39,8 +39,8 @@ func TestGetLatestValuesForFields(t *testing.T) {
 	groupId, err := NewDefaultGroup("mygroup")
 	require.NoError(t, err)
 	defer func() {
-		err := DestroyGroup(groupId)
-		require.NoError(t, err)
+		destroyGroupErr := DestroyGroup(groupId)
+		require.NoError(t, destroyGroupErr)
 	}()
 
 	// Setup field group
@@ -51,8 +51,8 @@ func TestGetLatestValuesForFields(t *testing.T) {
 	fieldsGroup, err := FieldGroupCreate(fieldGroupName, []Short{fieldId})
 	require.NoError(t, err)
 	defer func() {
-		err := FieldGroupDestroy(fieldsGroup)
-		require.NoError(t, err)
+		destroyFieldsGroupErr := FieldGroupDestroy(fieldsGroup)
+		require.NoError(t, destroyFieldsGroupErr)
 	}()
 
 	// Inject test value
@@ -139,8 +139,8 @@ func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 			fieldsGroup, err := FieldGroupCreate(fieldGroupName, fieldIds)
 			require.NoError(b, err)
 			defer func() {
-				err := FieldGroupDestroy(fieldsGroup)
-				require.NoError(b, err)
+				destroyFieldsGroupErr := FieldGroupDestroy(fieldsGroup)
+				require.NoError(b, destroyFieldsGroupErr)
 			}()
 
 			// Setup field watching

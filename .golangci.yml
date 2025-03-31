@@ -23,7 +23,6 @@ linters-settings:
     disable:
       - fieldalignment
       - deepequalerrors
-      - shadow
   gocritic:
     enabled-tags:
       - diagnostic

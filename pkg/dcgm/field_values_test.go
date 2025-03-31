@@ -63,8 +63,11 @@ func TestGetValuesSince(t *testing.T) {
 		_ = FieldGroupDestroy(fieldsGroup)
 	}()
 
+	var values []FieldValue_v2
+	var nextTime time.Time
+
 	t.Run("When there is no data return error", func(t *testing.T) {
-		values, nextTime, err := GetValuesSince(GroupAllGPUs(),
+		values, nextTime, err = GetValuesSince(GroupAllGPUs(),
 			fieldsGroup, time.Time{})
 		require.Error(t, err)
 		require.Empty(t, nextTime)
@@ -102,19 +105,19 @@ func TestGetValuesSince(t *testing.T) {
 		// Force an update of the fields so that we can fetch initial values.
 		err = UpdateAllFields()
 		require.NoError(t, err)
-		values, nextTime, err := GetValuesSince(GroupAllGPUs(), fieldsGroup, time.Time{})
+		values, nextTime, err = GetValuesSince(GroupAllGPUs(), fieldsGroup, time.Time{})
 		require.NoError(t, err)
 		assert.Greater(t, nextTime, time.Time{})
 		assert.Len(t, values, expectedInjectedValuesCount)
 		assert.Equal(t, FE_GPU, values[0].EntityGroupId)
 		assert.Equal(t, gpu, values[0].EntityID)
-		assert.Equal(t, uint(DCGM_FI_DEV_XID_ERRORS), values[0].FieldID)
+		assert.Equal(t, DCGM_FI_DEV_XID_ERRORS, values[0].FieldID)
 		assert.Equal(t, expectedNumberOfErrors, values[0].Int64())
 
 		for i := 1; i < 5; i++ {
 			assert.Equal(t, FE_GPU, values[i].EntityGroupId)
 			assert.Equal(t, gpu, values[i].EntityID)
-			assert.Equal(t, uint(DCGM_FI_DEV_XID_ERRORS), values[i].FieldID)
+			assert.Equal(t, DCGM_FI_DEV_XID_ERRORS, values[i].FieldID)
 			assert.Equal(t, int64(5-i), values[i].Int64())
 		}
 	})

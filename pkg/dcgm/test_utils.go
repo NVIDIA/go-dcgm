@@ -193,7 +193,7 @@ func withNvsdmMockConfig(t *testing.T, configYamlPath string, testFunc func(t *t
 	require.NoError(t, err, "Failed to get absolute path for config file")
 
 	// Check if config file exists
-	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+	if _, err = os.Stat(absPath); os.IsNotExist(err) {
 		t.Skipf("Skip test due to missing config YAML file [%s]", absPath)
 		return
 	}

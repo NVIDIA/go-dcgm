@@ -198,8 +198,8 @@ func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, e
 
 		numErrs := int(pidInfo.gpus[i].numXidCriticalErrors)
 		ts := make([]uint64, numErrs)
-		for i := 0; i < numErrs; i++ {
-			ts[i] = uint64(pidInfo.gpus[i].xidCriticalErrorsTs[i])
+		for j := 0; j < numErrs; j++ {
+			ts[j] = uint64(pidInfo.gpus[i].xidCriticalErrorsTs[j])
 		}
 		xidErrs := XIDErrorInfo{
 			NumErrors: numErrs,

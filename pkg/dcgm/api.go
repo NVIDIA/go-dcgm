@@ -40,8 +40,8 @@ func Init(m mode, args ...string) (cleanup func(), err error) {
 	dcgmInitCounter += 1
 
 	return func() {
-		if err := Shutdown(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to shutdown DCGM with error: `%v`", err)
+		if shutdownErr := Shutdown(); shutdownErr != nil {
+			fmt.Fprintf(os.Stderr, "Failed to shutdown DCGM with error: `%v`", shutdownErr)
 		}
 	}, err
 }
