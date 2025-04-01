@@ -18,7 +18,8 @@
 #define DCGMFIELDS_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #include "dcgm_api_export.h"
@@ -56,7 +57,6 @@ extern "C" {
 #define DCGM_FT_TIMESTAMP 't'
 
 /** @} */
-
 
 /***************************************************************************************************/
 /** @defgroup dcgmFieldScope Field Scope
@@ -197,53 +197,50 @@ extern "C" {
  */
 #define DCGM_CLOCKS_THROTTLE_REASON_DISPLAY_CLOCKS DCGM_CLOCKS_EVENT_REASON_DISPLAY_CLOCKS
 
+    /**
+     * GPU virtualization mode types for DCGM_FI_DEV_VIRTUAL_MODE
+     */
+    typedef enum
+    {
+        DCGM_GPU_VIRTUALIZATION_MODE_NONE = 0,        //!< Represents Bare Metal GPU
+        DCGM_GPU_VIRTUALIZATION_MODE_PASSTHROUGH = 1, //!< Device is associated with GPU-Passthrough
+        DCGM_GPU_VIRTUALIZATION_MODE_VGPU = 2,        //!< Device is associated with vGPU inside virtual machine.
+        DCGM_GPU_VIRTUALIZATION_MODE_HOST_VGPU = 3,   //!< Device is associated with VGX hypervisor in vGPU mode
+        DCGM_GPU_VIRTUALIZATION_MODE_HOST_VSGA = 4,   //!< Device is associated with VGX hypervisor in vSGA mode
+    } dcgmGpuVirtualizationMode_t;
 
-/**
- * GPU virtualization mode types for DCGM_FI_DEV_VIRTUAL_MODE
- */
-typedef enum
-{
-    DCGM_GPU_VIRTUALIZATION_MODE_NONE        = 0, //!< Represents Bare Metal GPU
-    DCGM_GPU_VIRTUALIZATION_MODE_PASSTHROUGH = 1, //!< Device is associated with GPU-Passthrough
-    DCGM_GPU_VIRTUALIZATION_MODE_VGPU        = 2, //!< Device is associated with vGPU inside virtual machine.
-    DCGM_GPU_VIRTUALIZATION_MODE_HOST_VGPU   = 3, //!< Device is associated with VGX hypervisor in vGPU mode
-    DCGM_GPU_VIRTUALIZATION_MODE_HOST_VSGA   = 4, //!< Device is associated with VGX hypervisor in vSGA mode
-} dcgmGpuVirtualizationMode_t;
+    /** @} */
 
+    /***************************************************************************************************/
+    /** @defgroup dcgmFieldEntity Field Entity
+     *  Represents field association with a particular entity
+     *  @{
+     */
+    /***************************************************************************************************/
 
-/** @} */
+    /**
+     * Enum of possible field entity groups
+     */
+    typedef enum dcgm_field_entity_group_t
+    {
+        DCGM_FE_NONE = 0, /*!< Field is not associated with an entity. Field scope should be DCGM_FS_GLOBAL */
+        DCGM_FE_GPU,      /*!< Field is associated with a GPU entity */
+        DCGM_FE_VGPU,     /*!< Field is associated with a VGPU entity */
+        DCGM_FE_SWITCH,   /*!< Field is associated with a Switch entity */
+        DCGM_FE_GPU_I,    /*!< Field is associated with a GPU Instance entity */
+        DCGM_FE_GPU_CI,   /*!< Field is associated with a GPU Compute Instance entity */
+        DCGM_FE_LINK,     /*!< Field is associated with an NVLink */
+        DCGM_FE_CPU,      /*!< Field is associated with a CPU node */
+        DCGM_FE_CPU_CORE, /*!< Field is associated with a CPU */
+        DCGM_FE_CONNECTX, /*!< Field is associated with a ConnectX card */
 
-/***************************************************************************************************/
-/** @defgroup dcgmFieldEntity Field Entity
- *  Represents field association with a particular entity
- *  @{
- */
-/***************************************************************************************************/
+        DCGM_FE_COUNT /*!< Number of elements in this enumeration. Keep this entry last */
+    } dcgm_field_entity_group_t;
 
-/**
- * Enum of possible field entity groups
- */
-typedef enum dcgm_field_entity_group_t
-{
-    DCGM_FE_NONE = 0, /*!< Field is not associated with an entity. Field scope should be DCGM_FS_GLOBAL */
-    DCGM_FE_GPU,      /*!< Field is associated with a GPU entity */
-    DCGM_FE_VGPU,     /*!< Field is associated with a VGPU entity */
-    DCGM_FE_SWITCH,   /*!< Field is associated with a Switch entity */
-    DCGM_FE_GPU_I,    /*!< Field is associated with a GPU Instance entity */
-    DCGM_FE_GPU_CI,   /*!< Field is associated with a GPU Compute Instance entity */
-    DCGM_FE_LINK,     /*!< Field is associated with an NVLink */
-    DCGM_FE_CPU,      /*!< Field is associated with a CPU node */
-    DCGM_FE_CPU_CORE, /*!< Field is associated with a CPU */
-    DCGM_FE_CONNECTX, /*!< Field is associated with a ConnectX card */
-
-    DCGM_FE_COUNT /*!< Number of elements in this enumeration. Keep this entry last */
-} dcgm_field_entity_group_t;
-
-/**
- * Represents an identifier for an entity within a field entity. For instance, this is the gpuId for DCGM_FE_GPU.
- */
-typedef unsigned int dcgm_field_eid_t;
-
+    /**
+     * Represents an identifier for an entity within a field entity. For instance, this is the gpuId for DCGM_FE_GPU.
+     */
+    typedef unsigned int dcgm_field_eid_t;
 
 /** @} */
 
@@ -1048,7 +1045,6 @@ typedef unsigned int dcgm_field_eid_t;
  */
 #define DCGM_FI_DEV_ECC_DBE_AGG_SRM 345
 
-
 /**
  * Result of the GPU Memory test
  * Refers to a `int64_t` storing a value drawn from `dcgmError_t` enumeration
@@ -1778,19 +1774,19 @@ typedef unsigned int dcgm_field_eid_t;
  */
 #define DCGM_FI_INTERNAL_FIELDS_0_START 600
 
-/**
- * Last ID for all the internal fields
- */
+    /**
+     * Last ID for all the internal fields
+     */
 
-/**
- * <p>&nbsp;</p>
- * <p>&nbsp;</p>
- * <p>&nbsp;</p>
- * <p>NVSwitch entity field IDs start here.</p>
- * <p>&nbsp;</p>
- * <p>&nbsp;</p>
- * <p>NVSwitch latency bins for port 0</p>
- */
+    /**
+     * <p>&nbsp;</p>
+     * <p>&nbsp;</p>
+     * <p>&nbsp;</p>
+     * <p>NVSwitch entity field IDs start here.</p>
+     * <p>&nbsp;</p>
+     * <p>&nbsp;</p>
+     * <p>NVSwitch latency bins for port 0</p>
+     */
 
 #define DCGM_FI_INTERNAL_FIELDS_0_END 699
 
@@ -2511,26 +2507,26 @@ typedef unsigned int dcgm_field_eid_t;
  * To get the bandwidth for a link, add the RX and TX value together like
  * total = DCGM_FI_PROF_NVLINK_L0_TX_BYTES + DCGM_FI_PROF_NVLINK_L0_RX_BYTES
  */
-#define DCGM_FI_PROF_NVLINK_L0_TX_BYTES  1040
-#define DCGM_FI_PROF_NVLINK_L0_RX_BYTES  1041
-#define DCGM_FI_PROF_NVLINK_L1_TX_BYTES  1042
-#define DCGM_FI_PROF_NVLINK_L1_RX_BYTES  1043
-#define DCGM_FI_PROF_NVLINK_L2_TX_BYTES  1044
-#define DCGM_FI_PROF_NVLINK_L2_RX_BYTES  1045
-#define DCGM_FI_PROF_NVLINK_L3_TX_BYTES  1046
-#define DCGM_FI_PROF_NVLINK_L3_RX_BYTES  1047
-#define DCGM_FI_PROF_NVLINK_L4_TX_BYTES  1048
-#define DCGM_FI_PROF_NVLINK_L4_RX_BYTES  1049
-#define DCGM_FI_PROF_NVLINK_L5_TX_BYTES  1050
-#define DCGM_FI_PROF_NVLINK_L5_RX_BYTES  1051
-#define DCGM_FI_PROF_NVLINK_L6_TX_BYTES  1052
-#define DCGM_FI_PROF_NVLINK_L6_RX_BYTES  1053
-#define DCGM_FI_PROF_NVLINK_L7_TX_BYTES  1054
-#define DCGM_FI_PROF_NVLINK_L7_RX_BYTES  1055
-#define DCGM_FI_PROF_NVLINK_L8_TX_BYTES  1056
-#define DCGM_FI_PROF_NVLINK_L8_RX_BYTES  1057
-#define DCGM_FI_PROF_NVLINK_L9_TX_BYTES  1058
-#define DCGM_FI_PROF_NVLINK_L9_RX_BYTES  1059
+#define DCGM_FI_PROF_NVLINK_L0_TX_BYTES 1040
+#define DCGM_FI_PROF_NVLINK_L0_RX_BYTES 1041
+#define DCGM_FI_PROF_NVLINK_L1_TX_BYTES 1042
+#define DCGM_FI_PROF_NVLINK_L1_RX_BYTES 1043
+#define DCGM_FI_PROF_NVLINK_L2_TX_BYTES 1044
+#define DCGM_FI_PROF_NVLINK_L2_RX_BYTES 1045
+#define DCGM_FI_PROF_NVLINK_L3_TX_BYTES 1046
+#define DCGM_FI_PROF_NVLINK_L3_RX_BYTES 1047
+#define DCGM_FI_PROF_NVLINK_L4_TX_BYTES 1048
+#define DCGM_FI_PROF_NVLINK_L4_RX_BYTES 1049
+#define DCGM_FI_PROF_NVLINK_L5_TX_BYTES 1050
+#define DCGM_FI_PROF_NVLINK_L5_RX_BYTES 1051
+#define DCGM_FI_PROF_NVLINK_L6_TX_BYTES 1052
+#define DCGM_FI_PROF_NVLINK_L6_RX_BYTES 1053
+#define DCGM_FI_PROF_NVLINK_L7_TX_BYTES 1054
+#define DCGM_FI_PROF_NVLINK_L7_RX_BYTES 1055
+#define DCGM_FI_PROF_NVLINK_L8_TX_BYTES 1056
+#define DCGM_FI_PROF_NVLINK_L8_RX_BYTES 1057
+#define DCGM_FI_PROF_NVLINK_L9_TX_BYTES 1058
+#define DCGM_FI_PROF_NVLINK_L9_RX_BYTES 1059
 #define DCGM_FI_PROF_NVLINK_L10_TX_BYTES 1060
 #define DCGM_FI_PROF_NVLINK_L10_RX_BYTES 1061
 #define DCGM_FI_PROF_NVLINK_L11_TX_BYTES 1062
@@ -2561,9 +2557,9 @@ typedef unsigned int dcgm_field_eid_t;
 /**
  * C2C (Chip-to-Chip) interface metrics.
  */
-#define DCGM_FI_PROF_C2C_TX_ALL_BYTES  1076
+#define DCGM_FI_PROF_C2C_TX_ALL_BYTES 1076
 #define DCGM_FI_PROF_C2C_TX_DATA_BYTES 1077
-#define DCGM_FI_PROF_C2C_RX_ALL_BYTES  1078
+#define DCGM_FI_PROF_C2C_RX_ALL_BYTES 1078
 #define DCGM_FI_PROF_C2C_RX_DATA_BYTES 1079
 
 /**
@@ -2791,112 +2787,109 @@ typedef unsigned int dcgm_field_eid_t;
  */
 #define DCGM_FI_MAX_FIELDS 1311
 
+    /** @} */
 
-/** @} */
+    /*****************************************************************************/
 
-/*****************************************************************************/
+    /**
+     * Structure for formating the output for dmon.
+     * Used as a member in dcgm_field_meta_p
+     */
+    typedef struct
+    {
+        char shortName[10]; /*!< Short name corresponding to field. This short name is used to identify columns in dmon
+                                 output.*/
+        char unit[4];       /*!< The unit of value. Eg: C(elsius), W(att), MB/s*/
+        short width;        /*!< Maximum width/number of digits that a value for field can have.*/
+    } dcgm_field_output_format_t, *dcgm_field_output_format_p;
 
-/**
- * Structure for formating the output for dmon.
- * Used as a member in dcgm_field_meta_p
- */
-typedef struct
-{
-    char shortName[10]; /*!< Short name corresponding to field. This short name is used to identify columns in dmon
-                             output.*/
-    char unit[4];       /*!< The unit of value. Eg: C(elsius), W(att), MB/s*/
-    short width;        /*!< Maximum width/number of digits that a value for field can have.*/
-} dcgm_field_output_format_t, *dcgm_field_output_format_p;
+    /**
+     * Structure to store meta data for the field
+     */
 
-/**
- * Structure to store meta data for the field
- */
+    typedef struct
+    {
+        unsigned short fieldId; /*!< Field identifier. DCGM_FI_? #define */
+        char fieldType;         /*!< Field type. DCGM_FT_? #define */
+        unsigned char size;     /*!< field size in bytes (raw value size). 0=variable (like DCGM_FT_STRING) */
+        char tag[48];           /*!< Tag for this field for serialization like 'device_temperature' */
+        int scope;              /*!< Field scope. DCGM_FS_? #define of this field's association */
+        int nvmlFieldId;        /*!< Optional NVML field this DCGM field maps to. 0 = no mapping.
+                                     Otherwise, this should be a NVML_FI_? #define from nvml.h */
+        dcgm_field_entity_group_t
+            entityLevel; /*!< Field entity level. DCGM_FE_? specifying at what level the field is queryable */
 
-typedef struct
-{
-    unsigned short fieldId; /*!< Field identifier. DCGM_FI_? #define */
-    char fieldType;         /*!< Field type. DCGM_FT_? #define */
-    unsigned char size;     /*!< field size in bytes (raw value size). 0=variable (like DCGM_FT_STRING) */
-    char tag[48];           /*!< Tag for this field for serialization like 'device_temperature' */
-    int scope;              /*!< Field scope. DCGM_FS_? #define of this field's association */
-    int nvmlFieldId;        /*!< Optional NVML field this DCGM field maps to. 0 = no mapping.
-                                 Otherwise, this should be a NVML_FI_? #define from nvml.h */
-    dcgm_field_entity_group_t
-        entityLevel; /*!< Field entity level. DCGM_FE_? specifying at what level the field is queryable */
+        dcgm_field_output_format_p valueFormat; /*!< pointer to the structure that holds the formatting the
+                                                     values for fields */
+    } dcgm_field_meta_t;
 
-    dcgm_field_output_format_p valueFormat; /*!< pointer to the structure that holds the formatting the
-                                                 values for fields */
-} dcgm_field_meta_t;
+    typedef const dcgm_field_meta_t *dcgm_field_meta_p;
 
-typedef const dcgm_field_meta_t *dcgm_field_meta_p;
+    /***************************************************************************************************/
+    /** @addtogroup dcgmFieldIdentifiers
+     *  @{
+     */
+    /***************************************************************************************************/
 
-/***************************************************************************************************/
-/** @addtogroup dcgmFieldIdentifiers
- *  @{
- */
-/***************************************************************************************************/
+    /**
+     * Get a pointer to the metadata for a field by its field ID. See DCGM_FI_? for a list of field IDs.
+     *
+     * @param fieldId     IN: One of the field IDs (DCGM_FI_?)
+     *
+     * @return
+     *        0     On Failure
+     *       >0     Pointer to field metadata structure if found.
+     *
+     */
+    dcgm_field_meta_p DCGM_PUBLIC_API DcgmFieldGetById(unsigned short fieldId);
 
-/**
- * Get a pointer to the metadata for a field by its field ID. See DCGM_FI_? for a list of field IDs.
- *
- * @param fieldId     IN: One of the field IDs (DCGM_FI_?)
- *
- * @return
- *        0     On Failure
- *       >0     Pointer to field metadata structure if found.
- *
- */
-dcgm_field_meta_p DCGM_PUBLIC_API DcgmFieldGetById(unsigned short fieldId);
+    /**
+     * Get a pointer to the metadata for a field by its field tag.
+     *
+     * @param tag       IN: Tag for the field of interest
+     *
+     * @return
+     *        0     On failure or not found
+     *       >0     Pointer to field metadata structure if found
+     *
+     */
+    dcgm_field_meta_p DCGM_PUBLIC_API DcgmFieldGetByTag(const char *tag);
 
-/**
- * Get a pointer to the metadata for a field by its field tag.
- *
- * @param tag       IN: Tag for the field of interest
- *
- * @return
- *        0     On failure or not found
- *       >0     Pointer to field metadata structure if found
- *
- */
-dcgm_field_meta_p DCGM_PUBLIC_API DcgmFieldGetByTag(const char *tag);
+    /**
+     * Initialize the DcgmFields module. Call this once from inside
+     * your program
+     *
+     * @return
+     *        0     On success
+     *       <0     On error
+     *
+     */
+    int DCGM_PUBLIC_API DcgmFieldsInit(void);
 
-/**
- * Initialize the DcgmFields module. Call this once from inside
- * your program
- *
- * @return
- *        0     On success
- *       <0     On error
- *
- */
-int DCGM_PUBLIC_API DcgmFieldsInit(void);
+    /**
+     * Terminates the DcgmFields module. Call this once from inside your program
+     *
+     * @return
+     *        0     On success
+     *       <0     On error
+     *
+     */
+    int DCGM_PUBLIC_API DcgmFieldsTerm(void);
 
-/**
- * Terminates the DcgmFields module. Call this once from inside your program
- *
- * @return
- *        0     On success
- *       <0     On error
- *
- */
-int DCGM_PUBLIC_API DcgmFieldsTerm(void);
+    /**
+     * Get the string version of a entityGroupId
+     *
+     * @returns
+     *         - Pointer to a string like GPU/NvSwitch..etc
+     *         - Null on error
+     *
+     */
+    DCGM_PUBLIC_API const char *DcgmFieldsGetEntityGroupString(dcgm_field_entity_group_t entityGroupId);
 
-/**
- * Get the string version of a entityGroupId
- *
- * @returns
- *         - Pointer to a string like GPU/NvSwitch..etc
- *         - Null on error
- *
- */
-DCGM_PUBLIC_API const char *DcgmFieldsGetEntityGroupString(dcgm_field_entity_group_t entityGroupId);
-
-/** @} */
-
+    /** @} */
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif // DCGMFIELDS_H
