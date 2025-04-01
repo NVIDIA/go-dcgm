@@ -1579,12 +1579,6 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_PROF_NVJPG7_ACTIVE":                               DCGM_FI_PROF_NVJPG7_ACTIVE,                               // 1032
 	"DCGM_FI_PROF_NVOFA0_ACTIVE":                               DCGM_FI_PROF_NVOFA0_ACTIVE,                               // 1033
 	"DCGM_FI_PROF_NVOFA1_ACTIVE":                               DCGM_FI_PROF_NVOFA1_ACTIVE,                               // 1034
-	"DCGM_FI_PROF_NVOFA2_ACTIVE":                               DCGM_FI_PROF_NVOFA2_ACTIVE,                               // 1035
-	"DCGM_FI_PROF_NVOFA3_ACTIVE":                               DCGM_FI_PROF_NVOFA3_ACTIVE,                               // 1036
-	"DCGM_FI_PROF_NVOFA4_ACTIVE":                               DCGM_FI_PROF_NVOFA4_ACTIVE,                               // 1037
-	"DCGM_FI_PROF_NVOFA5_ACTIVE":                               DCGM_FI_PROF_NVOFA5_ACTIVE,                               // 1038
-	"DCGM_FI_PROF_NVOFA6_ACTIVE":                               DCGM_FI_PROF_NVOFA6_ACTIVE,                               // 1039
-	"DCGM_FI_PROF_NVOFA7_ACTIVE":                               DCGM_FI_PROF_NVOFA7_ACTIVE,                               // 1040
 	"DCGM_FI_PROF_NVLINK_L0_TX_BYTES":                          DCGM_FI_PROF_NVLINK_L0_TX_BYTES,                          // 1040
 	"DCGM_FI_PROF_NVLINK_L0_RX_BYTES":                          DCGM_FI_PROF_NVLINK_L0_RX_BYTES,                          // 1041
 	"DCGM_FI_PROF_NVLINK_L1_TX_BYTES":                          DCGM_FI_PROF_NVLINK_L1_TX_BYTES,                          // 1042
