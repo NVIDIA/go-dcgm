@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOLANG_VERSION := 1.14.2
+GOLANG_VERSION := 1.23.6
 GOLANGCILINT_TIMEOUT ?= 10m
 
 .PHONY: all binary install check-format
@@ -34,7 +34,7 @@ test-main:
 	go test -race ./tests
 
 check-format:
-	test $$(gofmt -l . | tee /dev/stderr | wc -l) -eq 0
+	test $$(gofumpt -l -w . | tee /dev/stderr | wc -l) -eq 0
 
 clean:
 	rm -f samples/deviceInfo/deviceInfo
@@ -48,3 +48,6 @@ clean:
 
 lint:
 	golangci-lint run ./... --timeout $(GOLANGCILINT_TIMEOUT)  --new-from-rev=HEAD~1 --fix
+
+lint-full:
+	golangci-lint run ./... --timeout $(GOLANGCILINT_TIMEOUT) --fix

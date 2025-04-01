@@ -1,12 +1,11 @@
 module github.com/NVIDIA/go-dcgm
 
-go 1.21
+go 1.23
 
 require (
-	github.com/Masterminds/semver v1.5.0
-	github.com/bits-and-blooms/bitset v1.13.0
+	github.com/bits-and-blooms/bitset v1.22.0
 	github.com/gorilla/mux v1.8.1
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.10.0
 )
 
 require (

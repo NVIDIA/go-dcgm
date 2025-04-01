@@ -47,12 +47,13 @@ func stringPtr(c *C.char) *string {
 	return &s
 }
 
-type DcgmError struct {
+// Error represents an error returned by the DCGM library
+type Error struct {
 	msg  string         // description of error
 	Code C.dcgmReturn_t // dcgmReturn_t value of error
 }
 
-func (e *DcgmError) Error() string { return e.msg }
+func (e *Error) Error() string { return e.msg }
 
 func errorString(result C.dcgmReturn_t) error {
 	if result == C.DCGM_ST_OK {
@@ -66,10 +67,14 @@ func freeCString(cStr *C.char) {
 	C.free(unsafe.Pointer(cStr))
 }
 
+// IsInt32Blank checks if an integer value represents DCGM's "blank" or sentinel value (0x7ffffff0).
+// These values indicate that no valid data is available for the field.
 func IsInt32Blank(value int) bool {
 	return value >= dcgmInt32Blank
 }
 
+// IsInt64Blank checks if an integer value represents DCGM's "blank" or sentinel value (0x7ffffffffffffff0).
+// These values indicate that no valid data is available for the field.
 func IsInt64Blank(value int64) bool {
 	return value >= dcgmInt64Blank
 }

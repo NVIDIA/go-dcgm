@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 const (
@@ -36,6 +37,7 @@ func main() {
 	defer ticker.Stop()
 
 	fmt.Println(header)
+
 	for {
 		select {
 		case <-ticker.C:
@@ -44,6 +46,7 @@ func main() {
 				if err != nil {
 					log.Panicln(err)
 				}
+
 				fmt.Printf("%5d %5d %5d %5d %5d %5d %5d %5d %5d\n",
 					gpu, int64(st.Power), st.Temperature, st.Utilization.GPU, st.Utilization.Memory,
 					st.Utilization.Encoder, st.Utilization.Decoder, st.Clocks.Memory, st.Clocks.Cores)

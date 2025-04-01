@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 const (
@@ -40,10 +41,12 @@ func main() {
 	for _, gpu := range gpus {
 		fmt.Printf("%9s%d", "GPU", gpu)
 	}
+
 	fmt.Printf("%5s\n", "CPUAffinity")
 
 	numGpus := len(gpus)
 	gpuTopo := make([]string, numGpus)
+
 	for i := 0; i < numGpus; i++ {
 		topo, err := dcgm.GetDeviceTopology(gpus[i])
 		if err != nil {
@@ -51,19 +54,24 @@ func main() {
 		}
 
 		fmt.Printf("GPU%d", gpus[i])
+
 		for j := 0; j < len(topo); j++ {
 			// skip current GPU
 			gpuTopo[topo[j].GPU] = topo[j].Link.PCIPaths()
 		}
+
 		gpuTopo[i] = "X"
 		for j := 0; j < numGpus; j++ {
 			fmt.Printf("%5s", gpuTopo[j])
 		}
+
 		deviceInfo, err := dcgm.GetDeviceInfo(gpus[i])
 		if err != nil {
 			log.Panicln(err)
 		}
+
 		fmt.Printf("%5s\n", deviceInfo.CPUAffinity)
 	}
+
 	fmt.Println(legend)
 }

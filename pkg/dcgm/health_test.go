@@ -19,9 +19,10 @@
 package dcgm
 
 import (
+	"crypto/rand"
 	"fmt"
 	"math"
-	"math/rand"
+	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -82,10 +83,18 @@ func TestHealthCheckPCIE(t *testing.T) {
 	for i := 0; i < 1; i++ { // Run multiple iterations
 		for gen, speed := range pcieGenSpeeds {
 			pcieGen := gen + 1
-			pcieLanes := rand.Intn(16) + 1
+			// Generate random number between 1 and 16
+			n, err := rand.Int(rand.Reader, big.NewInt(16))
+			require.NoError(t, err)
+			pcieLanes := int(n.Int64()) + 1
+
 			ratePerLane := speed / 1000 * 60 // Convert to errors/min per lane
 			expectedLimit := math.Ceil(ratePerLane * float64(pcieLanes))
-			pcieReplayCounter := rand.Intn(2*int(expectedLimit)) + 1
+
+			// Generate random number between 1 and 2*expectedLimit
+			n, err = rand.Int(rand.Reader, big.NewInt(2*int64(expectedLimit)))
+			require.NoError(t, err)
+			pcieReplayCounter := int(n.Int64()) + 1
 			expectingIncident := pcieReplayCounter > int(expectedLimit)
 
 			tests = append(tests, testCase{
@@ -125,7 +134,7 @@ func resetPCICReplayCounter(t *testing.T, gpuIDs []uint) {
 	require.NoError(t, err)
 }
 
-func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen int, pcieLanes int, pcieReplayCounter int, expectingPCIEIncident bool, errMessage string) {
+func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen, pcieLanes, pcieReplayCounter int, expectingPCIEIncident bool, errMessage string) {
 	gpuID := gpuIDs[0]
 
 	groupID, err := CreateGroup("test1")
@@ -196,7 +205,7 @@ func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen int, pcieLanes int, pc
 		require.Equal(t, DCGM_HEALTH_WATCH_PCIE, response.Incidents[0].System)
 		require.Equal(t, DCGM_FR_PCI_REPLAY_RATE, response.Incidents[0].Error.Code)
 	} else {
-		require.Len(t, response.Incidents, 0, errMessage)
+		require.Empty(t, response.Incidents, errMessage)
 	}
 }
 

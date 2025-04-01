@@ -2,11 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"os"
 	"text/template"
 	"time"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 const (
@@ -44,8 +45,6 @@ Avg Memory Utilization (%)   : {{or .ProcessUtilization.MemUtil "N/A"}}
 `
 )
 
-var process = flag.Uint("pid", 0, "Provide pid to get this process information.")
-
 // NOTE: The "WatchPidFields()" function must be initially called (as root) BEFORE starting the process to be monitored:
 //  1. Run as root, for enabling health watches
 //     sudo dcgmi stats -e
@@ -53,6 +52,8 @@ var process = flag.Uint("pid", 0, "Provide pid to get this process information."
 //  3. Run processInfo. This is equivalent to "dcgmi stats --pid ENTERPID -v"
 //     go build && ./processInfo -pid PID
 func main() {
+	process := flag.Uint("pid", 0, "Provide pid to get this process information.")
+
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	if err != nil {
 		log.Panicln(err)
@@ -70,15 +71,15 @@ func main() {
 	time.Sleep(3000 * time.Millisecond)
 
 	flag.Parse()
+
 	pidInfo, err := dcgm.GetProcessInfo(group, *process)
 	if err != nil {
 		log.Panicln(err)
 	}
 
 	t := template.Must(template.New("Process").Parse(processInfo))
-	for _, gpu := range pidInfo {
-
-		if err = t.Execute(os.Stdout, gpu); err != nil {
+	for i := range pidInfo {
+		if err = t.Execute(os.Stdout, pidInfo[i]); err != nil {
 			log.Panicln("Template error:", err)
 		}
 	}

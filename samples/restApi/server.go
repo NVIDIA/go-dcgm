@@ -12,11 +12,14 @@ import (
 
 const timeout = 5 * time.Second
 
+// httpServer represents an HTTP server instance that handles DCGM REST API endpoints
 type httpServer struct {
 	router *mux.Router
 	server *http.Server
 }
 
+// newHttpServer creates and configures a new HTTP server instance
+// addr specifies the address:port to listen on
 func newHttpServer(addr string) *httpServer {
 	r := mux.NewRouter()
 
@@ -34,6 +37,7 @@ func newHttpServer(addr string) *httpServer {
 	h.DevicesUuids()
 
 	s.handler()
+
 	return s
 }
 
@@ -66,8 +70,8 @@ func (s *httpServer) handler() {
 
 	dcgmStatus := "/dcgm/status"
 	subrouter = s.router.PathPrefix(dcgmStatus).Subrouter()
-	subrouter.HandleFunc("", h.DcgmStatus).Methods("GET")
-	subrouter.HandleFunc("/json", h.DcgmStatus).Methods("GET")
+	subrouter.HandleFunc("", h.Status).Methods("GET")
+	subrouter.HandleFunc("/json", h.Status).Methods("GET")
 }
 
 func (s *httpServer) serve() {

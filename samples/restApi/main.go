@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 // res: curl localhost:8070/dcgm/device/info/id/0
@@ -27,8 +28,8 @@ func main() {
 		log.Printf("Running http server on localhost%s", addr)
 		server.serve()
 	}()
+
 	defer server.stop()
 
 	<-stopSig
-	return
 }

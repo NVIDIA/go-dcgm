@@ -27,6 +27,7 @@ extern int go_dcgmFieldValueEntityEnumeration(dcgm_field_entity_group_t entityGr
             void *userData);
 */
 import "C"
+
 import (
 	"fmt"
 	"sync"
@@ -41,9 +42,10 @@ type callback struct {
 
 func (cb *callback) processValues(entityGroup Field_Entity_Group, entityID uint, cvalues []C.dcgmFieldValue_v1) {
 	values := dcgmFieldValue_v1ToFieldValue_v2(entityGroup, entityID, cvalues)
+
 	cb.mu.Lock()
-	defer cb.mu.Unlock()
 	cb.Values = append(cb.Values, values...)
+	cb.mu.Unlock()
 }
 
 //export go_dcgmFieldValueEntityEnumeration
@@ -52,10 +54,12 @@ func go_dcgmFieldValueEntityEnumeration(
 	entityID C.dcgm_field_eid_t,
 	values *C.dcgmFieldValue_v1,
 	numValues C.int,
-	userData unsafe.Pointer) C.int {
+	userData unsafe.Pointer,
+) C.int {
 	ptrValues := unsafe.Pointer(values)
 	if ptrValues != nil {
 		valuesSlice := (*[1 << 30]C.dcgmFieldValue_v1)(ptrValues)[0:numValues]
+
 		if userData != nil {
 			processor := (*callback)(userData)
 			processor.processValues(Field_Entity_Group(entityGroup), uint(entityID), valuesSlice)
@@ -77,19 +81,15 @@ func go_dcgmFieldValueEntityEnumeration(
 //
 // Returns []FieldValue_v2 slice containing the requested field values, a time.Time indicating the time
 // of the latest data retrieval, and an error if there is any issue during the operation.
-func GetValuesSince(GPUGroup GroupHandle, fieldGroup FieldHandle, sinceTime time.Time) ([]FieldValue_v2, time.Time, error) {
-	var (
-		nextSinceTimestamp C.longlong
-	)
-
+func GetValuesSince(gpuGroup GroupHandle, fieldGroup FieldHandle, sinceTime time.Time) ([]FieldValue_v2, time.Time, error) {
+	var nextSinceTimestamp C.longlong
 	cbResult := &callback{}
-
 	result := C.dcgmGetValuesSince_v2(handle.handle,
-		GPUGroup.handle,
-		C.dcgmFieldGrp_t(fieldGroup.handle),
+		gpuGroup.handle,
+		fieldGroup.handle,
 		C.longlong(sinceTime.UnixMicro()),
 		&nextSinceTimestamp,
-		(C.dcgmFieldValueEnumeration_f)(unsafe.Pointer(C.fieldValueEntityCallback)),
+		C.dcgmFieldValueEnumeration_f(C.fieldValueEntityCallback),
 		unsafe.Pointer(cbResult))
 	if result != C.DCGM_ST_OK {
 		return nil, time.Time{}, fmt.Errorf("dcgmGetValuesSince_v2 failed with error code %d", int(result))

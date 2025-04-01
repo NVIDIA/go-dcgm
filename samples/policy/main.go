@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 // dcgmi group -c "name" --default

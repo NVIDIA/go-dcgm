@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+// Package dcgm provides bindings for NVIDIA's Data Center GPU Manager (DCGM)
 package dcgm
 
 /*
@@ -30,18 +31,27 @@ import (
 	"unsafe"
 )
 
+// MigHierarchyInfo represents the Multi-Instance GPU (MIG) hierarchy information
+// for a GPU entity and its relationship to other entities
 type MigHierarchyInfo struct {
-	Entity       GroupEntityPair
-	Parent       GroupEntityPair
+	// Entity represents the current GPU entity in the hierarchy
+	Entity GroupEntityPair
+	// Parent represents the parent GPU entity in the hierarchy
+	Parent GroupEntityPair
+	// SliceProfile defines the MIG profile configuration for this entity
 	SliceProfile MigProfile
 }
 
+// CreateFakeEntities creates test entities with the specified MIG hierarchy information.
+// This function is intended for testing purposes only.
+// Returns a slice of Entity IDs for the created entities and any error encountered.
 func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 	ccfe := C.dcgmCreateFakeEntities_v2{
 		version:     C.dcgmCreateFakeEntities_version2,
 		numToCreate: C.uint(len(entities)),
 		entityList:  [C.DCGM_MAX_HIERARCHY_INFO]C.dcgmMigHierarchyInfo_t{},
 	}
+
 	for i := range entities {
 		if i >= C.DCGM_MAX_HIERARCHY_INFO {
 			break
@@ -62,17 +72,29 @@ func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 	result := C.dcgmCreateFakeEntities(handle.handle, &ccfe)
 
 	if err := errorString(result); err != nil {
-		return nil, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
-	gpuIDs := make([]uint, ccfe.numToCreate)
+	entityIDs := make([]uint, ccfe.numToCreate)
 	for i := 0; i < int(ccfe.numToCreate); i++ {
-		gpuIDs[i] = uint(ccfe.entityList[i].entity.entityId)
+		entityIDs[i] = uint(ccfe.entityList[i].entity.entityId)
 	}
 
-	return gpuIDs, nil
+	return entityIDs, nil
 }
 
-func InjectFieldValue(gpu uint, fieldID uint, fieldType uint, status int, ts int64, value interface{}) error {
+// InjectFieldValue injects a test value for a specific field into DCGM's field manager.
+// This function is intended for testing purposes only.
+//
+// Parameters:
+//   - gpu: The GPU ID to inject the field value for
+//   - fieldID: The DCGM field identifier
+//   - fieldType: The type of the field (e.g., DCGM_FT_INT64, DCGM_FT_DOUBLE)
+//   - status: The status code for the field
+//   - ts: The timestamp for the field value
+//   - value: The value to inject (must match fieldType)
+//
+// Returns an error if the injection fails
+func InjectFieldValue(gpu uint, fieldID Short, fieldType uint, status int, ts int64, value any) error {
 	field := C.dcgmInjectFieldValue_t{
 		version:   C.dcgmInjectFieldValue_version1,
 		fieldId:   C.ushort(fieldID),
@@ -95,7 +117,7 @@ func InjectFieldValue(gpu uint, fieldID uint, fieldType uint, status int, ts int
 	result := C.dcgmInjectFieldValue(handle.handle, C.uint(gpu), &field)
 
 	if err := errorString(result); err != nil {
-		return &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	return nil

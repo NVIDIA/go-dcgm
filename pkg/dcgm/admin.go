@@ -18,7 +18,7 @@ package dcgm
 
 /*
 #cgo linux LDFLAGS: -ldl -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files
-#cgo darwin LDFLAGS: -ldl -Wl,--export-dynamic -Wl,-undefined,dynamic_lookup
+#cgo darwin LDFLAGS: -ldl -Wl,-undefined,dynamic_lookup
 
 #include <dlfcn.h>
 #include "dcgm_agent.h"
@@ -28,6 +28,7 @@ package dcgm
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -55,7 +56,7 @@ var (
 	hostengineAsChildPid int
 )
 
-func initDcgm(m mode, args ...string) (err error) {
+func initDCGM(m mode, args ...string) (err error) {
 	const (
 		dcgmLib = "libdcgm.so.4"
 	)
@@ -64,7 +65,7 @@ func initDcgm(m mode, args ...string) (err error) {
 
 	dcgmLibHandle = C.dlopen(lib, C.RTLD_LAZY|C.RTLD_GLOBAL)
 	if dcgmLibHandle == nil {
-		return fmt.Errorf("%s not Found", dcgmLib)
+		return fmt.Errorf("%s not found", dcgmLib)
 	}
 
 	// set the stopMode for shutdown()
@@ -77,9 +78,9 @@ func initDcgm(m mode, args ...string) (err error) {
 		return connectStandalone(args...)
 	case StartHostengine:
 		return startHostengine()
+	default:
+		panic(ErrInvalidMode)
 	}
-
-	return nil
 }
 
 func shutdown() (err error) {
@@ -99,13 +100,13 @@ func shutdown() (err error) {
 func startEmbedded() (err error) {
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error initializing DCGM: %s", err)
+		return fmt.Errorf("error initializing DCGM: %s", err)
 	}
 
 	var cHandle C.dcgmHandle_t
 	result = C.dcgmStartEmbedded(C.DCGM_OPERATION_MODE_AUTO, &cHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error starting nv-hostengine: %s", err)
+		return fmt.Errorf("error starting nv-hostengine: %s", err)
 	}
 	handle = dcgmHandle{cHandle}
 	return
@@ -114,52 +115,47 @@ func startEmbedded() (err error) {
 func stopEmbedded() (err error) {
 	result := C.dcgmStopEmbedded(handle.handle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error stopping nv-hostengine: %s", err)
+		return fmt.Errorf("error stopping nv-hostengine: %s", err)
 	}
 
 	result = C.dcgmShutdown()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error shutting down DCGM: %s", err)
+		return fmt.Errorf("error shutting down DCGM: %s", err)
 	}
 	return
 }
 
 func connectStandalone(args ...string) (err error) {
+	var (
+		cHandle       C.dcgmHandle_t
+		connectParams C.dcgmConnectV2Params_v2
+	)
+
 	if len(args) < 2 {
-		return fmt.Errorf("Missing dcgm address and / or port")
+		return errors.New("missing dcgm address and / or port")
 	}
 
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error initializing DCGM: %s", err)
+		return fmt.Errorf("error initializing DCGM: %s", err)
 	}
 
-	var cHandle C.dcgmHandle_t
 	addr := C.CString(args[0])
 	defer freeCString(addr)
-	var connectParams C.dcgmConnectV2Params_v2
 	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
 
 	sck, err := strconv.ParseUint(args[1], 10, 32)
 	if err != nil {
-		return fmt.Errorf("Error parsing %s: %v\n", args[1], err)
+		return fmt.Errorf("error parsing %s: %v", args[1], err)
 	}
 	connectParams.addressIsUnixSocket = C.uint(sck)
 
 	result = C.dcgmConnect_v2(addr, &connectParams, &cHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error connecting to nv-hostengine: %s", err)
+		return fmt.Errorf("error connecting to nv-hostengine: %s", err)
 	}
 
 	handle = dcgmHandle{cHandle}
-
-	// This check is disabled for now
-	/*
-		err = checkHostengineVersion()
-		if err != nil {
-			return fmt.Errorf("Error connecting to remote nv-hostengine: %s", err)
-		}
-	*/
 
 	return
 }
@@ -167,22 +163,27 @@ func connectStandalone(args ...string) (err error) {
 func disconnectStandalone() (err error) {
 	result := C.dcgmDisconnect(handle.handle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error disconnecting from nv-hostengine: %s", err)
+		return fmt.Errorf("error disconnecting from nv-hostengine: %s", err)
 	}
 
 	result = C.dcgmShutdown()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error shutting down DCGM: %s", err)
+		return fmt.Errorf("error shutting down DCGM: %s", err)
 	}
 	return
 }
 
 func startHostengine() (err error) {
+	var (
+		procAttr      syscall.ProcAttr
+		cHandle       C.dcgmHandle_t
+		connectParams C.dcgmConnectV2Params_v2
+	)
+
 	bin, err := exec.LookPath("nv-hostengine")
 	if err != nil {
-		return fmt.Errorf("Error finding nv-hostengine: %s", err)
+		return fmt.Errorf("error finding nv-hostengine: %s", err)
 	}
-	var procAttr syscall.ProcAttr
 	procAttr.Files = []uintptr{
 		uintptr(syscall.Stdin),
 		uintptr(syscall.Stdout),
@@ -193,7 +194,7 @@ func startHostengine() (err error) {
 	dir := "/tmp"
 	tmpfile, err := os.CreateTemp(dir, "dcgm")
 	if err != nil {
-		return fmt.Errorf("Error creating temporary file in %s directory: %s", dir, err)
+		return fmt.Errorf("error creating temporary file in %s directory: %s", dir, err)
 	}
 	socketPath := tmpfile.Name()
 	defer os.Remove(socketPath)
@@ -201,16 +202,14 @@ func startHostengine() (err error) {
 	connectArg := "--domain-socket"
 	hostengineAsChildPid, err = syscall.ForkExec(bin, []string{bin, connectArg, socketPath}, &procAttr)
 	if err != nil {
-		return fmt.Errorf("Error fork-execing nv-hostengine: %s", err)
+		return fmt.Errorf("error fork-execing nv-hostengine: %s", err)
 	}
 
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error initializing DCGM: %s", err)
+		return fmt.Errorf("error initializing DCGM: %s", err)
 	}
 
-	var cHandle C.dcgmHandle_t
-	var connectParams C.dcgmConnectV2Params_v2
 	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
 	isSocket := C.uint(1)
 	connectParams.addressIsUnixSocket = isSocket
@@ -218,7 +217,7 @@ func startHostengine() (err error) {
 	defer freeCString(cSockPath)
 	result = C.dcgmConnect_v2(cSockPath, &connectParams, &cHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("Error connecting to nv-hostengine: %s", err)
+		return fmt.Errorf("error connecting to nv-hostengine: %s", err)
 	}
 
 	handle = dcgmHandle{cHandle}
@@ -233,8 +232,9 @@ func stopHostengine() (err error) {
 	// terminate nv-hostengine
 	cmd := exec.Command("nv-hostengine", "--term")
 	if err = cmd.Run(); err != nil {
-		return fmt.Errorf("Error terminating nv-hostengine: %s", err)
+		return fmt.Errorf("error terminating nv-hostengine: %s", err)
 	}
+
 	log.Println("Successfully terminated nv-hostengine.")
 
 	return syscall.Kill(hostengineAsChildPid, syscall.SIGKILL)

@@ -10,29 +10,49 @@ import (
 	"unsafe"
 )
 
+// Package dcgm provides bindings for NVIDIA's Data Center GPU Manager (DCGM)
+
+// DIAG_RESULT_STRING_SIZE represents the maximum size of diagnostic result strings
 const DIAG_RESULT_STRING_SIZE = 1024
 
+// DiagType represents the type of diagnostic test to run
 type DiagType int
 
 const (
-	DiagQuick    DiagType = 1
-	DiagMedium            = 2
-	DiagLong              = 3
-	DiagExtended          = 4
+	// DiagQuick represents a quick diagnostic test that performs basic health checks
+	DiagQuick DiagType = 1
+
+	// DiagMedium represents a medium-length diagnostic test that performs more comprehensive checks
+	DiagMedium DiagType = 2
+
+	// DiagLong represents a long diagnostic test that performs extensive health checks
+	DiagLong DiagType = 3
+
+	// DiagExtended represents an extended diagnostic test that performs the most thorough system checks
+	DiagExtended DiagType = 4
 )
 
+// DiagResult represents the result of a single diagnostic test
 type DiagResult struct {
-	Status       string
-	TestName     string
-	TestOutput   string
-	ErrorCode    uint
+	// Status indicates the test result: "pass", "fail", "warn", "skip", or "notrun"
+	Status string
+	// TestName is the name of the diagnostic test that was run
+	TestName string
+	// TestOutput contains any additional output or messages from the test
+	TestOutput string
+	// ErrorCode is the numeric error code if the test failed
+	ErrorCode uint
+	// ErrorMessage contains a detailed error message if the test failed
 	ErrorMessage string
 }
 
+// DiagResults contains the results of all diagnostic tests
 type DiagResults struct {
+	// Software contains the results of software-related diagnostic tests
 	Software []DiagResult
 }
 
+// diagResultString converts a diagnostic result code to its string representation
 func diagResultString(r int) string {
 	switch r {
 	case C.DCGM_DIAG_RESULT_PASS:
@@ -76,18 +96,48 @@ func swTestName(t int) string {
 	return ""
 }
 
-func getErrorMsg(entityId uint, response C.dcgmDiagResponse_v11) (string, uint) {
+func gpuTestName(t int) string {
+	switch t {
+	case C.DCGM_MEMORY_INDEX:
+		return "Memory"
+	case C.DCGM_DIAGNOSTIC_INDEX:
+		return "Diagnostic"
+	case C.DCGM_PCI_INDEX:
+		return "PCIe"
+	case C.DCGM_SM_STRESS_INDEX:
+		return "SM Stress"
+	case C.DCGM_TARGETED_STRESS_INDEX:
+		return "Targeted Stress"
+	case C.DCGM_TARGETED_POWER_INDEX:
+		return "Targeted Power"
+	case C.DCGM_MEMORY_BANDWIDTH_INDEX:
+		return "Memory bandwidth"
+	case C.DCGM_MEMTEST_INDEX:
+		return "Memtest"
+	case C.DCGM_PULSE_TEST_INDEX:
+		return "Pulse"
+	case C.DCGM_EUD_TEST_INDEX:
+		return "EUD"
+	case C.DCGM_SOFTWARE_INDEX:
+		return "Software"
+	case C.DCGM_CONTEXT_CREATE_INDEX:
+		return "Context create"
+	}
+	return ""
+}
+
+func getErrorMsg(entityId uint, response C.dcgmDiagResponse_v11) (msg string, code uint) {
 	for i := 0; i < int(response.numErrors); i++ {
 		if uint(response.errors[i].entity.entityId) != entityId {
 			continue
 		}
 
-		msg := C.GoString((*C.char)(unsafe.Pointer(&response.errors[i].msg)))
-		code := uint(response.errors[i].code)
-		return msg, code
+		msg = C.GoString((*C.char)(unsafe.Pointer(&response.errors[i].msg)))
+		code = uint(response.errors[i].code)
+		return
 	}
 
-	return "", 0
+	return
 }
 
 func getInfoMsg(entityId uint, response C.dcgmDiagResponse_v11) string {
@@ -114,7 +164,7 @@ func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v11) DiagResult
 		Status:       diagResultString(int(response.results[resultIndex].result)),
 		TestName:     testName,
 		TestOutput:   info,
-		ErrorCode:    uint(code),
+		ErrorCode:    code,
 		ErrorMessage: msg,
 	}
 }
@@ -133,19 +183,27 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 	return C.DCGM_DIAG_LVL_INVALID
 }
 
-func RunDiag(diagType DiagType, groupId GroupHandle) (DiagResults, error) {
+// RunDiag runs diagnostic tests on a group of GPUs with the specified diagnostic level.
+// Parameters:
+//   - diagType: The type/level of diagnostic test to run (Quick, Medium, Long, or Extended)
+//   - groupId: The group of GPUs to run diagnostics on
+//
+// Returns:
+//   - DiagResults containing the results of all diagnostic tests
+//   - error if the diagnostics failed to run
+func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
 	var diagResults C.dcgmDiagResponse_v11
 	diagResults.version = makeVersion11(unsafe.Sizeof(diagResults))
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupId.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v11)(unsafe.Pointer(&diagResults)))
+	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v11)(unsafe.Pointer(&diagResults)))
 	if err := errorString(result); err != nil {
-		return DiagResults{}, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return DiagResults{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	var diagRun DiagResults
+	diagRun.Software = make([]DiagResult, diagResults.numResults)
 	for i := 0; i < int(diagResults.numResults); i++ {
-		dr := newDiagResult(uint(diagResults.results[i].entity.entityId), diagResults)
-		diagRun.Software = append(diagRun.Software, dr)
+		diagRun.Software[i] = newDiagResult(uint(diagResults.results[i].entity.entityId), diagResults)
 	}
 
 	return diagRun, nil

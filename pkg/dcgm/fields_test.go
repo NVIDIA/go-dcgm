@@ -1,8 +1,9 @@
 package dcgm
 
 import (
+	crand "crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"runtime"
 	"testing"
 	"time"
@@ -38,18 +39,20 @@ func TestGetLatestValuesForFields(t *testing.T) {
 	groupId, err := NewDefaultGroup("mygroup")
 	require.NoError(t, err)
 	defer func() {
-		err := DestroyGroup(groupId)
-		require.NoError(t, err)
+		destroyGroupErr := DestroyGroup(groupId)
+		require.NoError(t, destroyGroupErr)
 	}()
 
 	// Setup field group
-	fieldId := Short(DCGM_FI_DEV_XID_ERRORS)
-	fieldGroupName := fmt.Sprintf("fieldGroupName%d", rand.Uint64())
+	fieldId := DCGM_FI_DEV_XID_ERRORS
+	n, err := crand.Int(crand.Reader, big.NewInt(1000000))
+	require.NoError(t, err)
+	fieldGroupName := fmt.Sprintf("fieldGroupName%d", n.Int64())
 	fieldsGroup, err := FieldGroupCreate(fieldGroupName, []Short{fieldId})
 	require.NoError(t, err)
 	defer func() {
-		err := FieldGroupDestroy(fieldsGroup)
-		require.NoError(t, err)
+		destroyFieldsGroupErr := FieldGroupDestroy(fieldsGroup)
+		require.NoError(t, destroyFieldsGroupErr)
 	}()
 
 	// Inject test value
@@ -80,7 +83,7 @@ func TestGetLatestValuesForFields(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify results
-	assert.Equal(t, 1, len(values))
+	assert.Len(t, values, 1)
 	assert.NotEmpty(t, values[0].String())
 	assert.Equal(t, int64(10), values[0].Int64())
 }
@@ -91,38 +94,37 @@ func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 
 	// Setup test GPU
 	gpus, err := withInjectionGPUs(b, 1)
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
 	gpuId := gpus[0]
 
 	// Setup test group
 	groupId, err := NewDefaultGroup("mygroup")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer DestroyGroup(groupId)
+	require.NoError(b, err)
+	defer func() {
+		err := DestroyGroup(groupId)
+		require.NoError(b, err)
+	}()
 
 	// Use the same fields as in the main benchmark
 	allFieldIds := []Short{
-		Short(DCGM_FI_DEV_XID_ERRORS),
-		Short(DCGM_FI_DEV_DIAG_MEMORY_RESULT),
-		Short(DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION),
-		Short(DCGM_FI_DEV_GPU_TEMP),
-		Short(DCGM_FI_DEV_MEMORY_TEMP),
-		Short(DCGM_FI_DEV_GPU_UTIL),
-		Short(DCGM_FI_DEV_MEM_COPY_UTIL),
-		Short(DCGM_FI_DEV_ENC_UTIL),
-		Short(DCGM_FI_DEV_DEC_UTIL),
-		Short(DCGM_FI_DEV_FB_FREE),
-		Short(DCGM_FI_DEV_FB_USED),
-		Short(DCGM_FI_DEV_PCIE_REPLAY_COUNTER),
-		Short(DCGM_FI_DEV_SM_CLOCK),
-		Short(DCGM_FI_DEV_RETIRED_PENDING),
-		Short(DCGM_FI_DEV_RETIRED_SBE),
-		Short(DCGM_FI_DEV_RETIRED_DBE),
-		Short(DCGM_FI_DEV_POWER_VIOLATION),
-		Short(DCGM_FI_DEV_THERMAL_VIOLATION),
+		DCGM_FI_DEV_XID_ERRORS,
+		DCGM_FI_DEV_DIAG_MEMORY_RESULT,
+		DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION,
+		DCGM_FI_DEV_GPU_TEMP,
+		DCGM_FI_DEV_MEMORY_TEMP,
+		DCGM_FI_DEV_GPU_UTIL,
+		DCGM_FI_DEV_MEM_COPY_UTIL,
+		DCGM_FI_DEV_ENC_UTIL,
+		DCGM_FI_DEV_DEC_UTIL,
+		DCGM_FI_DEV_FB_FREE,
+		DCGM_FI_DEV_FB_USED,
+		DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
+		DCGM_FI_DEV_SM_CLOCK,
+		DCGM_FI_DEV_RETIRED_PENDING,
+		DCGM_FI_DEV_RETIRED_SBE,
+		DCGM_FI_DEV_RETIRED_DBE,
+		DCGM_FI_DEV_POWER_VIOLATION,
+		DCGM_FI_DEV_THERMAL_VIOLATION,
 	}
 
 	// Test different field counts
@@ -135,10 +137,11 @@ func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 			// Setup field group
 			fieldGroupName := fmt.Sprintf("fieldGroup-%d", count)
 			fieldsGroup, err := FieldGroupCreate(fieldGroupName, fieldIds)
-			if err != nil {
-				b.Fatal(err)
-			}
-			defer FieldGroupDestroy(fieldsGroup)
+			require.NoError(b, err)
+			defer func() {
+				destroyFieldsGroupErr := FieldGroupDestroy(fieldsGroup)
+				require.NoError(b, destroyFieldsGroupErr)
+			}()
 
 			// Setup field watching
 			err = WatchFieldsWithGroupEx(
@@ -148,40 +151,30 @@ func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 				defaultMaxKeepAge,
 				defaultMaxKeepSamples,
 			)
-			if err != nil {
-				b.Fatal(err)
-			}
+			require.NoError(b, err)
 
 			// Inject values for all fields
 			for _, fieldId := range fieldIds {
 				err = InjectFieldValue(gpuId,
-					uint(fieldId),
+					fieldId,
 					DCGM_FT_INT64,
 					0,
 					time.Now().Add(-time.Duration(5)*time.Second).UnixMicro(),
 					int64(10),
 				)
-				if err != nil {
-					b.Fatal(err)
-				}
+				require.NoError(b, err)
 			}
 
 			err = UpdateAllFields()
-			if err != nil {
-				b.Fatal(err)
-			}
+			require.NoError(b, err)
 
 			b.ResetTimer()
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
 				values, err := GetLatestValuesForFields(gpuId, fieldIds)
-				if err != nil {
-					b.Fatal(err)
-				}
-				if len(values) != len(fieldIds) {
-					b.Fatalf("expected %d values, got %d", len(fieldIds), len(values))
-				}
+				require.NoError(b, err)
+				require.Len(b, values, len(fieldIds), "expected %d values, got %d", len(fieldIds), len(values))
 				runtime.KeepAlive(values)
 			}
 		})

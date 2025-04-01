@@ -5,14 +5,17 @@ package dcgm
 #include "dcgm_structs.h"
 */
 import "C"
+
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"unsafe"
 
 	"github.com/bits-and-blooms/bitset"
 )
 
+// PCIInfo contains PCI bus related information for a GPU device
 type PCIInfo struct {
 	BusID     string
 	BAR1      uint  // MB
@@ -20,6 +23,7 @@ type PCIInfo struct {
 	Bandwidth int64 // MB/s
 }
 
+// DeviceIdentifiers contains various identification information for a GPU device
 type DeviceIdentifiers struct {
 	Brand               string
 	Model               string
@@ -29,6 +33,7 @@ type DeviceIdentifiers struct {
 	DriverVersion       string
 }
 
+// Device represents a GPU device and its properties
 type Device struct {
 	GPU           uint
 	DCGMSupported string
@@ -42,52 +47,57 @@ type Device struct {
 
 // getAllDeviceCount counts all GPUs on the system
 func getAllDeviceCount() (gpuCount uint, err error) {
-	var gpuIdList [C.DCGM_MAX_NUM_DEVICES]C.uint
-	var count C.int
+	var (
+		gpuIDList [C.DCGM_MAX_NUM_DEVICES]C.uint
+		count     C.int
+	)
 
-	result := C.dcgmGetAllDevices(handle.handle, &gpuIdList[0], &count)
+	result := C.dcgmGetAllDevices(handle.handle, &gpuIDList[0], &count)
 	if err = errorString(result); err != nil {
-		return gpuCount, fmt.Errorf("Error getting devices count: %s", err)
+		return gpuCount, fmt.Errorf("error getting devices count: %s", err)
 	}
 	gpuCount = uint(count)
 	return
 }
 
 // getAllDeviceCount counts all GPUs on the system
-func getEntityGroupEntities(entityGroup Field_Entity_Group) (entities []uint, err error) {
+func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
+	var err error
 	var pEntities [C.DCGM_MAX_NUM_DEVICES]C.uint
 	var count C.int = C.DCGM_MAX_NUM_DEVICES
 
 	result := C.dcgmGetEntityGroupEntities(handle.handle, C.dcgm_field_entity_group_t(entityGroup), &pEntities[0], &count, 0)
 	if err = errorString(result); err != nil {
-		return nil, fmt.Errorf("Error getting entity count: %s", err)
+		return nil, fmt.Errorf("error getting entity count: %s", err)
 	}
 
+	entities := make([]uint, count)
+
 	for i := 0; i < int(count); i++ {
-		entities = append(entities, uint(pEntities[i]))
+		entities[i] = uint(pEntities[i])
 	}
 	return entities, nil
 }
 
 // getSupportedDevices returns DCGM supported GPUs
 func getSupportedDevices() (gpus []uint, err error) {
-	var gpuIdList [C.DCGM_MAX_NUM_DEVICES]C.uint
+	var gpuIDList [C.DCGM_MAX_NUM_DEVICES]C.uint
 	var count C.int
 
-	result := C.dcgmGetAllSupportedDevices(handle.handle, &gpuIdList[0], &count)
+	result := C.dcgmGetAllSupportedDevices(handle.handle, &gpuIDList[0], &count)
 	if err = errorString(result); err != nil {
-		return gpus, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return gpus, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	numGpus := int(count)
 	gpus = make([]uint, numGpus)
 	for i := 0; i < numGpus; i++ {
-		gpus[i] = uint(gpuIdList[i])
+		gpus[i] = uint(gpuIDList[i])
 	}
 	return
 }
 
-func getPciBandwidth(gpuId uint) (int64, error) {
+func getPciBandwidth(gpuID uint) (int64, error) {
 	const (
 		maxLinkGen int = iota
 		maxLinkWidth
@@ -100,30 +110,30 @@ func getPciBandwidth(gpuId uint) (int64, error) {
 
 	fieldsName := fmt.Sprintf("pciBandwidthFields%d", rand.Uint64())
 
-	fieldsId, err := FieldGroupCreate(fieldsName, pciFields)
+	fieldsID, err := FieldGroupCreate(fieldsName, pciFields)
 	if err != nil {
 		return 0, err
 	}
 
 	groupName := fmt.Sprintf("pciBandwidth%d", rand.Uint64())
-	groupId, err := WatchFields(gpuId, fieldsId, groupName)
+	groupID, err := WatchFields(gpuID, fieldsID, groupName)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
+		_ = FieldGroupDestroy(fieldsID)
 		return 0, err
 	}
 
-	values, err := GetLatestValuesForFields(gpuId, pciFields)
+	values, err := GetLatestValuesForFields(gpuID, pciFields)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
-		_ = DestroyGroup(groupId)
-		return 0, fmt.Errorf("Error getting Pcie bandwidth: %s", err)
+		_ = FieldGroupDestroy(fieldsID)
+		_ = DestroyGroup(groupID)
+		return 0, fmt.Errorf("error getting Pcie bandwidth: %s", err)
 	}
 
 	gen := values[maxLinkGen].Int64()
 	width := values[maxLinkWidth].Int64()
 
-	_ = FieldGroupDestroy(fieldsId)
-	_ = DestroyGroup(groupId)
+	_ = FieldGroupDestroy(fieldsID)
+	_ = DestroyGroup(groupID)
 
 	genMap := map[int64]int64{
 		1: 250, // MB/s
@@ -136,7 +146,7 @@ func getPciBandwidth(gpuId uint) (int64, error) {
 	return bandwidth, nil
 }
 
-func getCPUAffinity(gpuId uint) (string, error) {
+func getCPUAffinity(gpuID uint) (string, error) {
 	const (
 		affinity0 int = iota
 		affinity1
@@ -157,18 +167,30 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	if err != nil {
 		return "N/A", err
 	}
-	defer FieldGroupDestroy(fieldsId)
+	defer func() {
+		ret := FieldGroupDestroy(fieldsId)
+
+		if ret != nil {
+			log.Printf("error destroying field group: %v", ret)
+		}
+	}()
 
 	groupName := fmt.Sprintf("cpuAff%d", rand.Uint64())
-	groupId, err := WatchFields(gpuId, fieldsId, groupName)
+	groupID, err := WatchFields(gpuID, fieldsId, groupName)
 	if err != nil {
 		return "N/A", err
 	}
-	defer DestroyGroup(groupId)
+	defer func() {
+		ret := DestroyGroup(groupID)
 
-	values, err := GetLatestValuesForFields(gpuId, affFields)
+		if ret != nil {
+			log.Printf("error destroying group: %v", ret)
+		}
+	}()
+
+	values, err := GetLatestValuesForFields(gpuID, affFields)
 	if err != nil {
-		return "N/A", fmt.Errorf("Error getting cpu affinity: %s", err)
+		return "N/A", fmt.Errorf("error getting cpu affinity: %s", err)
 	}
 
 	bits := make([]uint64, 4)
@@ -182,13 +204,13 @@ func getCPUAffinity(gpuId uint) (string, error) {
 	return b.String(), nil
 }
 
-func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
+func getDeviceInfo(gpuID uint) (deviceInfo Device, err error) {
 	var device C.dcgmDeviceAttributes_t
 	device.version = makeVersion3(unsafe.Sizeof(device))
 
-	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuid), &device)
+	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), &device)
 	if err = errorString(result); err != nil {
-		return deviceInfo, &DcgmError{msg: C.GoString(C.errorString(result)), Code: result}
+		return deviceInfo, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
 	// check if the given GPU is DCGM supported
@@ -200,7 +222,7 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 	supported := "No"
 
 	for _, gpu := range gpus {
-		if gpuid == gpu {
+		if gpuID == gpu {
 			supported = "Yes"
 			break
 		}
@@ -208,20 +230,23 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 
 	busid := *stringPtr(&device.identifiers.pciBusId[0])
 
-	cpuAffinity, err := getCPUAffinity(gpuid)
+	cpuAffinity, err := getCPUAffinity(gpuID)
 	if err != nil {
 		return
 	}
 
-	var topology []P2PLink
-	var bandwidth int64
+	var (
+		topology  []P2PLink
+		bandwidth int64
+	)
+
 	// get device topology and bandwidth only if its a DCGM supported device
 	if supported == "Yes" {
-		topology, err = getDeviceTopology(gpuid)
+		topology, err = getDeviceTopology(gpuID)
 		if err != nil {
 			return
 		}
-		bandwidth, err = getPciBandwidth(gpuid)
+		bandwidth, err = getPciBandwidth(gpuID)
 		if err != nil {
 			return
 		}
@@ -247,7 +272,7 @@ func getDeviceInfo(gpuid uint) (deviceInfo Device, err error) {
 	}
 
 	deviceInfo = Device{
-		GPU:           gpuid,
+		GPU:           gpuID,
 		DCGMSupported: supported,
 		UUID:          uuid,
 		Power:         power,
