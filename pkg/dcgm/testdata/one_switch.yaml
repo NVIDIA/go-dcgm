@@ -1,5 +1,6 @@
+---
 devices:
-  - type: 2 # nvsdmDevType
+  - type: 2  # nvsdmDevType
     dev_id: 0
     vendor_id: 0xbaca
     health_state: 0
@@ -7,55 +8,55 @@ devices:
     ports:
       - lid: 1
         fields:
-          - type: 1 # nvsdmTelemType_t
+          - type: 1  # nvsdmTelemType_t
             field: 2
             value: 51984
-            value_type: 2 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
-          - type: 1 # nvsdmTelemType_t
+            value_type: 2  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
+          - type: 1  # nvsdmTelemType_t
             field: 10
             value: 56952
-            value_type: 2 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
-          - type: 2 # nvsdmTelemType_t
+            value_type: 2  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
+          - type: 2  # nvsdmTelemType_t
             field: 1
             value: 0
-            value_type: 5 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
-          - type: 2 # nvsdmTelemType_t
+            value_type: 5  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
+          - type: 2  # nvsdmTelemType_t
             field: 3
             value: 0
-            value_type: 5 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
-          - type: 2 # nvsdmTelemType_t
+            value_type: 5  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
+          - type: 2  # nvsdmTelemType_t
             field: 4
             value: 65
-            value_type: 1 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
+            value_type: 1  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
       - lid: 1
         fields:
-          - type: 1 # nvsdmTelemType_t
+          - type: 1  # nvsdmTelemType_t
             field: 2
             value: 51984
-            value_type: 2 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
-          - type: 1 # nvsdmTelemType_t
+            value_type: 2  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
+          - type: 1  # nvsdmTelemType_t
             field: 10
             value: 56952
-            value_type: 2 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
-          - type: 2 # nvsdmTelemType_t
+            value_type: 2  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
+          - type: 2  # nvsdmTelemType_t
             field: 1
             value: 0
-            value_type: 5 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
-          - type: 2 # nvsdmTelemType_t
+            value_type: 5  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
+          - type: 2  # nvsdmTelemType_t
             field: 3
             value: 0
-            value_type: 5 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
-          - type: 2 # nvsdmTelemType_t
+            value_type: 5  # nvsdmValType_t
+            status: 0  # nvsdmRet_t
+          - type: 2  # nvsdmTelemType_t
             field: 4
             value: 65
-            value_type: 1 # nvsdmValType_t
-            status: 0 # nvsdmRet_t
+            value_type: 1  # nvsdmValType_t
+            status: 0  # nvsdmRet_t

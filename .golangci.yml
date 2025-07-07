@@ -1,82 +1,86 @@
-run:
-  timeout: 30s
-
+version: "2"
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - durationcheck
+    - errcheck
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - mirror
+    - misspell
+    - nolintlint
+    - perfsprint
+    - prealloc
+    - predeclared
+    - revive
+    - rowserrcheck
+    - staticcheck
+    - testifylint
+    - unconvert
+    - unused
+    - wastedassign
+  settings:
+    gocritic:
+      disabled-checks:
+        - hugeParam
+        - ifElseChain
+        - ptrToRefParam
+        - dupImport
+        - uncheckedInlineErr
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    govet:
+      disable:
+        - fieldalignment
+        - deepequalerrors
+      enable-all: true
+    revive:
+      enable-all-rules: false
+      rules:
+        - name: superfluous-else
+        - name: exported
+    testifylint:
+      disable-all: true
+      enable:
+        - nil-compare
+        - compares
+        - error-is-as
+        - bool-compare
+        - empty
+        - len
+        - expected-actual
+        - error-nil
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - bodyclose
+        path: _test.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  # fix: true
-  include:
-    - EXC0012
-    - EXC0014
-  exclude-rules:
-    - path: _test.go
-      linters:
-        - bodyclose
-linters-settings:
-  revive:
-    enable-all-rules: false
-    rules:
-      - name: superfluous-else
-      - name: exported
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - deepequalerrors
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - hugeParam
-      - ifElseChain
-      - ptrToRefParam
-      - dupImport
-      - uncheckedInlineErr # errorString is reported as an issue since we initially ignore err to unwrap it properly
-  testifylint:
-    disable-all: true
-    enable:
-      - nil-compare
-      - compares
-      - error-is-as
-      - bool-compare
-      - empty
-      - len
-      - expected-actual
-      - error-nil
-linters:
-  disable-all: true
+formatters:
   enable:
-    # Default linters reported by `golangci-lint help linters` in v1.52.0
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - typecheck
-    - unused
-    # Extra linters:
-    - wastedassign
-    # go-dcgm is bindings for a C/C++ library.  To avoid lots of renaming, we'll preserve styling from the C/C++ library
-    # - stylecheck
     - gofmt
     - goimports
-    - gocritic
-    - revive
-    - unconvert
-    - durationcheck
-    # - depguard
-    # - bodyclose
-    - gosec
-    - misspell
-    - prealloc
-    - perfsprint
-    - testifylint
-    - predeclared
-    - mirror
-    - rowserrcheck
-    - bodyclose
-    - nolintlint
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -3,6 +3,31 @@
 Want to hack on the NVIDIA DCGM Golang Bindings Project? Awesome!
 We only require you to sign your work, the below section describes this!
 
+## Validate your work
+
+All changes need to be able to pass all linting and pre-commit checks.  All tests
+must pass, including `make lint-full`, `pre-commit run --all-files`, and `make test-main`
+
+Note: There is a race in `make test-main` and it will occaisionally fail due to the race.
+
+### Setting up pre-commit
+
+You can install pre-commit via brew, apt/dnf, or via pip:
+
+```bash
+pip install pre-commit
+```
+
+Once installed, you can run:
+
+```bash
+make install-pre-commit
+pre-commit autoupdate
+```
+
+Once you've complete this step, pre-commit is setup and ready to go.  The pre-commit hooks
+will be executed when you run `git commit`.
+
 ## Sign your work
 
 The sign-off is a simple line at the end of the explanation for the patch. Your
@@ -10,7 +35,7 @@ signature certifies that you wrote the patch or otherwise have the right to pass
 it on as an open-source patch. The rules are pretty simple: if you can certify
 the below (from [developercertificate.org](http://developercertificate.org/)):
 
-```
+```bash
 Developer Certificate of Origin
 Version 1.1
 
@@ -51,10 +76,11 @@ By making a contribution to this project, I certify that:
 
 Then you just add a line to every git commit message:
 
+```bash
     Signed-off-by: Joe Smith <joe.smith@email.com>
+```
 
 Use your real name (sorry, no pseudonyms or anonymous contributions.)
 
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
-

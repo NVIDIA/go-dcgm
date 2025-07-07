@@ -1,4 +1,4 @@
-## Bindings
+# Overview
 
 Golang bindings are provided for [NVIDIA Data Center GPU Manager (DCGM)](https://developer.nvidia.com/dcgm). DCGM is a set of tools for managing and monitoring NVIDIA GPUs in cluster environments. It's a low overhead tool suite that performs a variety of functions on each host system including active health monitoring, diagnostics, system validation, policies, power and clock management, group configuration and accounting.
 
