@@ -1,0 +1,8 @@
+default: true
+
+# MD013/line-length - Line length
+MD013:
+  # eventually set line_length to 80
+  line_length: 500
+  tables: false
+  code_blocks: false

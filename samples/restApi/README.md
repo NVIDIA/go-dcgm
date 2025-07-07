@@ -1,9 +1,8 @@
-## DCGM REST API
+# DCGM REST API
 
 A sample REST API is provided, demonstrating various endpoints for getting GPU metrics via DCGM.
 
-
-```
+```bash
 # Start the http server
 # By default the http server is started at localhost:8070
 
@@ -109,5 +108,4 @@ $ curl localhost:8070/dcgm/status/json
 # sample output
 
 {"Memory":18380,"CPU":0.16482222745467387}
-
 ```

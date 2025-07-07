@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOLANG_VERSION := 1.23.6
 GOLANGCILINT_TIMEOUT ?= 10m
 
-.PHONY: all binary install check-format
+.PHONY: all binary check-format install install-pre-commit
 all: binary test-main check-format
+
+install-pre-commit:
+	@echo "Installing pre-commit hooks..."
+	pre-commit install --config .pre-commit-config.yaml
+	@echo "Pre-commit hooks installed."
 
 binary:
 	go build ./pkg/dcgm
@@ -30,8 +34,12 @@ binary:
 	cd samples/topology; go build
 	cd samples/diag; go build
 
+docker:
+	docker buildx bake default --load
+
 test-main:
-	go test -race ./tests
+	go test -race -v ./tests
+	go test -v ./tests
 
 check-format:
 	test $$(gofumpt -l -w . | tee /dev/stderr | wc -l) -eq 0

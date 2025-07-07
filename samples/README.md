@@ -1,19 +1,20 @@
 # DCGM Samples
 
-Modelled on [dcgmi (Data Center GPU Manager Interface)](https://developer.nvidia.com/data-center-gpu-manager-dcgm) and [nvidia-smi (NVIDIA System Management Interface)](https://developer.nvidia.com/nvidia-system-management-interface), seven samples and a [REST API](https://github.com/NVIDIA/go-dcgm/samples/dcgm/restApi/README.md) have been provided to show how to use DCGM go bindings.
+Modeled on [dcgmi (Data Center GPU Manager Interface)](https://developer.nvidia.com/data-center-gpu-manager-dcgm) and [nvidia-smi (NVIDIA System Management Interface)](https://developer.nvidia.com/nvidia-system-management-interface), seven samples and a [REST API](https://github.com/NVIDIA/go-dcgm/samples/dcgm/restApi/README.md) have been provided to show how to use DCGM go bindings.
 
 ## DCGM running modes
 
 DCGM can be run in three different ways.
 
-#### Embedded Mode
+### Embedded Mode
 
 In embedded mode, hostengine is started as part of the running process and is loaded as a shared library. In this mode, metrics are also updated and collected automatically. This mode is recommended for users who wants to avoid managing an autonomous hostengine.
 
-#### Standalone Mode
+### Standalone Mode
 
 This mode lets you connect to an already running hostengine at a specified TCP/IP or Unix socket address. This mode is recommended for remote connections to the hostengine.  By default, DCGM will assume a TCP connection and attempt to connect to localhost, unless specified.
-```
+
+```bash
 # If hostengine is running at a different address, pass it as
 
 IP - Valid IP address for the remote hostengine to connect to, at port 5555.
@@ -28,19 +29,17 @@ $ ./sample -connect "IP" -socket "0"
 
 ```
 
-#### StartHostengine
+### StartHostengine
 
 This is an add-on mode which opens an Unix socket for starting and connecting with hostengine. The hostengine is started as a child process of the running process and automatically terminated on exit. When operating in this mode, make sure to stop an already running hostengine to avoid any connection address conflicts. This mode is recommended for safely integrating DCGM in an already existing setup.
 
-
 ## Samples
 
-
-#### deviceInfo
+### deviceInfo
 
 Provides detailed information about each GPU on the system, along with whether the given GPU is DCGM supported or not.
 
-```
+```bash
 $ go build && ./deviceInfo
 
 # sample output
@@ -70,7 +69,7 @@ P2P Available          : None
 
 Monitors each device status including its power, memory and GPU utilization.
 
-```
+```bash
 $ go build && ./dmon
 
 # sample output
@@ -86,7 +85,7 @@ Started host engine version 1.4.3 using socket path: /tmp/dcgmrxvqro.socket
 
 Monitors the health of the given GPU every second, by checking the configured watches for any errors/failures/warnings.
 
-```
+```bash
 $ go build && ./health
 
 # sample output
@@ -98,7 +97,7 @@ Status             : Healthy
 
 Reports about DCGM hostengine memory and CPU usage.
 
-```
+```bash
 $ go build && ./hostengineStatus
 
 # sample output
@@ -111,7 +110,7 @@ CPU     : 0.08 %
 
 Sets GPU usage and error policies and notifies in case of violations via callback functions.
 
-```
+```bash
 $ go build && ./policy
 
 # sample output
@@ -128,7 +127,7 @@ Data       : {31}
 
 Provides per GPU detailed stats for this process.
 
-```
+```bash
 $ go build && ./processInfo -pid PID
 
 # sample output
@@ -170,7 +169,7 @@ Avg Memory Utilization (%)   : 0
 
 Informs about GPU topology and its CPU affinity.
 
-```
+```bash
 $ go build && ./topology
 
 # sample output
