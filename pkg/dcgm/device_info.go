@@ -45,6 +45,18 @@ type Device struct {
 	CPUAffinity   string
 }
 
+// NvLinkP2PStatus contains information about an NVLINK P2P connection status
+type NvLinkP2PStatus struct {
+	// ParentId is the ID of the parent entity (GPU or NVSwitch)
+	ParentId uint
+	// ParentType is the type of the parent entity
+	ParentType Field_Entity_Group
+	// State is the current state of the NVLINK P2P connection
+	State Link_State
+	// Index is the link index number
+	Index uint
+}
+
 // getAllDeviceCount counts all GPUs on the system
 func getAllDeviceCount() (gpuCount uint, err error) {
 	var (
@@ -282,4 +294,37 @@ func getDeviceInfo(gpuID uint) (deviceInfo Device, err error) {
 		CPUAffinity:   cpuAffinity,
 	}
 	return
+}
+
+func getNvLinkP2PStatus() ([]NvLinkP2PStatus, error) {
+	var linkStatus C.dcgmNvLinkP2PStatus_v1
+	linkStatus.version = makeVersion1(unsafe.Sizeof(linkStatus))
+
+	result := C.dcgmGetNvLinkP2PStatus(handle.handle, &linkStatus)
+	if result == C.DCGM_ST_NOT_SUPPORTED {
+		return nil, nil
+	}
+
+	if result != C.DCGM_ST_OK {
+		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+	}
+
+	links := make([]NvLinkP2PStatus, linkStatus.numGpus*C.DCGM_NVLINK_MAX_LINKS_PER_GPU)
+
+	idx := 0
+	for i := uint(0); i < uint(linkStatus.numGpus); i++ {
+		for j := 0; j < int(C.DCGM_NVLINK_MAX_LINKS_PER_GPU); j++ {
+			link := NvLinkP2PStatus{
+				uint(linkStatus.gpus[i].entityId),
+				FE_GPU,
+				Link_State(linkStatus.gpus[i].linkStatus[j]),
+				uint(j),
+			}
+
+			links[idx] = link
+			idx++
+		}
+	}
+
+	return links, nil
 }

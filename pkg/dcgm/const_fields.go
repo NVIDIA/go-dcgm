@@ -57,6 +57,8 @@ const (
 	DCGM_FI_GPU_TOPOLOGY_AFFINITY Short = 62
 	// DCGM_FI_DEV_CUDA_COMPUTE_CAPABILITY represents the CUDA compute capability for the device. The major version is the upper 32 bits and the minor version is the lower 32 bits
 	DCGM_FI_DEV_CUDA_COMPUTE_CAPABILITY Short = 63
+	// DCGM_FI_DEV_P2P_NVLINK_STATUS represents the NVLINK P2P status for the device
+	DCGM_FI_DEV_P2P_NVLINK_STATUS Short = 64
 	// DCGM_FI_DEV_COMPUTE_MODE represents the compute mode for the device
 	DCGM_FI_DEV_COMPUTE_MODE Short = 65
 	// DCGM_FI_DEV_PERSISTENCE_MODE represents the persistence mode for the device. Boolean: 0 is disabled, 1 is enabled
@@ -1082,6 +1084,14 @@ const (
 	DCGM_FI_DEV_NVLINK_COUNT_RX_SYMBOL_ERRORS Short = 1214
 	// DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER is the value for ECC DEV NVLink Count Symbol BER
 	DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER Short = 1215
+	// DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER_FLOAT represents BER for symbol errors - decoded float (derived from DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER)
+	DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER_FLOAT Short = 1216
+	// DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER represents Effective BER for effective errors - raw value
+	DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER Short = 1217
+	// DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER_FLOAT represents Effective BER for effective errors - decoded float (derived from DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER)
+	DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER_FLOAT Short = 1218
+	// DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS represents Sum of the number of errors in each Nvlink packet
+	DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS Short = 1219
 	// DCGM_FI_DEV_CONNECTX_HEALTH represents a health state of ConnectX
 	DCGM_FI_DEV_CONNECTX_HEALTH Short = 1300
 	// DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_WIDTH is the value of an active PCIe link width
@@ -1106,8 +1116,58 @@ const (
 	DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE Short = 1310
 	// DCGM_FI_DEV_LAST_CONNECTX_FIELD_ID represents the last field ID for ConnectX fields
 	DCGM_FI_DEV_LAST_CONNECTX_FIELD_ID Short = 1399
-	// DCGM_FI_MAX_FIELDS represents 1 greater than maximum fields above. This is the 1 greater than the maximum field id that could be allocated
-	DCGM_FI_MAX_FIELDS Short = 1311
+	// DCGM_FI_DEV_C2C_LINK_ERROR_INTR represents C2C Link CRC Error Counter
+	DCGM_FI_DEV_C2C_LINK_ERROR_INTR Short = 1400
+	// DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY represents C2C Link Replay Error Counter
+	DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY Short = 1401
+	// DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B represents C2C Link Back to Back Replay Error Counter
+	DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B Short = 1402
+	// DCGM_FI_DEV_C2C_LINK_POWER_STATE represents C2C Link Power state. See NVML_C2C_POWER_STATE_*
+	DCGM_FI_DEV_C2C_LINK_POWER_STATE Short = 1403
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0 represents Count of symbol errors that are corrected - bin 0
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0 Short = 1404
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1 represents Count of symbol errors that are corrected - bin 1
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1 Short = 1405
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2 represents Count of symbol errors that are corrected - bin 2
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2 Short = 1406
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3 represents Count of symbol errors that are corrected - bin 3
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3 Short = 1407
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4 represents Count of symbol errors that are corrected - bin 4
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4 Short = 1408
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5 represents Count of symbol errors that are corrected - bin 5
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5 Short = 1409
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6 represents Count of symbol errors that are corrected - bin 6
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6 Short = 1410
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7 represents Count of symbol errors that are corrected - bin 7
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7 Short = 1411
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8 represents Count of symbol errors that are corrected - bin 8
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8 Short = 1412
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9 represents Count of symbol errors that are corrected - bin 9
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9 Short = 1413
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10 represents Count of symbol errors that are corrected - bin 10
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10 Short = 1414
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11 represents Count of symbol errors that are corrected - bin 11
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11 Short = 1415
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12 represents Count of symbol errors that are corrected - bin 12
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12 Short = 1416
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13 represents Count of symbol errors that are corrected - bin 13
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13 Short = 1417
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14 represents Count of symbol errors that are corrected - bin 14
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14 Short = 1418
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15 represents Count of symbol errors that are corrected - bin 15
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15 Short = 1419
+	// DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_POWER_CAP_NS represents Count, in nanoseconds, of slowdown or shutdown in sampling interval.
+	DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_POWER_CAP_NS Short = 1420
+	// DCGM_FI_DEV_CLOCKS_EVENT_REASON_SYNC_BOOST_NS represents Throttling to not exceed currently set power limits in ns
+	DCGM_FI_DEV_CLOCKS_EVENT_REASON_SYNC_BOOST_NS Short = 1421
+	// DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_THERM_SLOWDOWN_NS represents Throttling to ensure ((GPU temp < GPU Max Operating Temp) && (Memory Temp < Memory Max Operating Temp)) in ns
+	DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_THERM_SLOWDOWN_NS Short = 1422
+	// DCGM_FI_DEV_CLOCKS_EVENT_REASON_HW_THERM_SLOWDOWN_NS represents Throttling due to temperature being too high (reducing core clocks by a factor of 2 or more) in ns
+	DCGM_FI_DEV_CLOCKS_EVENT_REASON_HW_THERM_SLOWDOWN_NS Short = 1423
+	// DCGM_FI_DEV_CLOCKS_EVENT_REASON_HW_POWER_BRAKE_SLOWDOWN_NS represents Throttling due to external power brake assertion trigger (reducing core clocks by a factor of 2 or more) in ns
+	DCGM_FI_DEV_CLOCKS_EVENT_REASON_HW_POWER_BRAKE_SLOWDOWN_NS Short = 1424
+	// DCGM_FI_MAX_FIELDS represents 1 greater than maximum fields above. This is the 1 greater than the maximum field id that could be allocated.
+	DCGM_FI_MAX_FIELDS Short = 1425
 )
 
 var dcgmFields = map[string]Short{
@@ -1138,6 +1198,7 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_GPU_TOPOLOGY_NVLINK":                              DCGM_FI_GPU_TOPOLOGY_NVLINK,                              // 61
 	"DCGM_FI_GPU_TOPOLOGY_AFFINITY":                            DCGM_FI_GPU_TOPOLOGY_AFFINITY,                            // 62
 	"DCGM_FI_DEV_CUDA_COMPUTE_CAPABILITY":                      DCGM_FI_DEV_CUDA_COMPUTE_CAPABILITY,                      // 63
+	"DCGM_FI_DEV_P2P_NVLINK_STATUS":                            DCGM_FI_DEV_P2P_NVLINK_STATUS,                            // 64
 	"DCGM_FI_DEV_COMPUTE_MODE":                                 DCGM_FI_DEV_COMPUTE_MODE,                                 // 65
 	"DCGM_FI_DEV_PERSISTENCE_MODE":                             DCGM_FI_DEV_PERSISTENCE_MODE,                             // 66
 	"DCGM_FI_DEV_MIG_MODE":                                     DCGM_FI_DEV_MIG_MODE,                                     // 67
@@ -1647,6 +1708,10 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_EVENTS":            DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_EVENTS,            // 1213
 	"DCGM_FI_DEV_NVLINK_COUNT_RX_SYMBOL_ERRORS":                DCGM_FI_DEV_NVLINK_COUNT_RX_SYMBOL_ERRORS,                // 1214
 	"DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER":                      DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER,                      // 1215
+	"DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER_FLOAT":                DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER_FLOAT,                // 1216
+	"DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER":                   DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER,                   // 1217
+	"DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER_FLOAT":             DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER_FLOAT,             // 1218
+	"DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS":                DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS,                // 1219
 	"DCGM_FI_DEV_CONNECTX_HEALTH":                              DCGM_FI_DEV_CONNECTX_HEALTH,                              // 1300
 	"DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_WIDTH":              DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_WIDTH,              // 1301
 	"DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_SPEED":              DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_SPEED,              // 1302
@@ -1659,7 +1724,32 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_SEVERITY":          DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_SEVERITY,          // 1309
 	"DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE":                  DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE,                  // 1310
 	"DCGM_FI_DEV_LAST_CONNECTX_FIELD_ID":                       DCGM_FI_DEV_LAST_CONNECTX_FIELD_ID,                       // 1399
-	"DCGM_FI_MAX_FIELDS":                                       DCGM_FI_MAX_FIELDS,                                       // 1311
+	"DCGM_FI_DEV_C2C_LINK_ERROR_INTR":                          DCGM_FI_DEV_C2C_LINK_ERROR_INTR,                          // 1400
+	"DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY":                        DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY,                        // 1401
+	"DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B":                    DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B,                    // 1402
+	"DCGM_FI_DEV_C2C_LINK_POWER_STATE":                         DCGM_FI_DEV_C2C_LINK_POWER_STATE,                         // 1403
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0,                   // 1404
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1,                   // 1405
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2,                   // 1406
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3,                   // 1407
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4,                   // 1408
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5,                   // 1409
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6,                   // 1410
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7,                   // 1411
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8,                   // 1412
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9":                   DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9,                   // 1413
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10":                  DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10,                  // 1414
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11":                  DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11,                  // 1415
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12":                  DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12,                  // 1416
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13":                  DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13,                  // 1417
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14":                  DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14,                  // 1418
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15":                  DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15,                  // 1419
+	"DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_POWER_CAP_NS":          DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_POWER_CAP_NS,          // 1420
+	"DCGM_FI_DEV_CLOCKS_EVENT_REASON_SYNC_BOOST_NS":            DCGM_FI_DEV_CLOCKS_EVENT_REASON_SYNC_BOOST_NS,            // 1421
+	"DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_THERM_SLOWDOWN_NS":     DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_THERM_SLOWDOWN_NS,     // 1422
+	"DCGM_FI_DEV_CLOCKS_EVENT_REASON_HW_THERM_SLOWDOWN_NS":     DCGM_FI_DEV_CLOCKS_EVENT_REASON_HW_THERM_SLOWDOWN_NS,     // 1423
+	"DCGM_FI_DEV_CLOCKS_EVENT_REASON_HW_POWER_BRAKE_SLOWDOWN_NS": DCGM_FI_DEV_CLOCKS_EVENT_REASON_HW_POWER_BRAKE_SLOWDOWN_NS, // 1424
+	"DCGM_FI_MAX_FIELDS":                                       DCGM_FI_MAX_FIELDS,                                       // 1425
 }
 
 var legacyDCGMFields = map[string]Short{
