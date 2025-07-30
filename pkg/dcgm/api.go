@@ -138,3 +138,7 @@ func GetSupportedMetricGroups(gpuID uint) ([]MetricGroup, error) {
 func GetNvLinkLinkStatus() ([]NvLinkStatus, error) {
 	return getNvLinkLinkStatus()
 }
+
+func GetNvLinkP2PStatus() ([]NvLinkP2PStatus, error) {
+	return getNvLinkP2PStatus()
+}

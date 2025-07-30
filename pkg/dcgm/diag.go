@@ -126,7 +126,7 @@ func gpuTestName(t int) string {
 	return ""
 }
 
-func getErrorMsg(entityId uint, response C.dcgmDiagResponse_v11) (msg string, code uint) {
+func getErrorMsg(entityId uint, response C.dcgmDiagResponse_v12) (msg string, code uint) {
 	for i := 0; i < int(response.numErrors); i++ {
 		if uint(response.errors[i].entity.entityId) != entityId {
 			continue
@@ -140,7 +140,7 @@ func getErrorMsg(entityId uint, response C.dcgmDiagResponse_v11) (msg string, co
 	return
 }
 
-func getInfoMsg(entityId uint, response C.dcgmDiagResponse_v11) string {
+func getInfoMsg(entityId uint, response C.dcgmDiagResponse_v12) string {
 	for i := 0; i < int(response.numInfo); i++ {
 		if uint(response.info[i].entity.entityId) != entityId {
 			continue
@@ -153,7 +153,7 @@ func getInfoMsg(entityId uint, response C.dcgmDiagResponse_v11) string {
 	return ""
 }
 
-func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v11) DiagResult {
+func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult {
 	entityId := uint(response.results[resultIndex].entity.entityId)
 
 	msg, code := getErrorMsg(entityId, response)
@@ -192,10 +192,10 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 //   - DiagResults containing the results of all diagnostic tests
 //   - error if the diagnostics failed to run
 func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
-	var diagResults C.dcgmDiagResponse_v11
-	diagResults.version = makeVersion11(unsafe.Sizeof(diagResults))
+	var diagResults C.dcgmDiagResponse_v12
+	diagResults.version = makeVersion12(unsafe.Sizeof(diagResults))
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v11)(unsafe.Pointer(&diagResults)))
+	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v12)(unsafe.Pointer(&diagResults)))
 	if err := errorString(result); err != nil {
 		return DiagResults{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
