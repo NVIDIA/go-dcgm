@@ -139,6 +139,7 @@ func GetNvLinkLinkStatus() ([]NvLinkStatus, error) {
 	return getNvLinkLinkStatus()
 }
 
-func GetNvLinkP2PStatus() ([]NvLinkP2PStatus, error) {
+// GetNvLinkP2PStatus returns the status of NvLinks between GPU pairs
+func GetNvLinkP2PStatus() (NvLinkP2PStatus, error) {
 	return getNvLinkP2PStatus()
 }
