@@ -150,12 +150,10 @@ func handleDeviceInfo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(deviceInfo)
-
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get device info: %v", err), http.StatusInternalServerError)
 		return
 	}
-
 }
 
 // handleDeviceStatus handles device status requests
@@ -177,12 +175,10 @@ func handleDeviceStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(deviceStatus)
-
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get device status: %v", err), http.StatusInternalServerError)
 		return
 	}
-
 }
 
 // handleHealth handles health check requests
@@ -204,7 +200,6 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(health)
-
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get health status: %v", err), http.StatusInternalServerError)
 		return
@@ -221,7 +216,6 @@ func handleDCGMStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(status)
-
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get DCGM status: %v", err), http.StatusInternalServerError)
 		return
