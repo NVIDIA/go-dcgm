@@ -322,6 +322,8 @@ const (
 	DCGM_FI_DEV_ECC_SBE_AGG_SRM Short = 344
 	// DCGM_FI_DEV_ECC_DBE_AGG_SRM represents the aggregate number of double-bit ECC errors detected in SRM
 	DCGM_FI_DEV_ECC_DBE_AGG_SRM Short = 345
+	// DCGM_FI_DEV_THRESHOLD_SRM represents the threshold for SRM ECC errors
+	DCGM_FI_DEV_THRESHOLD_SRM Short = 346
 	// DCGM_FI_DEV_DIAG_MEMORY_RESULT is the value for ECC memory result
 	DCGM_FI_DEV_DIAG_MEMORY_RESULT Short = 350
 	// DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT is the value for ECC diagnostic result
@@ -1330,6 +1332,7 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_ECC_DBE_VOL_SRM":                                DCGM_FI_DEV_ECC_DBE_VOL_SRM,                                // 343
 	"DCGM_FI_DEV_ECC_SBE_AGG_SRM":                                DCGM_FI_DEV_ECC_SBE_AGG_SRM,                                // 344
 	"DCGM_FI_DEV_ECC_DBE_AGG_SRM":                                DCGM_FI_DEV_ECC_DBE_AGG_SRM,                                // 345
+	"DCGM_FI_DEV_THRESHOLD_SRM":                                  DCGM_FI_DEV_THRESHOLD_SRM,                                  // 346
 	"DCGM_FI_DEV_DIAG_MEMORY_RESULT":                             DCGM_FI_DEV_DIAG_MEMORY_RESULT,                             // 350
 	"DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT":                         DCGM_FI_DEV_DIAG_DIAGNOSTIC_RESULT,                         // 351
 	"DCGM_FI_DEV_DIAG_PCIE_RESULT":                               DCGM_FI_DEV_DIAG_PCIE_RESULT,                               // 352
