@@ -148,6 +148,18 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 	return WatchFieldsWithGroupEx(fieldsGroup, group, defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
 }
 
+// UnwatchFields stops monitoring the specified field group for a GPU group.
+// group is the group handle to stop watching fields for.
+// fieldsGroup is the handle of the field group to unwatch.
+// Returns an error if the unwatch operation fails.
+func UnwatchFields(group GroupHandle, fieldsGroup FieldHandle) error {
+	result := C.dcgmUnwatchFields(handle.handle, group.handle, fieldsGroup.handle)
+	if err := errorString(result); err != nil {
+		return fmt.Errorf("error unwatching fields: %s", err)
+	}
+	return nil
+}
+
 var fieldValuePool = sync.Pool{
 	New: func() any {
 		slice := make([]C.dcgmFieldValue_v1, 0, fieldValuesSliceSize)

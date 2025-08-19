@@ -88,6 +88,58 @@ func TestGetLatestValuesForFields(t *testing.T) {
 	assert.Equal(t, int64(10), values[0].Int64())
 }
 
+func TestUnwatchFields(t *testing.T) {
+	teardownTest := setupTest(t)
+	defer teardownTest(t)
+
+	runOnlyWithLiveGPUs(t)
+
+	// Setup test GPU
+	gpus, err := withInjectionGPUs(t, 1)
+	require.NoError(t, err)
+	gpuId := gpus[0]
+
+	// Setup test group
+	groupId, err := NewDefaultGroup("mygroup")
+	require.NoError(t, err)
+	defer func() {
+		destroyGroupErr := DestroyGroup(groupId)
+		require.NoError(t, destroyGroupErr)
+	}()
+
+	// Setup field group
+	fieldId := DCGM_FI_DEV_XID_ERRORS
+	n, err := crand.Int(crand.Reader, big.NewInt(1000000))
+	require.NoError(t, err)
+	fieldGroupName := fmt.Sprintf("fieldGroupName%d", n.Int64())
+	fieldsGroup, err := FieldGroupCreate(fieldGroupName, []Short{fieldId})
+	require.NoError(t, err)
+	defer func() {
+		destroyFieldsGroupErr := FieldGroupDestroy(fieldsGroup)
+		require.NoError(t, destroyFieldsGroupErr)
+	}()
+
+	// Test: Start watching fields
+	err = WatchFieldsWithGroupEx(
+		fieldsGroup,
+		groupId,
+		defaultUpdateFreq,
+		defaultMaxKeepAge,
+		defaultMaxKeepSamples,
+	)
+	require.NoError(t, err)
+
+	// Test: Stop watching fields - this should not return an error
+	err = UnwatchFields(groupId, fieldsGroup)
+	require.NoError(t, err, "UnwatchFields should succeed")
+
+	// Test: Unwatching again should be idempotent or return acceptable error
+	err = UnwatchFields(groupId, fieldsGroup)
+	// Note: This might return an error or succeed depending on DCGM implementation
+	// We don't assert on the result here as the behavior may vary
+	t.Logf("Second unwatch call result: %v", err)
+}
+
 func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 	teardownTest := setupTest(b)
 	defer teardownTest(b)
