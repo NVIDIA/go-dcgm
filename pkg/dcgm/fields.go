@@ -149,9 +149,21 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 }
 
 // UnwatchFields stops monitoring the specified field group for a GPU group.
-// group is the group handle to stop watching fields for.
-// fieldsGroup is the handle of the field group to unwatch.
+// This function stops DCGM from recording updates for the specified field collection.
+// It should be called to clean up watches when they are no longer needed.
+//
+// Parameters:
+//   - group: the group handle to stop watching fields for
+//   - fieldsGroup: the handle of the field group to unwatch
+//
 // Returns an error if the unwatch operation fails.
+//
+// Example usage:
+//   // After setting up watches with WatchFields or WatchFieldsWithGroup
+//   err := dcgm.UnwatchFields(group, fieldsGroup)
+//   if err != nil {
+//       log.Printf("Failed to unwatch fields: %v", err)
+//   }
 func UnwatchFields(group GroupHandle, fieldsGroup FieldHandle) error {
 	result := C.dcgmUnwatchFields(handle.handle, group.handle, fieldsGroup.handle)
 	if err := errorString(result); err != nil {
