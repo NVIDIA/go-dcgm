@@ -1041,14 +1041,12 @@ const (
 	DCGM_FI_PROF_NVLINK_L15_RX_BYTES Short = 1071
 	// DCGM_FI_PROF_NVLINK_L16_TX_BYTES represents the number of bytes transmitted through NVLink lane 16 in KB/s
 	DCGM_FI_PROF_NVLINK_L16_TX_BYTES Short = 1072
-	// DCGM_FI_PROF_HOSTMEM_CACHE_HIT represents host memory cache hit
-	DCGM_FI_PROF_HOSTMEM_CACHE_HIT Short = 1080
-	// DCGM_FI_PROF_HOSTMEM_CACHE_MISS represents host memory cache miss
-	DCGM_FI_PROF_HOSTMEM_CACHE_MISS Short = 1081
-	// DCGM_FI_PROF_PEERMEM_CACHE_HIT represents peer memory cache hit
-	DCGM_FI_PROF_PEERMEM_CACHE_HIT Short = 1082
-	// DCGM_FI_PROF_PEERMEM_CACHE_MISS represents peer memory cache miss
-	DCGM_FI_PROF_PEERMEM_CACHE_MISS Short = 1083
+	// DCGM_FI_PROF_NVLINK_L16_RX_BYTES represents the number of bytes received through NVLink lane 16 in KB/s
+	DCGM_FI_PROF_NVLINK_L16_RX_BYTES Short = 1073
+	// DCGM_FI_PROF_NVLINK_L17_TX_BYTES represents the number of bytes transmitted through NVLink lane 17 in KB/s
+	DCGM_FI_PROF_NVLINK_L17_TX_BYTES Short = 1074
+	// DCGM_FI_PROF_NVLINK_L17_RX_BYTES represents the number of bytes received through NVLink lane 17 in KB/s
+	DCGM_FI_PROF_NVLINK_L17_RX_BYTES Short = 1075
 	// DCGM_FI_PROF_C2C_TX_ALL_BYTES represents C2C (Chip-to-Chip) interface metric
 	DCGM_FI_PROF_C2C_TX_ALL_BYTES Short = 1076
 	// DCGM_FI_PROF_C2C_TX_DATA_BYTES represents C2C (Chip-to-Chip) interface metric
@@ -1057,6 +1055,14 @@ const (
 	DCGM_FI_PROF_C2C_RX_ALL_BYTES Short = 1078
 	// DCGM_FI_PROF_C2C_RX_DATA_BYTES represents C2C (Chip-to-Chip) interface metric
 	DCGM_FI_PROF_C2C_RX_DATA_BYTES Short = 1079
+	// DCGM_FI_PROF_HOSTMEM_CACHE_HIT represents host memory cache hit
+	DCGM_FI_PROF_HOSTMEM_CACHE_HIT Short = 1080
+	// DCGM_FI_PROF_HOSTMEM_CACHE_MISS represents host memory cache miss
+	DCGM_FI_PROF_HOSTMEM_CACHE_MISS Short = 1081
+	// DCGM_FI_PROF_PEERMEM_CACHE_HIT represents peer memory cache hit
+	DCGM_FI_PROF_PEERMEM_CACHE_HIT Short = 1082
+	// DCGM_FI_PROF_PEERMEM_CACHE_MISS represents peer memory cache miss
+	DCGM_FI_PROF_PEERMEM_CACHE_MISS Short = 1083
 	// DCGM_FI_DEV_CPU_UTIL_TOTAL represents the total CPU utilization, total
 	DCGM_FI_DEV_CPU_UTIL_TOTAL Short = 1100
 	// DCGM_FI_DEV_CPU_UTIL_USER represents the CPU utilization, user
@@ -1760,14 +1766,17 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_PROF_NVLINK_L15_TX_BYTES":                                  DCGM_FI_PROF_NVLINK_L15_TX_BYTES,                                  // 1070
 	"DCGM_FI_PROF_NVLINK_L15_RX_BYTES":                                  DCGM_FI_PROF_NVLINK_L15_RX_BYTES,                                  // 1071
 	"DCGM_FI_PROF_NVLINK_L16_TX_BYTES":                                  DCGM_FI_PROF_NVLINK_L16_TX_BYTES,                                  // 1072
-	"DCGM_FI_PROF_HOSTMEM_CACHE_HIT":                                    DCGM_FI_PROF_HOSTMEM_CACHE_HIT,                                    // 1080
-	"DCGM_FI_PROF_HOSTMEM_CACHE_MISS":                                   DCGM_FI_PROF_HOSTMEM_CACHE_MISS,                                   // 1081
-	"DCGM_FI_PROF_PEERMEM_CACHE_HIT":                                    DCGM_FI_PROF_PEERMEM_CACHE_HIT,                                    // 1082
-	"DCGM_FI_PROF_PEERMEM_CACHE_MISS":                                   DCGM_FI_PROF_PEERMEM_CACHE_MISS,                                   // 1083
+	"DCGM_FI_PROF_NVLINK_L16_RX_BYTES":                                  DCGM_FI_PROF_NVLINK_L16_RX_BYTES,                                  // 1073
+	"DCGM_FI_PROF_NVLINK_L17_TX_BYTES":                                  DCGM_FI_PROF_NVLINK_L17_TX_BYTES,                                  // 1074
+	"DCGM_FI_PROF_NVLINK_L17_RX_BYTES":                                  DCGM_FI_PROF_NVLINK_L17_RX_BYTES,                                  // 1075
 	"DCGM_FI_PROF_C2C_TX_ALL_BYTES":                                     DCGM_FI_PROF_C2C_TX_ALL_BYTES,                                     // 1076
 	"DCGM_FI_PROF_C2C_TX_DATA_BYTES":                                    DCGM_FI_PROF_C2C_TX_DATA_BYTES,                                    // 1077
 	"DCGM_FI_PROF_C2C_RX_ALL_BYTES":                                     DCGM_FI_PROF_C2C_RX_ALL_BYTES,                                     // 1078
 	"DCGM_FI_PROF_C2C_RX_DATA_BYTES":                                    DCGM_FI_PROF_C2C_RX_DATA_BYTES,                                    // 1079
+	"DCGM_FI_PROF_HOSTMEM_CACHE_HIT":                                    DCGM_FI_PROF_HOSTMEM_CACHE_HIT,                                    // 1080
+	"DCGM_FI_PROF_HOSTMEM_CACHE_MISS":                                   DCGM_FI_PROF_HOSTMEM_CACHE_MISS,                                   // 1081
+	"DCGM_FI_PROF_PEERMEM_CACHE_HIT":                                    DCGM_FI_PROF_PEERMEM_CACHE_HIT,                                    // 1082
+	"DCGM_FI_PROF_PEERMEM_CACHE_MISS":                                   DCGM_FI_PROF_PEERMEM_CACHE_MISS,                                   // 1083
 	"DCGM_FI_DEV_CPU_UTIL_TOTAL":                                        DCGM_FI_DEV_CPU_UTIL_TOTAL,                                        // 1100
 	"DCGM_FI_DEV_CPU_UTIL_USER":                                         DCGM_FI_DEV_CPU_UTIL_USER,                                         // 1101
 	"DCGM_FI_DEV_CPU_UTIL_NICE":                                         DCGM_FI_DEV_CPU_UTIL_NICE,                                         // 1102
