@@ -44,6 +44,10 @@ type DiagResult struct {
 	ErrorCode uint
 	// ErrorMessage contains a detailed error message if the test failed
 	ErrorMessage string
+	// Serial number of the tested entity
+	SerialNumber string
+	// EntityID
+	EntityID uint
 }
 
 // DiagResults contains the results of all diagnostic tests
@@ -169,6 +173,16 @@ func getTestName(resultIdx uint, response C.dcgmDiagResponse_v12) string {
 	return ""
 }
 
+func getSerial(resultIdx uint, response C.dcgmDiagResponse_v12) string {
+	for i := 0; i < int(response.numEntities); i++ {
+		if response.entities[i].entity.entityId == response.results[resultIdx].entity.entityId &&
+			response.entities[i].entity.entityGroupId == response.results[resultIdx].entity.entityGroupId {
+			return C.GoString((*C.char)(unsafe.Pointer(&response.entities[i].serialNum)))
+		}
+	}
+	return ""
+}
+
 func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult {
 	entityId := uint(response.results[resultIndex].entity.entityId)
 	testId := uint(response.results[resultIndex].testId)
@@ -176,6 +190,7 @@ func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult
 	msg, code := getErrorMsg(entityId, testId, response)
 	info := getInfoMsg(entityId, testId, response)
 	testName := getTestName(resultIndex, response)
+	serial := getSerial(resultIndex, response)
 
 	return DiagResult{
 		Status:       diagResultString(int(response.results[resultIndex].result)),
@@ -183,6 +198,8 @@ func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult
 		TestOutput:   info,
 		ErrorCode:    code,
 		ErrorMessage: msg,
+		SerialNumber: serial,
+		EntityID:     entityId,
 	}
 }
 
