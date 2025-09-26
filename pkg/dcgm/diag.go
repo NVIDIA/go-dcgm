@@ -126,9 +126,9 @@ func gpuTestName(t int) string {
 	return ""
 }
 
-func getErrorMsg(entityId uint, response C.dcgmDiagResponse_v12) (msg string, code uint) {
+func getErrorMsg(entityId uint, testId uint, response C.dcgmDiagResponse_v12) (msg string, code uint) {
 	for i := 0; i < int(response.numErrors); i++ {
-		if uint(response.errors[i].entity.entityId) != entityId {
+		if uint(response.errors[i].entity.entityId) != entityId || uint(response.errors[i].testId) != testId {
 			continue
 		}
 
@@ -140,9 +140,9 @@ func getErrorMsg(entityId uint, response C.dcgmDiagResponse_v12) (msg string, co
 	return
 }
 
-func getInfoMsg(entityId uint, response C.dcgmDiagResponse_v12) string {
+func getInfoMsg(entityId uint, testId uint, response C.dcgmDiagResponse_v12) string {
 	for i := 0; i < int(response.numInfo); i++ {
-		if uint(response.info[i].entity.entityId) != entityId {
+		if uint(response.info[i].entity.entityId) != entityId || uint(response.info[i].testId) != testId {
 			continue
 		}
 
@@ -153,12 +153,29 @@ func getInfoMsg(entityId uint, response C.dcgmDiagResponse_v12) string {
 	return ""
 }
 
+func getTestName(resultIdx uint, response C.dcgmDiagResponse_v12) string {
+	for i := uint(0); i < uint(response.numTests); i++ {
+		t := response.tests[i]
+		for j := uint16(0); j < uint16(t.numResults); j++ {
+			if uint16(t.resultIndices[j]) == uint16(resultIdx) {
+				plugin := C.GoString((*C.char)(unsafe.Pointer(&t.pluginName)))
+				if plugin != "" {
+					plugin = "/" + plugin
+				}
+				return C.GoString((*C.char)(unsafe.Pointer(&t.name))) + plugin
+			}
+		}
+	}
+	return ""
+}
+
 func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult {
 	entityId := uint(response.results[resultIndex].entity.entityId)
+	testId := uint(response.results[resultIndex].testId)
 
-	msg, code := getErrorMsg(entityId, response)
-	info := getInfoMsg(entityId, response)
-	testName := swTestName(int(response.results[resultIndex].testId))
+	msg, code := getErrorMsg(entityId, testId, response)
+	info := getInfoMsg(entityId, testId, response)
+	testName := getTestName(resultIndex, response)
 
 	return DiagResult{
 		Status:       diagResultString(int(response.results[resultIndex].result)),
@@ -203,7 +220,7 @@ func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
 	var diagRun DiagResults
 	diagRun.Software = make([]DiagResult, diagResults.numResults)
 	for i := 0; i < int(diagResults.numResults); i++ {
-		diagRun.Software[i] = newDiagResult(uint(diagResults.results[i].entity.entityId), diagResults)
+		diagRun.Software[i] = newDiagResult(uint(i), diagResults)
 	}
 
 	return diagRun, nil
