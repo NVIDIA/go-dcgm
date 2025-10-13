@@ -133,22 +133,6 @@ func getInfoMsg(entityId uint, testId uint, response C.dcgmDiagResponse_v12) str
 	return strings.Join(msgs, " | ")
 }
 
-func getTestName(resultIdx uint, response C.dcgmDiagResponse_v12) string {
-	for i := uint(0); i < uint(response.numTests); i++ {
-		t := response.tests[i]
-		for j := uint16(0); j < uint16(t.numResults); j++ {
-			if uint16(t.resultIndices[j]) == uint16(resultIdx) {
-				plugin := C.GoString((*C.char)(unsafe.Pointer(&t.pluginName)))
-				if plugin != "" {
-					plugin = "/" + plugin
-				}
-				return C.GoString((*C.char)(unsafe.Pointer(&t.name))) + plugin
-			}
-		}
-	}
-	return ""
-}
-
 func getSerial(resultIdx uint, response C.dcgmDiagResponse_v12) string {
 	for i := 0; i < int(response.numEntities); i++ {
 		if response.entities[i].entity.entityId == response.results[resultIdx].entity.entityId &&
@@ -165,7 +149,7 @@ func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult
 
 	msg, code := getErrorMsg(entityId, testId, response)
 	info := getInfoMsg(entityId, testId, response)
-	testName := gpuTestName(int(testId))
+	testName := strings.ToLower(gpuTestName(int(testId)))
 	serial := getSerial(resultIndex, response)
 
 	return DiagResult{
