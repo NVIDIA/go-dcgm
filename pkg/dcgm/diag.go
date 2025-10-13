@@ -7,6 +7,7 @@ package dcgm
 import "C"
 
 import (
+	"strings"
 	"unsafe"
 )
 
@@ -70,33 +71,6 @@ func diagResultString(r int) string {
 	case C.DCGM_DIAG_RESULT_NOT_RUN:
 		return "notrun"
 	}
-	return ""
-}
-
-func swTestName(t int) string {
-	switch t {
-	case C.DCGM_SWTEST_DENYLIST:
-		return "presence of drivers on the denylist (e.g. nouveau)"
-	case C.DCGM_SWTEST_NVML_LIBRARY:
-		return "presence (and version) of NVML lib"
-	case C.DCGM_SWTEST_CUDA_MAIN_LIBRARY:
-		return "presence (and version) of CUDA lib"
-	case C.DCGM_SWTEST_CUDA_RUNTIME_LIBRARY:
-		return "presence (and version) of CUDA RT lib"
-	case C.DCGM_SWTEST_PERMISSIONS:
-		return "character device permissions"
-	case C.DCGM_SWTEST_PERSISTENCE_MODE:
-		return "persistence mode enabled"
-	case C.DCGM_SWTEST_ENVIRONMENT:
-		return "CUDA environment vars that may slow tests"
-	case C.DCGM_SWTEST_PAGE_RETIREMENT:
-		return "pending frame buffer page retirement"
-	case C.DCGM_SWTEST_GRAPHICS_PROCESSES:
-		return "graphics processes running"
-	case C.DCGM_SWTEST_INFOROM:
-		return "inforom corruption"
-	}
-
 	return ""
 }
 
@@ -189,7 +163,7 @@ func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult
 
 	msg, code := getErrorMsg(entityId, testId, response)
 	info := getInfoMsg(entityId, testId, response)
-	testName := getTestName(resultIndex, response)
+	testName := strings.ToLower(gpuTestName(int(testId)))
 	serial := getSerial(resultIndex, response)
 
 	return DiagResult{
@@ -227,9 +201,9 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 //   - error if the diagnostics failed to run
 func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
 	var diagResults C.dcgmDiagResponse_v12
-	diagResults.version = makeVersion12(unsafe.Sizeof(diagResults))
+	diagResults.version = C.dcgmDiagResponse_version12
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v12)(unsafe.Pointer(&diagResults)))
+	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), &diagResults)
 	if err := errorString(result); err != nil {
 		return DiagResults{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
