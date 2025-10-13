@@ -4,6 +4,24 @@ Golang bindings are provided for [NVIDIA Data Center GPU Manager (DCGM)](https:/
 
 You will also find samples for these bindings in this repository.
 
+## Development
+
+### Generating Field Constants
+
+The DCGM field constants in `pkg/dcgm/const_fields.go` are automatically generated from `pkg/dcgm/dcgm_fields.h`. To regenerate these constants after updating the header file:
+
+```bash
+make generate
+```
+
+To verify that the generated code is up to date:
+
+```bash
+make check-generate
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#updating-dcgm-fields) for detailed instructions on updating DCGM fields.
+
 ## Issues and Contributing
 
 [Checkout the Contributing document!](CONTRIBUTING.md)

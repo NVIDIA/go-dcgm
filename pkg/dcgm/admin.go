@@ -23,7 +23,6 @@ package dcgm
 #include <dlfcn.h>
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
-
 */
 import "C"
 
@@ -222,6 +221,30 @@ func startHostengine() (err error) {
 
 	handle = dcgmHandle{cHandle}
 	return
+}
+
+// AttachDriver attaches the driver to DCGM.
+// This is used to reattach the driver after a DetachDriver call, typically when updating
+// the driver without restarting DCGM.
+// Requires DCGM 4.5.0 or later.
+func AttachDriver() error {
+	result := C.dcgmAttachDriver(handle.handle)
+	if result != C.DCGM_ST_OK {
+		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
+	}
+	return nil
+}
+
+// DetachDriver detaches the driver from DCGM.
+// This is used when you want to update the driver without restarting DCGM.
+// After detaching, GPUs will not be accessible until AttachDriver is called.
+// Requires DCGM 4.5.0 or later.
+func DetachDriver() error {
+	result := C.dcgmDetachDriver(handle.handle)
+	if result != C.DCGM_ST_OK {
+		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
+	}
+	return nil
 }
 
 func stopHostengine() (err error) {

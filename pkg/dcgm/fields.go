@@ -1,5 +1,7 @@
 package dcgm
 
+//go:generate go run ../../cmd/gen-fields/main.go ../../cmd/gen-fields/template.go dcgm_fields.h const_fields.go
+
 /*
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
@@ -146,6 +148,17 @@ func WatchFieldsWithGroupEx(
 // Returns an error if the watch operation fails.
 func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 	return WatchFieldsWithGroupEx(fieldsGroup, group, defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
+}
+
+// UnwatchFields stops monitoring the specified fields for a GPU group.
+// fieldsGroup is the handle to the field group to stop watching.
+// group is the handle to the GPU group to stop watching.
+func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
+	result := C.dcgmUnwatchFields(handle.handle, group.handle, fieldsGroup.handle)
+	if err := errorString(result); err != nil {
+		return fmt.Errorf("error unwatching fields: %w", err)
+	}
+	return nil
 }
 
 var fieldValuePool = sync.Pool{

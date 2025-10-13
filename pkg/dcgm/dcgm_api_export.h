@@ -24,7 +24,7 @@
 #else
 #define DCGM_PUBLIC_API
 #if defined(ERROR_IF_NOT_PUBLIC)
-#error(Should be public)
+#error (Should be public)
 #endif
 #endif
 

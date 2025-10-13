@@ -190,6 +190,22 @@ const (
 	DCGM_ST_NVML_DRIVER_TIMEOUT = -57
 	// DCGM_ST_NVVS_NO_AVAILABLE_TEST is the value for ECC NVVS NO AVAILABLE TEST
 	DCGM_ST_NVVS_NO_AVAILABLE_TEST = -58
+	// DCGM_ST_UNINITIALIZED is the value for DCGM not initialized
+	DCGM_ST_UNINITIALIZED = -59
+	// DCGM_ST_NO_NVVS is the value for NVVS not available
+	DCGM_ST_NO_NVVS = -60
+	// DCGM_ST_NVVS_NOT_RUNNING is the value for NVVS not running
+	DCGM_ST_NVVS_NOT_RUNNING = -61
+	// DCGM_ST_CHILD_SPAWN_FAILED is the value for child spawn failed
+	DCGM_ST_CHILD_SPAWN_FAILED = -62
+	// DCGM_ST_FILE_IO_ERROR is the value for file I/O error
+	DCGM_ST_FILE_IO_ERROR = -63
+	// DCGM_ST_CHILD_SIGNAL_RECEIVED is the value for child signal received
+	DCGM_ST_CHILD_SIGNAL_RECEIVED = -64
+	// DCGM_ST_CALLER_ALREADY_STOPPED is the value for caller already stopped
+	DCGM_ST_CALLER_ALREADY_STOPPED = -65
+	// DCGM_ST_DIAG_STOPPED is the value for diagnostic stopped
+	DCGM_ST_DIAG_STOPPED = -66
 )
 
 // DCGM_FV_FLAG_LIVE_DATA is a flag for the DCGM fields.
@@ -485,4 +501,14 @@ const (
 	DCGM_FR_BROKEN_P2P_NVLINK_WRITER_DEVICE HealthCheckErrorCode = 116
 	// DCGM_FR_ERROR_SENTINEL MUST BE THE LAST ERROR CODE
 	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 117
+)
+
+// DcgmBindUnbindEventState represents the state of GPU bind/unbind events
+type DcgmBindUnbindEventState int
+
+const (
+	// DcgmBUEventStateSystemReinitializing indicates the system is reinitializing (GPU unbind)
+	DcgmBUEventStateSystemReinitializing DcgmBindUnbindEventState = 1
+	// DcgmBUEventStateSystemReinitializationCompleted indicates system reinitialization is complete (GPU bind)
+	DcgmBUEventStateSystemReinitializationCompleted DcgmBindUnbindEventState = 2
 )
