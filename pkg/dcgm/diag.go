@@ -73,59 +73,36 @@ func diagResultString(r int) string {
 	return ""
 }
 
-func swTestName(t int) string {
-	switch t {
-	case C.DCGM_SWTEST_DENYLIST:
-		return "presence of drivers on the denylist (e.g. nouveau)"
-	case C.DCGM_SWTEST_NVML_LIBRARY:
-		return "presence (and version) of NVML lib"
-	case C.DCGM_SWTEST_CUDA_MAIN_LIBRARY:
-		return "presence (and version) of CUDA lib"
-	case C.DCGM_SWTEST_CUDA_RUNTIME_LIBRARY:
-		return "presence (and version) of CUDA RT lib"
-	case C.DCGM_SWTEST_PERMISSIONS:
-		return "character device permissions"
-	case C.DCGM_SWTEST_PERSISTENCE_MODE:
-		return "persistence mode enabled"
-	case C.DCGM_SWTEST_ENVIRONMENT:
-		return "CUDA environment vars that may slow tests"
-	case C.DCGM_SWTEST_PAGE_RETIREMENT:
-		return "pending frame buffer page retirement"
-	case C.DCGM_SWTEST_GRAPHICS_PROCESSES:
-		return "graphics processes running"
-	case C.DCGM_SWTEST_INFOROM:
-		return "inforom corruption"
-	}
-
-	return ""
-}
-
+// gpuTestName returns the category name for a diagnostic test based on its test ID.
+// This function handles all diagnostic test types including GPU tests and software tests.
+// Software tests (DCGM_SWTEST_*) all report under DCGM_SOFTWARE_INDEX and return "software".
+// Detailed test information is provided in TestOutput, not in the TestName.
 func gpuTestName(t int) string {
 	switch t {
 	case C.DCGM_MEMORY_INDEX:
-		return "Memory"
+		return "memory"
 	case C.DCGM_DIAGNOSTIC_INDEX:
-		return "Diagnostic"
+		return "diagnostic"
 	case C.DCGM_PCI_INDEX:
-		return "PCIe"
+		return "pcie"
 	case C.DCGM_SM_STRESS_INDEX:
-		return "SM Stress"
+		return "sm stress"
 	case C.DCGM_TARGETED_STRESS_INDEX:
-		return "Targeted Stress"
+		return "targeted stress"
 	case C.DCGM_TARGETED_POWER_INDEX:
-		return "Targeted Power"
+		return "targeted power"
 	case C.DCGM_MEMORY_BANDWIDTH_INDEX:
-		return "Memory bandwidth"
+		return "memory bandwidth"
 	case C.DCGM_MEMTEST_INDEX:
-		return "Memtest"
+		return "memtest"
 	case C.DCGM_PULSE_TEST_INDEX:
-		return "Pulse"
+		return "pulse"
 	case C.DCGM_EUD_TEST_INDEX:
-		return "EUD"
+		return "eud"
 	case C.DCGM_SOFTWARE_INDEX:
-		return "Software"
+		return "software"
 	case C.DCGM_CONTEXT_CREATE_INDEX:
-		return "Context create"
+		return "context create"
 	}
 	return ""
 }
@@ -189,7 +166,7 @@ func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult
 
 	msg, code := getErrorMsg(entityId, testId, response)
 	info := getInfoMsg(entityId, testId, response)
-	testName := getTestName(resultIndex, response)
+	testName := gpuTestName(int(testId))
 	serial := getSerial(resultIndex, response)
 
 	return DiagResult{
@@ -227,9 +204,9 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 //   - error if the diagnostics failed to run
 func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
 	var diagResults C.dcgmDiagResponse_v12
-	diagResults.version = makeVersion12(unsafe.Sizeof(diagResults))
+	diagResults.version = C.dcgmDiagResponse_version12
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), (*C.dcgmDiagResponse_v12)(unsafe.Pointer(&diagResults)))
+	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), &diagResults)
 	if err := errorString(result); err != nil {
 		return DiagResults{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
