@@ -96,7 +96,20 @@ func GetDeviceTopology(gpuID uint) ([]P2PLink, error) {
 }
 
 // WatchPidFields configures DCGM to start recording stats for GPU processes
-// Must be called before GetProcessInfo
+// Must be called before GetProcessInfo.
+//
+// Important: The returned GroupHandle should be cleaned up by calling DestroyGroup
+// when monitoring is no longer needed to prevent resource leaks.
+//
+// Example:
+//
+//	group, err := dcgm.WatchPidFields()
+//	if err != nil {
+//	    return err
+//	}
+//	defer dcgm.DestroyGroup(group)
+//
+//	// Use GetProcessInfo with the group...
 func WatchPidFields() (GroupHandle, error) {
 	return watchPidFields(time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
 }
@@ -111,16 +124,37 @@ func HealthCheckByGpuId(gpuID uint) (DeviceHealth, error) {
 	return healthCheckByGpuId(gpuID)
 }
 
-// ListenForPolicyViolations sets up monitoring for the specified policy conditions on all GPUs
-// Returns a channel that receives policy violations and any error encountered
-func ListenForPolicyViolations(ctx context.Context, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
+// ListenForPolicyViolations sets up monitoring for the specified policy conditions on all GPUs.
+// Returns a channel that receives policy violations and any error encountered.
+//
+// Important: The context MUST be cancelled when monitoring is no longer needed to properly
+// clean up resources and prevent goroutine leaks. When the context is cancelled, the returned
+// channel will be closed and all resources will be automatically cleaned up.
+//
+// Example:
+//
+//	ctx, cancel := context.WithCancel(context.Background())
+//	defer cancel() // Ensures cleanup happens
+//
+//	violations, err := dcgm.ListenForPolicyViolations(ctx, dcgm.XidPolicy)
+//	if err != nil {
+//	    return err
+//	}
+//
+//	for violation := range violations {
+//	    // Handle violation...
+//	}
+func ListenForPolicyViolations(ctx context.Context, typ ...policyCondition) (<-chan PolicyViolation, error) {
 	groupID := GroupAllGPUs()
 	return ListenForPolicyViolationsForGroup(ctx, groupID, typ...)
 }
 
-// ListenForPolicyViolationsForGroup sets up policy monitoring for the specified GPU group
-// Returns a channel that receives policy violations and any error encountered
-func ListenForPolicyViolationsForGroup(ctx context.Context, group GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
+// ListenForPolicyViolationsForGroup sets up policy monitoring for the specified GPU group.
+// Returns a channel that receives policy violations and any error encountered.
+//
+// Important: The context MUST be cancelled when monitoring is no longer needed to properly
+// clean up resources and prevent goroutine leaks. See ListenForPolicyViolations for usage example.
+func ListenForPolicyViolationsForGroup(ctx context.Context, group GroupHandle, typ ...policyCondition) (<-chan PolicyViolation, error) {
 	return registerPolicy(ctx, group, typ...)
 }
 

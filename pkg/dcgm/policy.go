@@ -186,8 +186,9 @@ type XidPolicyCondition struct {
 }
 
 var (
-	policyChanOnce sync.Once
-	policyMapOnce  sync.Once
+	policyChanOnce   sync.Once
+	policyMapOnce    sync.Once
+	policyCleanupMux sync.Mutex
 
 	// callbacks maps PolicyViolation channels with policy
 	// captures C callback() value for each violation condition
@@ -196,6 +197,10 @@ var (
 	// paramMap maps C.dcgmPolicy_t.parms index and limits
 	// to be used in setPolicy() for setting user selected policies
 	paramMap map[policyIndex]policyConditionParam
+
+	// activeListeners tracks the number of active policy listeners
+	// to prevent premature cleanup of global callback channels
+	activeListeners int
 )
 
 func makePolicyChannels() {
@@ -209,6 +214,33 @@ func makePolicyChannels() {
 		callbacks["nvlink"] = make(chan PolicyViolation, 1)
 		callbacks["xid"] = make(chan PolicyViolation, 1)
 	})
+}
+
+// cleanupPolicyChannels cleans up global policy callback channels.
+// This is called internally when there are no more active listeners.
+func cleanupPolicyChannels() {
+	policyCleanupMux.Lock()
+	defer policyCleanupMux.Unlock()
+
+	if activeListeners > 0 {
+		return
+	}
+
+	if callbacks != nil {
+		// Drain and close all channels
+		for key, ch := range callbacks {
+			select {
+			case <-ch:
+				// Drain any pending values
+			default:
+			}
+			close(ch)
+			delete(callbacks, key)
+		}
+		callbacks = nil
+		// Reset sync.Once to allow re-initialization
+		policyChanOnce = sync.Once{}
+	}
 }
 
 func makePolicyParmsMap() {
@@ -644,6 +676,11 @@ func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondi
 	makePolicyChannels()
 	makePolicyParmsMap()
 
+	// Increment active listener count
+	policyCleanupMux.Lock()
+	activeListeners++
+	policyCleanupMux.Unlock()
+
 	// make a list of policy conditions for setting their parameters
 	paramKeys := make([]policyIndex, len(typ))
 	// get all conditions to be set in setPolicy()
@@ -677,12 +714,18 @@ func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondi
 
 	err = setPolicy(groupID, condition, paramKeys)
 	if err != nil {
+		policyCleanupMux.Lock()
+		activeListeners--
+		policyCleanupMux.Unlock()
 		return nil, err
 	}
 
 	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
 
 	if err = errorString(result); err != nil {
+		policyCleanupMux.Lock()
+		activeListeners--
+		policyCleanupMux.Unlock()
 		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
@@ -695,23 +738,50 @@ func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondi
 			log.Println("unregister policy violation...")
 			close(violation)
 			unregisterPolicy(groupID, condition)
+
+			// Decrement active listener count and cleanup if needed
+			policyCleanupMux.Lock()
+			activeListeners--
+			policyCleanupMux.Unlock()
+			cleanupPolicyChannels()
 		}()
 
 		for {
 			select {
-			case dbe := <-callbacks["dbe"]:
+			case dbe, ok := <-callbacks["dbe"]:
+				if !ok {
+					return
+				}
 				violation <- dbe
-			case pcie := <-callbacks["pcie"]:
+			case pcie, ok := <-callbacks["pcie"]:
+				if !ok {
+					return
+				}
 				violation <- pcie
-			case maxrtpg := <-callbacks["maxrtpg"]:
+			case maxrtpg, ok := <-callbacks["maxrtpg"]:
+				if !ok {
+					return
+				}
 				violation <- maxrtpg
-			case thermal := <-callbacks["thermal"]:
+			case thermal, ok := <-callbacks["thermal"]:
+				if !ok {
+					return
+				}
 				violation <- thermal
-			case power := <-callbacks["power"]:
+			case power, ok := <-callbacks["power"]:
+				if !ok {
+					return
+				}
 				violation <- power
-			case nvlink := <-callbacks["nvlink"]:
+			case nvlink, ok := <-callbacks["nvlink"]:
+				if !ok {
+					return
+				}
 				violation <- nvlink
-			case xid := <-callbacks["xid"]:
+			case xid, ok := <-callbacks["xid"]:
+				if !ok {
+					return
+				}
 				violation <- xid
 			case <-ctx.Done():
 				return
