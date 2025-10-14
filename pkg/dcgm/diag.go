@@ -7,6 +7,7 @@ package dcgm
 import "C"
 
 import (
+	"strings"
 	"unsafe"
 )
 
@@ -122,16 +123,14 @@ func getErrorMsg(entityId uint, testId uint, response C.dcgmDiagResponse_v12) (m
 }
 
 func getInfoMsg(entityId uint, testId uint, response C.dcgmDiagResponse_v12) string {
+	var msgs []string
 	for i := 0; i < int(response.numInfo); i++ {
 		if uint(response.info[i].entity.entityId) != entityId || uint(response.info[i].testId) != testId {
 			continue
 		}
-
-		msg := C.GoString((*C.char)(unsafe.Pointer(&response.info[i].msg)))
-		return msg
+		msgs = append(msgs, C.GoString((*C.char)(unsafe.Pointer(&response.info[i].msg))))
 	}
-
-	return ""
+	return strings.Join(msgs, " | ")
 }
 
 func getTestName(resultIdx uint, response C.dcgmDiagResponse_v12) string {
