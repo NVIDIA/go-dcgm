@@ -7,7 +7,6 @@ package dcgm
 import "C"
 
 import (
-	"strings"
 	"unsafe"
 )
 
@@ -74,32 +73,36 @@ func diagResultString(r int) string {
 	return ""
 }
 
+// gpuTestName returns the category name for a diagnostic test based on its test ID.
+// This function handles all diagnostic test types including GPU tests and software tests.
+// Software tests (DCGM_SWTEST_*) all report under DCGM_SOFTWARE_INDEX and return "software".
+// Detailed test information is provided in TestOutput, not in the TestName.
 func gpuTestName(t int) string {
 	switch t {
 	case C.DCGM_MEMORY_INDEX:
-		return "Memory"
+		return "memory"
 	case C.DCGM_DIAGNOSTIC_INDEX:
-		return "Diagnostic"
+		return "diagnostic"
 	case C.DCGM_PCI_INDEX:
-		return "PCIe"
+		return "pcie"
 	case C.DCGM_SM_STRESS_INDEX:
-		return "SM Stress"
+		return "sm stress"
 	case C.DCGM_TARGETED_STRESS_INDEX:
-		return "Targeted Stress"
+		return "targeted stress"
 	case C.DCGM_TARGETED_POWER_INDEX:
-		return "Targeted Power"
+		return "targeted power"
 	case C.DCGM_MEMORY_BANDWIDTH_INDEX:
-		return "Memory bandwidth"
+		return "memory bandwidth"
 	case C.DCGM_MEMTEST_INDEX:
-		return "Memtest"
+		return "memtest"
 	case C.DCGM_PULSE_TEST_INDEX:
-		return "Pulse"
+		return "pulse"
 	case C.DCGM_EUD_TEST_INDEX:
-		return "EUD"
+		return "eud"
 	case C.DCGM_SOFTWARE_INDEX:
-		return "Software"
+		return "software"
 	case C.DCGM_CONTEXT_CREATE_INDEX:
-		return "Context create"
+		return "context create"
 	}
 	return ""
 }
@@ -163,7 +166,7 @@ func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult
 
 	msg, code := getErrorMsg(entityId, testId, response)
 	info := getInfoMsg(entityId, testId, response)
-	testName := strings.ToLower(gpuTestName(int(testId)))
+	testName := gpuTestName(int(testId))
 	serial := getSerial(resultIndex, response)
 
 	return DiagResult{
