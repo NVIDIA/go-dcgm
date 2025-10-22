@@ -69,8 +69,8 @@ func getAllDeviceCount() (gpuCount uint, err error) {
 // getAllDeviceCount counts all GPUs on the system
 func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 	var err error
-	var pEntities [C.DCGM_MAX_NUM_DEVICES]C.uint
-	var count C.int = C.DCGM_MAX_NUM_DEVICES
+	var pEntities [C.DCGM_GROUP_MAX_ENTITIES_V2]C.uint
+	var count C.int = C.DCGM_GROUP_MAX_ENTITIES_V2
 
 	result := C.dcgmGetEntityGroupEntities(handle.handle, C.dcgm_field_entity_group_t(entityGroup), &pEntities[0], &count, 0)
 	if err = errorString(result); err != nil {
