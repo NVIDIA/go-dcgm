@@ -20,36 +20,100 @@ import (
 )
 
 // PolicyCondition represents a type of policy violation that can be monitored
-type policyCondition string
+type PolicyCondition string
+
+// This alias is maintained for backward compatibility.
+type policyCondition = PolicyCondition
 
 // Policy condition types
 const (
 	// DbePolicy represents a Double-bit ECC error policy condition
-	DbePolicy = policyCondition("Double-bit ECC error")
+	DbePolicy = PolicyCondition("Double-bit ECC error")
 
 	// PCIePolicy represents a PCI error policy condition
-	PCIePolicy = policyCondition("PCI error")
+	PCIePolicy = PolicyCondition("PCI error")
 
 	// MaxRtPgPolicy represents a Maximum Retired Pages Limit policy condition
-	MaxRtPgPolicy = policyCondition("Max Retired Pages Limit")
+	MaxRtPgPolicy = PolicyCondition("Max Retired Pages Limit")
 
 	// ThermalPolicy represents a Thermal Limit policy condition
-	ThermalPolicy = policyCondition("Thermal Limit")
+	ThermalPolicy = PolicyCondition("Thermal Limit")
 
 	// PowerPolicy represents a Power Limit policy condition
-	PowerPolicy = policyCondition("Power Limit")
+	PowerPolicy = PolicyCondition("Power Limit")
 
 	// NvlinkPolicy represents an NVLink error policy condition
-	NvlinkPolicy = policyCondition("Nvlink Error")
+	NvlinkPolicy = PolicyCondition("Nvlink Error")
 
 	// XidPolicy represents an XID error policy condition
-	XidPolicy = policyCondition("XID Error")
+	XidPolicy = PolicyCondition("XID Error")
 )
+
+// Default policy thresholds matching dcgmi defaults
+const (
+	// DefaultMaxRetiredPages is the default threshold for retired pages (matches dcgmi default)
+	DefaultMaxRetiredPages = 10
+
+	// DefaultMaxTemperature is the default threshold for temperature in Celsius (matches dcgmi default)
+	DefaultMaxTemperature = 100
+
+	// DefaultMaxPower is the default threshold for power in Watts (matches dcgmi default)
+	DefaultMaxPower = 250
+)
+
+// PolicyAction specifies the action to take when a policy violation occurs
+type PolicyAction uint32
+
+const (
+	// PolicyActionNone indicates no action should be taken on violation (default)
+	PolicyActionNone PolicyAction = 0
+
+	// PolicyActionGPUReset indicates the GPU should be reset on violation
+	PolicyActionGPUReset PolicyAction = 1
+)
+
+// PolicyValidation specifies the validation to perform after a policy action
+type PolicyValidation uint32
+
+const (
+	// PolicyValidationNone indicates no validation after action (default)
+	PolicyValidationNone PolicyValidation = 0
+
+	// PolicyValidationShort indicates a short system validation should be performed
+	PolicyValidationShort PolicyValidation = 1
+
+	// PolicyValidationMedium indicates a medium system validation should be performed
+	PolicyValidationMedium PolicyValidation = 2
+
+	// PolicyValidationLong indicates a long system validation should be performed
+	PolicyValidationLong PolicyValidation = 3
+)
+
+// PolicyConfig configures a policy condition with optional custom thresholds and actions
+type PolicyConfig struct {
+	// Condition specifies the type of policy to monitor
+	Condition PolicyCondition
+
+	// Action specifies what action to take when this policy violation occurs (optional, defaults to PolicyActionNone)
+	Action *PolicyAction
+
+	// Validation specifies what validation to perform after the action (optional, defaults to PolicyValidationNone)
+	Validation *PolicyValidation
+
+	// MaxRetiredPages specifies the threshold for MaxRtPgPolicy (optional, defaults to DefaultMaxRetiredPages)
+	MaxRetiredPages *uint32
+
+	// MaxTemperature specifies the threshold for ThermalPolicy in Celsius (optional, defaults to DefaultMaxTemperature)
+	MaxTemperature *uint32
+
+	// MaxPower specifies the threshold for PowerPolicy in Watts (optional, defaults to DefaultMaxPower)
+	MaxPower *uint32
+}
 
 // PolicyViolation represents a detected violation of a policy condition
 type PolicyViolation struct {
 	// Condition specifies the type of policy that was violated
-	Condition policyCondition
+	Condition PolicyCondition
 	// Timestamp indicates when the violation occurred
 	Timestamp time.Time
 	// Data contains violation-specific details
@@ -200,7 +264,7 @@ func makePolicyParmsMap() {
 //
 //export ViolationRegistration
 func ViolationRegistration(data unsafe.Pointer) int {
-	var con policyCondition
+	var con PolicyCondition
 	var timestamp time.Time
 	var val any
 
@@ -324,7 +388,257 @@ func setPolicy(groupID GroupHandle, condition C.dcgmPolicyCondition_t, paramList
 	return
 }
 
-func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...policyCondition) (<-chan PolicyViolation, error) {
+func setPolicyInternal(groupID GroupHandle, condition C.dcgmPolicyCondition_t, configs []policyConfigInternal, action PolicyAction, validation PolicyValidation) (err error) {
+	var policy C.dcgmPolicy_t
+	policy.version = makeVersion1(unsafe.Sizeof(policy))
+	policy.mode = C.dcgmPolicyMode_t(C.DCGM_OPERATION_MODE_AUTO)
+	policy.action = C.dcgmPolicyAction_t(action)
+	policy.isolation = C.DCGM_POLICY_ISOLATION_NONE
+	policy.validation = C.dcgmPolicyValidation_t(validation)
+	policy.condition = condition
+
+	// iterate on configs for given policy conditions
+	for _, cfg := range configs {
+		// set policy condition parameters
+		// set condition type (bool or longlong)
+		policy.parms[cfg.index].tag = cfg.param.typ
+
+		// set condition val (violation threshold)
+		// policy.parms.val is a C union type
+		// cgo docs: Go doesn't have support for C's union type
+		// C union types are represented as a Go byte array
+		binary.LittleEndian.PutUint32(policy.parms[cfg.index].val[:], cfg.param.value)
+	}
+
+	var statusHandle C.dcgmStatus_t
+
+	result := C.dcgmPolicySet(handle.handle, groupID.handle, &policy, statusHandle)
+	if err = errorString(result); err != nil {
+		return fmt.Errorf("error setting policies: %s", err)
+	}
+
+	return
+}
+
+type policyConfigInternal struct {
+	index policyIndex
+	param policyConditionParam
+}
+
+// PolicyStatus represents the current policy configuration for a group
+type PolicyStatus struct {
+	// Mode indicates the operation mode (automatic or manual)
+	Mode uint32
+
+	// Action specifies what action is taken on violation
+	Action PolicyAction
+
+	// Validation specifies what validation is performed after action
+	Validation PolicyValidation
+
+	// Conditions is a map of enabled policy conditions with their thresholds
+	// Key is the PolicyCondition, value is the threshold (if applicable)
+	Conditions map[PolicyCondition]interface{}
+}
+
+func getPolicyForGroup(groupID GroupHandle) (*PolicyStatus, error) {
+	var policy C.dcgmPolicy_t
+	policy.version = makeVersion1(unsafe.Sizeof(policy))
+
+	var statusHandle C.dcgmStatus_t
+
+	result := C.dcgmPolicyGet(handle.handle, groupID.handle, 1, &policy, statusHandle)
+	if err := errorString(result); err != nil {
+		return nil, fmt.Errorf("error getting policy: %s", err)
+	}
+
+	status := &PolicyStatus{
+		Mode:       uint32(policy.mode),
+		Action:     PolicyAction(policy.action),
+		Validation: PolicyValidation(policy.validation),
+		Conditions: make(map[PolicyCondition]interface{}),
+	}
+
+	condition := policy.condition
+
+	// Check each condition bit and extract its parameters
+	if condition&C.DCGM_POLICY_COND_DBE != 0 {
+		status.Conditions[DbePolicy] = true
+	}
+
+	if condition&C.DCGM_POLICY_COND_PCI != 0 {
+		status.Conditions[PCIePolicy] = true
+	}
+
+	if condition&C.DCGM_POLICY_COND_MAX_PAGES_RETIRED != 0 {
+		param := policy.parms[maxRtPgPolicyIndex]
+		if param.tag == 1 { // LLONG type
+			threshold := binary.LittleEndian.Uint32(param.val[:])
+			status.Conditions[MaxRtPgPolicy] = threshold
+		}
+	}
+
+	if condition&C.DCGM_POLICY_COND_THERMAL != 0 {
+		param := policy.parms[thermalPolicyIndex]
+		if param.tag == 1 { // LLONG type
+			threshold := binary.LittleEndian.Uint32(param.val[:])
+			status.Conditions[ThermalPolicy] = threshold
+		}
+	}
+
+	if condition&C.DCGM_POLICY_COND_POWER != 0 {
+		param := policy.parms[powerPolicyIndex]
+		if param.tag == 1 { // LLONG type
+			threshold := binary.LittleEndian.Uint32(param.val[:])
+			status.Conditions[PowerPolicy] = threshold
+		}
+	}
+
+	if condition&C.DCGM_POLICY_COND_NVLINK != 0 {
+		status.Conditions[NvlinkPolicy] = true
+	}
+
+	if condition&C.DCGM_POLICY_COND_XID != 0 {
+		status.Conditions[XidPolicy] = true
+	}
+
+	return status, nil
+}
+
+func clearPolicyForGroup(groupID GroupHandle) error {
+	// Clear all policies by setting condition to 0 (no conditions enabled)
+	var policy C.dcgmPolicy_t
+	policy.version = makeVersion1(unsafe.Sizeof(policy))
+	policy.mode = C.dcgmPolicyMode_t(C.DCGM_OPERATION_MODE_AUTO)
+	policy.action = C.DCGM_POLICY_ACTION_NONE
+	policy.isolation = C.DCGM_POLICY_ISOLATION_NONE
+	policy.validation = C.DCGM_POLICY_VALID_NONE
+	policy.condition = 0 // No conditions - clears all policies
+
+	var statusHandle C.dcgmStatus_t
+
+	result := C.dcgmPolicySet(handle.handle, groupID.handle, &policy, statusHandle)
+	if err := errorString(result); err != nil {
+		return fmt.Errorf("error clearing policies: %s", err)
+	}
+
+	return nil
+}
+
+func setPolicyForGroupWithConfig(groupID GroupHandle, configs ...PolicyConfig) error {
+	const (
+		policyFieldTypeBool = 0
+		policyFieldTypeLong = 1
+		policyBoolValue     = 1
+	)
+
+	if len(configs) == 0 {
+		return fmt.Errorf("at least one policy config must be provided")
+	}
+
+	// Extract action and validation from first config (applies to all conditions)
+	// This matches dcgmi behavior where --set actn,val applies to the entire policy set
+	action := PolicyActionNone
+	validation := PolicyValidationNone
+
+	if configs[0].Action != nil {
+		action = *configs[0].Action
+	}
+	if configs[0].Validation != nil {
+		validation = *configs[0].Validation
+	}
+
+	// Build internal configs with custom or default thresholds
+	internalConfigs := make([]policyConfigInternal, len(configs))
+	var condition C.dcgmPolicyCondition_t = 0
+
+	for i, cfg := range configs {
+		var idx policyIndex
+		var param policyConditionParam
+
+		switch cfg.Condition {
+		case DbePolicy:
+			idx = dbePolicyIndex
+			condition |= C.DCGM_POLICY_COND_DBE
+			param = policyConditionParam{
+				typ:   policyFieldTypeBool,
+				value: policyBoolValue,
+			}
+
+		case PCIePolicy:
+			idx = pciePolicyIndex
+			condition |= C.DCGM_POLICY_COND_PCI
+			param = policyConditionParam{
+				typ:   policyFieldTypeBool,
+				value: policyBoolValue,
+			}
+
+		case MaxRtPgPolicy:
+			idx = maxRtPgPolicyIndex
+			condition |= C.DCGM_POLICY_COND_MAX_PAGES_RETIRED
+			threshold := uint32(DefaultMaxRetiredPages)
+			if cfg.MaxRetiredPages != nil {
+				threshold = *cfg.MaxRetiredPages
+			}
+			param = policyConditionParam{
+				typ:   policyFieldTypeLong,
+				value: threshold,
+			}
+
+		case ThermalPolicy:
+			idx = thermalPolicyIndex
+			condition |= C.DCGM_POLICY_COND_THERMAL
+			threshold := uint32(DefaultMaxTemperature)
+			if cfg.MaxTemperature != nil {
+				threshold = *cfg.MaxTemperature
+			}
+			param = policyConditionParam{
+				typ:   policyFieldTypeLong,
+				value: threshold,
+			}
+
+		case PowerPolicy:
+			idx = powerPolicyIndex
+			condition |= C.DCGM_POLICY_COND_POWER
+			threshold := uint32(DefaultMaxPower)
+			if cfg.MaxPower != nil {
+				threshold = *cfg.MaxPower
+			}
+			param = policyConditionParam{
+				typ:   policyFieldTypeLong,
+				value: threshold,
+			}
+
+		case NvlinkPolicy:
+			idx = nvlinkPolicyIndex
+			condition |= C.DCGM_POLICY_COND_NVLINK
+			param = policyConditionParam{
+				typ:   policyFieldTypeBool,
+				value: policyBoolValue,
+			}
+
+		case XidPolicy:
+			idx = xidPolicyIndex
+			condition |= C.DCGM_POLICY_COND_XID
+			param = policyConditionParam{
+				typ:   policyFieldTypeBool,
+				value: policyBoolValue,
+			}
+
+		default:
+			return fmt.Errorf("unknown policy condition: %s", cfg.Condition)
+		}
+
+		internalConfigs[i] = policyConfigInternal{
+			index: idx,
+			param: param,
+		}
+	}
+
+	return setPolicyInternal(groupID, condition, internalConfigs, action, validation)
+}
+
+func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
 	var err error
 	// init policy globals for internal API
 	makePolicyChannels()
@@ -379,6 +693,73 @@ func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...policyCondi
 	go func() {
 		defer func() {
 			log.Println("unregister policy violation...")
+			close(violation)
+			unregisterPolicy(groupID, condition)
+		}()
+
+		for {
+			select {
+			case dbe := <-callbacks["dbe"]:
+				violation <- dbe
+			case pcie := <-callbacks["pcie"]:
+				violation <- pcie
+			case maxrtpg := <-callbacks["maxrtpg"]:
+				violation <- maxrtpg
+			case thermal := <-callbacks["thermal"]:
+				violation <- thermal
+			case power := <-callbacks["power"]:
+				violation <- power
+			case nvlink := <-callbacks["nvlink"]:
+				violation <- nvlink
+			case xid := <-callbacks["xid"]:
+				violation <- xid
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return violation, err
+}
+
+func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
+	var err error
+	// init policy globals for internal API
+	makePolicyChannels()
+
+	// get all conditions to listen for
+	var condition C.dcgmPolicyCondition_t = 0
+
+	for _, t := range typ {
+		switch t {
+		case DbePolicy:
+			condition |= C.DCGM_POLICY_COND_DBE
+		case PCIePolicy:
+			condition |= C.DCGM_POLICY_COND_PCI
+		case MaxRtPgPolicy:
+			condition |= C.DCGM_POLICY_COND_MAX_PAGES_RETIRED
+		case ThermalPolicy:
+			condition |= C.DCGM_POLICY_COND_THERMAL
+		case PowerPolicy:
+			condition |= C.DCGM_POLICY_COND_POWER
+		case NvlinkPolicy:
+			condition |= C.DCGM_POLICY_COND_NVLINK
+		case XidPolicy:
+			condition |= C.DCGM_POLICY_COND_XID
+		}
+	}
+
+	// Register for violations without setting policies
+	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
+
+	if err = errorString(result); err != nil {
+		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+	}
+
+	violation := make(chan PolicyViolation, len(typ))
+
+	go func() {
+		defer func() {
 			close(violation)
 			unregisterPolicy(groupID, condition)
 		}()

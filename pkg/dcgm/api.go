@@ -113,14 +113,14 @@ func HealthCheckByGpuId(gpuID uint) (DeviceHealth, error) {
 
 // ListenForPolicyViolations sets up monitoring for the specified policy conditions on all GPUs
 // Returns a channel that receives policy violations and any error encountered
-func ListenForPolicyViolations(ctx context.Context, typ ...policyCondition) (<-chan PolicyViolation, error) {
+func ListenForPolicyViolations(ctx context.Context, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
 	groupID := GroupAllGPUs()
 	return ListenForPolicyViolationsForGroup(ctx, groupID, typ...)
 }
 
 // ListenForPolicyViolationsForGroup sets up policy monitoring for the specified GPU group
 // Returns a channel that receives policy violations and any error encountered
-func ListenForPolicyViolationsForGroup(ctx context.Context, group GroupHandle, typ ...policyCondition) (<-chan PolicyViolation, error) {
+func ListenForPolicyViolationsForGroup(ctx context.Context, group GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
 	return registerPolicy(ctx, group, typ...)
 }
 
@@ -142,4 +142,24 @@ func GetNvLinkLinkStatus() ([]NvLinkStatus, error) {
 // GetNvLinkP2PStatus returns the status of NvLinks between GPU pairs
 func GetNvLinkP2PStatus() (NvLinkP2PStatus, error) {
 	return getNvLinkP2PStatus()
+}
+
+// SetPolicyForGroup configures policies with optional custom thresholds and actions for a GPU group
+func SetPolicyForGroup(group GroupHandle, configs ...PolicyConfig) error {
+	return setPolicyForGroupWithConfig(group, configs...)
+}
+
+// GetPolicyForGroup retrieves the current policy configuration for a GPU group
+func GetPolicyForGroup(group GroupHandle) (*PolicyStatus, error) {
+	return getPolicyForGroup(group)
+}
+
+// ClearPolicyForGroup clears all policy conditions for a GPU group
+func ClearPolicyForGroup(group GroupHandle) error {
+	return clearPolicyForGroup(group)
+}
+
+// WatchPolicyViolationsForGroup registers to receive violation notifications for a specific GPU group
+func WatchPolicyViolationsForGroup(ctx context.Context, group GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
+	return registerPolicyOnly(ctx, group, typ...)
 }
