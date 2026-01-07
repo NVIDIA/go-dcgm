@@ -219,7 +219,10 @@ func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error)
 // fields is a slice of field IDs to retrieve.
 // Returns a slice of field values and any error encountered.
 func LinkGetLatestValues(index uint, parentType Field_Entity_Group, parentId uint, fields []Short) ([]FieldValue_v1, error) {
-	slice := []byte{uint8(parentType), uint8(index), uint8(parentId), 0}
+	slice := make([]byte, 4)
+	slice[0] = uint8(parentType)
+	binary.LittleEndian.PutUint16(slice[1:3], uint16(index))
+	slice[3] = uint8(parentId)
 	entityId := binary.LittleEndian.Uint32(slice)
 	return EntityGetLatestValues(FE_LINK, uint(entityId), fields)
 }
