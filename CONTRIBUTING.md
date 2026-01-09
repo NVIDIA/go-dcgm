@@ -3,6 +3,57 @@
 Want to hack on the NVIDIA DCGM Golang Bindings Project? Awesome!
 We only require you to sign your work, the below section describes this!
 
+## Updating DCGM Fields
+
+When new fields are added to DCGM, you need to update the Go bindings. Follow these steps:
+
+### 1. Update the dcgm_fields.h header file
+
+Copy the latest `dcgm_fields.h` from the DCGM source repository:
+
+```bash
+# From the DCGM repository
+cp /path/to/dcgm/dcgmlib/dcgm_fields.h pkg/dcgm/dcgm_fields.h
+```
+
+### 2. Generate Go constants
+
+Run the code generator to update the Go field constants:
+
+```bash
+make generate
+```
+
+This will:
+- Parse `pkg/dcgm/dcgm_fields.h`
+- Generate `pkg/dcgm/const_fields.go` with all DCGM field constants and helper functions
+
+### 3. Verify the generated code
+
+Check that the generated code is correct:
+
+```bash
+make check-generate
+```
+
+This ensures the generated code is in sync with the header file.
+
+### 4. Review the changes
+
+Check what fields were added, removed, or modified:
+
+```bash
+git diff pkg/dcgm/const_fields.go
+```
+
+### 5. Test the changes
+
+Run tests to ensure the bindings work correctly:
+
+```bash
+make test-main
+```
+
 ## Validate your work
 
 All changes need to be able to pass all linting and pre-commit checks.  All tests

@@ -14,7 +14,7 @@
 
 GOLANGCILINT_TIMEOUT ?= 10m
 
-.PHONY: all binary check-format install install-pre-commit
+.PHONY: all binary check-format install install-pre-commit generate check-generate
 all: binary test-main check-format
 
 install-pre-commit:
@@ -22,7 +22,16 @@ install-pre-commit:
 	pre-commit install --config .pre-commit-config.yaml
 	@echo "Pre-commit hooks installed."
 
-binary:
+generate:
+	@echo "Generating Go code from headers..."
+	go generate ./...
+
+check-generate: generate
+	@echo "Checking if generated code is up to date..."
+	@git diff --exit-code pkg/dcgm/const_fields.go || \
+		(echo "Error: const_fields.go is out of sync. Run 'make generate'" && exit 1)
+
+binary: generate
 	go build ./pkg/dcgm
 	cd samples/deviceInfo; go build
 	cd samples/dmon; go build
@@ -37,7 +46,7 @@ binary:
 docker:
 	docker buildx bake default --load
 
-test-main:
+test-main: generate
 	go test -race -v ./tests
 	go test -v ./tests
 

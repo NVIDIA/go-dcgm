@@ -2,3 +2,12 @@
 *.swo
 tags
 .idea/
+
+# Ignore all dot files and directories
+.*
+
+# But keep these
+!.gitignore
+!.gitattributes
+!.github/
+!.gitlab/

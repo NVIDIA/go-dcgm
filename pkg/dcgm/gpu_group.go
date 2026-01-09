@@ -35,7 +35,20 @@ func GroupAllGPUs() GroupHandle {
 	return GroupHandle{C.DCGM_GROUP_ALL_GPUS}
 }
 
-// CreateGroup creates a new empty GPU group with the specified name
+// CreateGroup creates a new empty GPU group with the specified name.
+//
+// Important: Groups must be destroyed using DestroyGroup when no longer needed
+// to prevent resource leaks in the DCGM library.
+//
+// Example:
+//
+//	group, err := dcgm.CreateGroup("myGroup")
+//	if err != nil {
+//	    return err
+//	}
+//	defer dcgm.DestroyGroup(group)
+//
+//	// Use the group...
 func CreateGroup(groupName string) (goGroupId GroupHandle, err error) {
 	var cGroupID C.dcgmGpuGrp_t
 	cname := C.CString(groupName)

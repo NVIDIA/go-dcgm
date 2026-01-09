@@ -1,5 +1,7 @@
 package dcgm
 
+//go:generate go run ../../cmd/gen-fields/main.go ../../cmd/gen-fields/template.go dcgm_fields.h const_fields.go
+
 /*
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
@@ -24,9 +26,21 @@ const (
 	// defaultMaxKeepSamples specifies the default number of samples to keep
 	defaultMaxKeepSamples = 1
 
-	// fieldValuesSliceSize is the number of fields in the DCGM.
-	// See: https://docs.nvidia.com/datacenter/dcgm/latest/dcgm-api/dcgm-api-field-ids.html
-	fieldValuesSliceSize = 175
+	// fieldValuesSliceSize is the initial capacity for pooled field value slices.
+	// This is kept small to avoid wasting memory when only a few fields are needed.
+	// Note: Each C.dcgmFieldValue_v1 struct is ~4KB (due to 4096-byte value array),
+	// so even small allocations are significant:
+	//   - 2 fields = ~8 KB
+	//   - 32 fields = ~128 KB
+	//   - 128 fields (max) = ~512 KB
+	// This is a fundamental limitation of DCGM's C API which requires pre-allocated arrays.
+	fieldValuesSliceSize = 32
+
+	// poolCapacityThreshold defines the threshold above which we don't use the pool.
+	// For very large requests, it's better to allocate directly rather than grow pool slices.
+	// This is set at 2x DCGM_MAX_FIELD_IDS_PER_FIELD_GROUP to accommodate typical use cases.
+	// Beyond this threshold (~1 MB per allocation), we bypass the pool entirely.
+	poolCapacityThreshold = 256
 )
 
 // FieldMeta represents metadata about a DCGM field, including its identifier,
@@ -60,6 +74,19 @@ func (f *FieldHandle) GetHandle() uintptr {
 // fieldsGroupName is the name for the new group.
 // fields is a slice of field IDs to include in the group.
 // Returns the field group handle and any error encountered.
+//
+// Important: Field groups must be destroyed using FieldGroupDestroy when no longer
+// needed to prevent resource leaks in the DCGM library.
+//
+// Example:
+//
+//	fieldGroup, err := dcgm.FieldGroupCreate("myFields", []dcgm.Short{dcgm.DCGM_FI_DEV_POWER_USAGE})
+//	if err != nil {
+//	    return err
+//	}
+//	defer dcgm.FieldGroupDestroy(fieldGroup)
+//
+//	// Use the field group...
 func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHandle, err error) {
 	var fieldsGroup C.dcgmFieldGrp_t
 	cfields := make([]C.ushort, len(fields))
@@ -148,6 +175,17 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 	return WatchFieldsWithGroupEx(fieldsGroup, group, defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
 }
 
+// UnwatchFields stops monitoring the specified fields for a GPU group.
+// fieldsGroup is the handle to the field group to stop watching.
+// group is the handle to the GPU group to stop watching.
+func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
+	result := C.dcgmUnwatchFields(handle.handle, group.handle, fieldsGroup.handle)
+	if err := errorString(result); err != nil {
+		return fmt.Errorf("error unwatching fields: %w", err)
+	}
+	return nil
+}
+
 var fieldValuePool = sync.Pool{
 	New: func() any {
 		slice := make([]C.dcgmFieldValue_v1, 0, fieldValuesSliceSize)
@@ -164,31 +202,94 @@ var fieldValueV2Pool = sync.Pool{
 
 func acquireSlice[T any](pool *sync.Pool, size int) []T {
 	if v := pool.Get(); v != nil {
-		if slice, ok := v.([]T); ok && cap(slice) >= size {
-			return slice[:size]
+		if slice, ok := v.(*[]T); ok && cap(*slice) >= size {
+			s := *slice
+			return s[:size]
 		}
+		// Return mismatched type back to pool to avoid polluting it
+		pool.Put(v)
 	}
 	return make([]T, size)
 }
 
 func releaseSlice[T any](pool *sync.Pool, slice []T) {
+	// Clear the slice to release references to elements
+	clear(slice)
+	slice = slice[:0]
 	pool.Put(&slice)
 }
 
 func acquireFieldValueSlice(size int) []C.dcgmFieldValue_v1 {
-	return acquireSlice[C.dcgmFieldValue_v1](&fieldValuePool, size)
+	// For very large requests, don't use the pool to avoid keeping huge slices around.
+	// Note: Each dcgmFieldValue_v1 is ~4KB, so 256 elements = ~1MB.
+	// Beyond this threshold, we allocate directly and let GC handle cleanup.
+	if size > poolCapacityThreshold {
+		return make([]C.dcgmFieldValue_v1, size)
+	}
+
+	if v := fieldValuePool.Get(); v != nil {
+		if slice, ok := v.(*[]C.dcgmFieldValue_v1); ok {
+			s := *slice
+			// If the pooled slice is much larger than needed, don't use it
+			// to avoid keeping oversized slices in memory.
+			// We allow up to 4x the requested size to avoid excessive allocation churn,
+			// but beyond that we prefer a fresh allocation to avoid memory bloat.
+			if cap(s) >= size && cap(s) <= size*4 {
+				return s[:size]
+			}
+			// Return oversized slice back to pool for potential later reuse
+			fieldValuePool.Put(v)
+		} else {
+			fieldValuePool.Put(v)
+		}
+	}
+	return make([]C.dcgmFieldValue_v1, size)
 }
 
 func releaseFieldValueSlice(slice []C.dcgmFieldValue_v1) {
-	releaseSlice(&fieldValuePool, slice)
+	// Don't return very large slices to the pool
+	if cap(slice) > poolCapacityThreshold {
+		return
+	}
+	clear(slice)
+	slice = slice[:0]
+	fieldValuePool.Put(&slice)
 }
 
 func acquireFieldValueV2Slice(size int) []C.dcgmFieldValue_v2 {
-	return acquireSlice[C.dcgmFieldValue_v2](&fieldValueV2Pool, size)
+	// For very large requests, don't use the pool to avoid keeping huge slices around.
+	// Note: Each dcgmFieldValue_v2 is also ~4KB+ due to the value array.
+	// Beyond poolCapacityThreshold, we allocate directly and let GC handle cleanup.
+	if size > poolCapacityThreshold {
+		return make([]C.dcgmFieldValue_v2, size)
+	}
+
+	if v := fieldValueV2Pool.Get(); v != nil {
+		if slice, ok := v.(*[]C.dcgmFieldValue_v2); ok {
+			s := *slice
+			// If the pooled slice is much larger than needed, don't use it
+			// to avoid keeping oversized slices in memory.
+			// We allow up to 4x the requested size to balance memory usage vs allocation overhead.
+			if cap(s) >= size && cap(s) <= size*4 {
+				return s[:size]
+			}
+			// Return oversized slice back to pool for potential later reuse
+			fieldValueV2Pool.Put(v)
+		} else {
+			fieldValueV2Pool.Put(v)
+		}
+	}
+	return make([]C.dcgmFieldValue_v2, size)
 }
 
 func releaseFieldValueV2Slice(slice []C.dcgmFieldValue_v2) {
-	releaseSlice(&fieldValueV2Pool, slice)
+	// Don't return very large slices to the pool
+	if cap(slice) > poolCapacityThreshold {
+		return
+	}
+	clear(slice)
+	slice = slice[:0]
+	fieldValueV2Pool.Put(&slice)
 }
 
 // GetLatestValuesForFields retrieves the most recent values for the specified fields.

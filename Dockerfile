@@ -10,7 +10,7 @@ ARG DISTRO_FLAVOR=ubuntu24.04
 
 # Use build arguments to select our base image or just stick with the defaults above.
 FROM nvidia/cuda:$CUDA_VERSION-base-$DISTRO_FLAVOR AS base
-ARG DCGM_VERSION=4.4.2-1
+ARG DCGM_VERSION=4.5.0-1
 ARG GO_VERSION=1.25.5
 ENV DEBIAN_FRONTEND=noninteractive
 
