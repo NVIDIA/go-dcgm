@@ -186,7 +186,6 @@ type XidPolicyCondition struct {
 }
 
 var (
-	policyChanOnce   sync.Once
 	policyMapOnce    sync.Once
 	policyCleanupMux sync.Mutex
 
@@ -201,10 +200,17 @@ var (
 	// activeListeners tracks the number of active policy listeners
 	// to prevent premature cleanup of global callback channels
 	activeListeners int
+
+	// policyChannelsInitialized tracks whether policy channels have been initialized
+	// Protected by policyCleanupMux
+	policyChannelsInitialized bool
 )
 
 func makePolicyChannels() {
-	policyChanOnce.Do(func() {
+	policyCleanupMux.Lock()
+	defer policyCleanupMux.Unlock()
+
+	if !policyChannelsInitialized {
 		callbacks = make(map[string]chan PolicyViolation)
 		callbacks["dbe"] = make(chan PolicyViolation, 1)
 		callbacks["pcie"] = make(chan PolicyViolation, 1)
@@ -213,7 +219,8 @@ func makePolicyChannels() {
 		callbacks["power"] = make(chan PolicyViolation, 1)
 		callbacks["nvlink"] = make(chan PolicyViolation, 1)
 		callbacks["xid"] = make(chan PolicyViolation, 1)
-	})
+		policyChannelsInitialized = true
+	}
 }
 
 // cleanupPolicyChannels cleans up global policy callback channels.
@@ -238,8 +245,8 @@ func cleanupPolicyChannels() {
 			delete(callbacks, key)
 		}
 		callbacks = nil
-		// Reset sync.Once to allow re-initialization
-		policyChanOnce = sync.Once{}
+		// Reset the initialization flag to allow re-initialization
+		policyChannelsInitialized = false
 	}
 }
 
