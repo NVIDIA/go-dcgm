@@ -85,6 +85,11 @@ func GetDeviceInfo(gpuID uint) (Device, error) {
 	return getDeviceInfo(gpuID)
 }
 
+// GetGPUStatus returns the entity status of the specified GPU
+func GetGPUStatus(gpuID uint) EntityStatus {
+	return getGPUStatus(gpuID)
+}
+
 // GetDeviceStatus returns current status information about the specified GPU
 func GetDeviceStatus(gpuID uint) (DeviceStatus, error) {
 	return latestValuesForDevice(gpuID)

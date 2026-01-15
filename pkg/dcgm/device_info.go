@@ -233,21 +233,26 @@ func getDeviceInfo(gpuID uint) (deviceInfo Device, err error) {
 			break
 		}
 	}
+	status := getGPUStatus(gpuID)
+	if status != EntityStatusOk {
+		supported = "No"
+	}
 
 	busid := *stringPtr(&device.identifiers.pciBusId[0])
-
-	cpuAffinity, err := getCPUAffinity(gpuID)
-	if err != nil {
-		return
-	}
 
 	var (
 		topology  []P2PLink
 		bandwidth int64
+		cpuAffinity string
 	)
 
 	// get device topology and bandwidth only if its a DCGM supported device
 	if supported == "Yes" {
+		cpuAffinity, err = getCPUAffinity(gpuID)
+		if err != nil {
+			return
+		}
+
 		topology, err = getDeviceTopology(gpuID)
 		if err != nil {
 			return
