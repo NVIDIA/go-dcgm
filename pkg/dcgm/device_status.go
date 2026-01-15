@@ -11,6 +11,52 @@ import (
 	"math/rand"
 )
 
+// EntityStatus represents the status of a GPU entity
+type EntityStatus uint
+
+const (
+	// EntityStatusUnknown - Entity has not been referenced yet
+	EntityStatusUnknown EntityStatus = 0
+	// EntityStatusOk - Entity is known and OK
+	EntityStatusOk EntityStatus = 1
+	// EntityStatusUnsupported - Entity is unsupported by DCGM
+	EntityStatusUnsupported EntityStatus = 2
+	// EntityStatusInaccessible - Entity is inaccessible, usually due to cgroups
+	EntityStatusInaccessible EntityStatus = 3
+	// EntityStatusLost - Entity has been lost. Usually set from NVML returning NVML_ERROR_GPU_IS_LOST
+	EntityStatusLost EntityStatus = 4
+	// EntityStatusFake - Entity is a fake, injection-only entity for testing
+	EntityStatusFake EntityStatus = 5
+	// EntityStatusDisabled - Don't collect values from this GPU
+	EntityStatusDisabled EntityStatus = 6
+	// EntityStatusDetached - Entity is detached, not good for any uses
+	EntityStatusDetached EntityStatus = 7
+)
+
+// String returns a string representation of the entity status
+func (e EntityStatus) String() string {
+	switch e {
+	case EntityStatusUnknown:
+		return "Unknown"
+	case EntityStatusOk:
+		return "OK"
+	case EntityStatusUnsupported:
+		return "Unsupported"
+	case EntityStatusInaccessible:
+		return "Inaccessible"
+	case EntityStatusLost:
+		return "Lost"
+	case EntityStatusFake:
+		return "Fake"
+	case EntityStatusDisabled:
+		return "Disabled"
+	case EntityStatusDetached:
+		return "Detached"
+	default:
+		return fmt.Sprintf("Unknown(%d)", e)
+	}
+}
+
 // PerfState represents the performance state (P-state) of a GPU
 type PerfState uint
 
@@ -83,6 +129,15 @@ type DeviceStatus struct {
 	PCI         PCIStatusInfo
 	Performance PerfState
 	FanSpeed    int64 // %
+}
+
+func getGPUStatus(gpuID uint) EntityStatus {
+	var status C.DcgmEntityStatus_t
+	result := C.dcgmGetGpuStatus(handle.handle, C.uint(gpuID), &status)
+	if result != C.DCGM_ST_OK {
+		return EntityStatusUnknown
+	}
+	return EntityStatus(status)
 }
 
 func latestValuesForDevice(gpuId uint) (status DeviceStatus, err error) {
