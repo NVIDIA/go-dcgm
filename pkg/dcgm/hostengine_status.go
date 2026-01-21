@@ -8,6 +8,7 @@ package dcgm
 import "C"
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -17,6 +18,19 @@ type Status struct {
 	Memory int64
 	// CPU represents the current CPU utilization of the DCGM hostengine as a percentage (0-100)
 	CPU float64
+}
+
+func getHostEngineBuildInfo() (string, error) {
+	var versionInfo C.dcgmVersionInfo_v2
+	versionInfo.version = makeVersion2(unsafe.Sizeof(versionInfo))
+
+	result := C.dcgmHostengineVersionInfo(handle.handle, &versionInfo)
+	if err := errorString(result); err != nil {
+		return "", fmt.Errorf("error getting hostengine version: %s", err)
+	}
+
+	versionStr := C.GoString(&versionInfo.rawBuildInfoString[0]) // no need for stringPtr
+	return versionStr, nil
 }
 
 func introspect() (engine Status, err error) {
