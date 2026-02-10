@@ -103,7 +103,7 @@ func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHan
 	}
 
 	fieldsId = FieldHandle{fieldsGroup}
-	return
+	return fieldsId, err
 }
 
 // FieldGroupDestroy destroys a previously created field group.
@@ -114,7 +114,7 @@ func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 		err = fmt.Errorf("error destroying DCGM fields group: %s", err)
 	}
 
-	return
+	return err
 }
 
 // WatchFields starts monitoring the specified fields for a GPU.
@@ -125,12 +125,12 @@ func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 func WatchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId GroupHandle, err error) {
 	group, err := CreateGroup(groupName)
 	if err != nil {
-		return
+		return groupId, err
 	}
 
 	err = AddToGroup(group, gpuID)
 	if err != nil {
-		return
+		return groupId, err
 	}
 
 	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle, C.longlong(defaultUpdateFreq),
@@ -532,7 +532,11 @@ func Fv2_Blob(fv FieldValue_v2) [4096]byte {
 }
 
 // ToFieldMeta converts a C DCGM field metadata structure to a Go FieldMeta struct.
+// In case of an invalid fieldInfo pointer, it returns a zeroed FieldMeta.
 func ToFieldMeta(fieldInfo C.dcgm_field_meta_p) FieldMeta {
+	if fieldInfo == nil {
+		return FieldMeta{}
+	}
 	return FieldMeta{
 		FieldID:     Short(fieldInfo.fieldId),
 		FieldType:   byte(fieldInfo.fieldType),
@@ -545,8 +549,32 @@ func ToFieldMeta(fieldInfo C.dcgm_field_meta_p) FieldMeta {
 }
 
 // FieldGetByID retrieves field metadata for the specified field ID.
-func FieldGetByID(fieldId Short) FieldMeta {
-	return ToFieldMeta(C.DcgmFieldGetById(C.ushort(fieldId)))
+// Returns a zeroed FieldMeta if DCGM does not recognize the field ID.
+func FieldGetByID(fieldId Short) (FieldMeta, error) {
+	fieldInfo := C.DcgmFieldGetById(C.ushort(fieldId))
+	if fieldInfo == nil {
+		return FieldMeta{}, fmt.Errorf("field ID %d not recognized by DCGM", fieldId)
+	}
+	// If a fieldId is in the valid range 0..DCGM_FI_MAX_FIELDS but is not supported,
+	// the field metadata will be zeroed instead of a null pointer returned.
+	// The fieldType == 0 is an invalid type and an indication that the struct is zeroed.
+	if fieldInfo.fieldType == 0 {
+		return FieldMeta{}, fmt.Errorf("field ID %d is not supported by DCGM", fieldId)
+	}
+	return ToFieldMeta(fieldInfo), nil
+}
+
+// GetAllSupportedFieldsMetadata retrieves metadata for all supported DCGM fields.
+// It returns a map of field IDs to their corresponding FieldMeta information.
+// Unsupported fields are excluded from the resulting map.
+func GetAllSupportedFieldsMetadata() map[Short]FieldMeta {
+	fields := make(map[Short]FieldMeta)
+	for _, id := range dcgmFields {
+		if fieldInfo, err := FieldGetByID(id); err == nil {
+			fields[id] = fieldInfo
+		}
+	}
+	return fields
 }
 
 // FieldsInit initializes the DCGM fields module.
