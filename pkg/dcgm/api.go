@@ -168,6 +168,17 @@ func Introspect() (Status, error) {
 	return introspect()
 }
 
+// GetVersionInfo returns build environment information for the DCGM client library.
+func GetVersionInfo() (VersionInfo, error) {
+	return versionInfo()
+}
+
+// GetHostengineVersionInfo returns build environment information for the DCGM host engine.
+// Requires an active connection (Init must have been called).
+func GetHostengineVersionInfo() (VersionInfo, error) {
+	return hostengineVersionInfo()
+}
+
 // GetSupportedMetricGroups returns all supported metric groups for the specified GPU
 func GetSupportedMetricGroups(gpuID uint) ([]MetricGroup, error) {
 	return getSupportedMetricGroups(gpuID)
