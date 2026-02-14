@@ -165,3 +165,37 @@ func TestHostEngineStatusWithLoad(t *testing.T) {
 		t.Error("CPU usage should not be negative")
 	}
 }
+
+// TestGetVersionInfo verifies DCGM client library version/build info can be retrieved.
+func TestGetVersionInfo(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	defer cleanup()
+
+	info, err := dcgm.GetVersionInfo()
+	if err != nil {
+		t.Fatalf("VersionInfo failed: %v", err)
+	}
+
+	t.Logf("DCGM library build info: %q", info.RawBuildInfoString)
+	// Build info is optional and format is implementation-defined; we only require no error.
+}
+
+// TestGetHostengineVersionInfo verifies DCGM host engine version/build info can be retrieved.
+func TestGetHostengineVersionInfo(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	defer cleanup()
+
+	info, err := dcgm.GetHostengineVersionInfo()
+	if err != nil {
+		t.Fatalf("GetHostengineVersionInfo failed: %v", err)
+	}
+
+	t.Logf("DCGM host engine build info: %q", info.RawBuildInfoString)
+	// Build info is optional and format is implementation-defined; we only require no error.
+}
