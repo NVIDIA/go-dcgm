@@ -11,8 +11,6 @@ import (
 	"unsafe"
 )
 
-// Package dcgm provides bindings for NVIDIA's Data Center GPU Manager (DCGM)
-
 // DIAG_RESULT_STRING_SIZE represents the maximum size of diagnostic result strings
 const DIAG_RESULT_STRING_SIZE = 1024
 
