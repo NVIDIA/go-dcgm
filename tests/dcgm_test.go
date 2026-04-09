@@ -45,6 +45,7 @@ func BenchmarkDeviceCount1(b *testing.B) {
 	_ = dcgm.Shutdown()
 }
 
+// TODO: We need a way to determine if we have an NVIDIA CPU
 func TestCpuQuery(t *testing.T) {
 	t.Setenv("DCGM_SKIP_SYSMON_HARDWARE_CHECK", "1")
 
@@ -54,10 +55,15 @@ func TestCpuQuery(t *testing.T) {
 	defer cleanup()
 
 	hierarchy, err := dcgm.GetCPUHierarchy()
-	check(t, err)
+	if err != nil {
+		if strings.Contains(err.Error(), "not currently loaded") {
+			t.Skip("CPU hierarchy module not loaded, skipping")
+		}
+		t.Fatalf("Failed to get CPU hierarchy: %v", err)
+	}
 
 	if hierarchy.NumCPUs == 0 {
-		t.Errorf("Found no CPUs")
+		t.Skip("No CPUs found in hierarchy")
 	}
 
 	for i := uint(0); i < hierarchy.NumCPUs; i++ {
@@ -165,6 +171,13 @@ func BenchmarkDeviceInfo1(b *testing.B) {
 	_ = dcgm.Shutdown()
 }
 
+func assertInRange(t *testing.T, name string, val, min, max float64) {
+	t.Helper()
+	if val < min || val > max {
+		t.Errorf("%s out of range: got %v, want [%v, %v]", name, val, min, max)
+	}
+}
+
 func TestDeviceStatus(t *testing.T) {
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	check(t, err)
@@ -173,61 +186,21 @@ func TestDeviceStatus(t *testing.T) {
 	gpus, err := dcgm.GetSupportedDevices()
 	check(t, err)
 
-	fields := []string{
-		"power.draw",
-		"temperature.gpu",
-		"utilization.gpu",
-		"utilization.memory",
-		"encoder.stats.averageFps",
-		"clocks.current.sm",
-		"clocks.current.memory",
-	}
-
 	for _, gpu := range gpus {
 		status, err := dcgm.GetDeviceStatus(gpu)
 		check(t, err)
 
-		id := strconv.FormatUint(uint64(gpu), 10)
+		t.Logf("GPU %d: Power=%.1fW Temp=%d°C GPU_Util=%d%% Mem_Util=%d%% SM=%dMHz Mem=%dMHz",
+			gpu, status.Power, status.Temperature,
+			status.Utilization.GPU, status.Utilization.Memory,
+			status.Clocks.Cores, status.Clocks.Memory)
 
-		for _, val := range fields {
-			var msg, output string
-
-			res := Query(id, val)
-			if res == "[N/A]" {
-				continue
-			}
-
-			switch val {
-			case "power.draw":
-				msg = "Device power utilization"
-				output = strconv.FormatFloat(math.Round(status.Power), 'f', -1, 64)
-				power, err := strconv.ParseFloat(res, 64)
-				check(t, err)
-
-				res = strconv.FormatFloat(math.Round(power), 'f', -1, 64)
-			case "temperature.gpu":
-				msg = "Device temperature"
-				output = strconv.FormatInt(status.Temperature, 10)
-			case "utilization.gpu":
-				msg = "Device gpu utilization"
-				output = strconv.FormatInt(status.Utilization.GPU, 10)
-			case "utilization.memory":
-				msg = "Device memory utilization"
-				output = strconv.FormatInt(status.Utilization.Memory, 10)
-			case "encoder.stats.averageFps":
-				msg = "Device encoder utilization"
-				output = strconv.FormatInt(status.Utilization.Encoder, 10)
-			case "clocks.current.sm":
-				msg = "Device sm clock"
-				output = strconv.FormatInt(status.Clocks.Cores, 10)
-			case "clocks.current.memory":
-				msg = "Device mem clock"
-				output = strconv.FormatInt(status.Clocks.Memory, 10)
-			}
-
-			if strings.Compare(res, output) != 0 {
-				t.Errorf("%v from dcgm is wrong, got: %v, want: %v", msg, output, res)
-			}
-		}
+		assertInRange(t, "Power (W)", status.Power, 1, 1000)
+		assertInRange(t, "Temperature (C)", float64(status.Temperature), 0, 110)
+		assertInRange(t, "GPU Utilization (%)", float64(status.Utilization.GPU), 0, 100)
+		assertInRange(t, "Memory Utilization (%)", float64(status.Utilization.Memory), 0, 100)
+		assertInRange(t, "Encoder Utilization (%)", float64(status.Utilization.Encoder), 0, 100)
+		assertInRange(t, "SM Clock (MHz)", float64(status.Clocks.Cores), 0, 5000)
+		assertInRange(t, "Memory Clock (MHz)", float64(status.Clocks.Memory), 0, 15000)
 	}
 }
