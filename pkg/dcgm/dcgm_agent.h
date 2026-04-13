@@ -2043,6 +2043,9 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmModuleGetStatuses(dcgmHandle_t pDcgmHandle, dcg
 /**
  * Get all of the profiling metric groups for a given GPU group.
  *
+ * The behavior of this API differs depending on the GPU architecture:
+ *
+ * **Ampere and Older GPUs (Profiling Module):**
  * Profiling metrics are watched in groups of fields that are all watched together. For instance, if you want
  * to watch DCGM_FI_PROF_GR_ENGINE_ACTIVITY, this might also be in the same group as DCGM_FI_PROF_SM_EFFICIENCY.
  * Watching this group would result in DCGM storing values for both of these metrics.
@@ -2053,6 +2056,12 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmModuleGetStatuses(dcgmHandle_t pDcgmHandle, dcg
  * DCGM_FI_PROF_NVLINK_TX_DATA.
  *
  * Metrics that can be watched concurrently will have different .majorId fields in their dcgmProfMetricGroupInfo_t
+ *
+ * **Hopper and Newer GPUs (GPM (GPU Performance Monitoring) Module):**
+ * GPM metrics are obtained from NVML's GPM APIs that capture all performance metrics data together. The metrics are
+ * still organized into groups for convenience and API consistency with older architectures. These groups do not have
+ * the same concurrency restrictions as on older architectures. On these platforms, all GPM metric and profiling groups
+ * can be watched concurrently without hardware resource conflicts.
  *
  * See \ref dcgmGroupCreate for details on creating a GPU group
  * See \ref dcgmWatchFields to actually watch the underlying profiling fields

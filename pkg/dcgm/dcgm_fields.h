@@ -730,6 +730,17 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_FABRIC_HEALTH_MASK 174
 
 /**
+ * GPU Fabric health Summary.
+ * Represents the overall health of the GPU Fabric.
+ * Returns one of:
+ * - NVML_GPU_FABRIC_HEALTH_SUMMARY_NOT_SUPPORTED    (0)
+ * - NVML_GPU_FABRIC_HEALTH_SUMMARY_HEALTHY          (1)
+ * - NVML_GPU_FABRIC_HEALTH_SUMMARY_UNHEALTHY        (2)
+ * - NVML_GPU_FABRIC_HEALTH_SUMMARY_LIMITED_CAPACITY (3)
+ */
+#define DCGM_FI_DEV_FABRIC_HEALTH_SUMMARY 175
+
+/**
  * Performance state (P-State) 0-15. 0=highest
  */
 #define DCGM_FI_DEV_PSTATE 190
@@ -1402,39 +1413,39 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_TOTAL 439
 
 /*
- * NV Link Bandwidth Counter for Lane 0
+ * NV Link Throughput for Lane 0
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L0 440
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L0 440
 
 /*
- * NV Link Bandwidth Counter for Lane 1
+ * NV Link Throughput for Lane 1
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L1 441
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L1 441
 
 /*
- * NV Link Bandwidth Counter for Lane 2
+ * NV Link Throughput for Lane 2
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L2 442
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L2 442
 
 /*
- * NV Link Bandwidth Counter for Lane 3
+ * NV Link Throughput for Lane 3
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L3 443
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L3 443
 
 /*
- * NV Link Bandwidth Counter for Lane 4
+ * NV Link Throughput for Lane 4
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L4 444
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L4 444
 
 /*
- * NV Link Bandwidth Counter for Lane 5
+ * NV Link Throughput for Lane 5
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L5 445
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L5 445
 
 /*
- * NV Link Bandwidth Counter total for all Lanes
+ * NV Link Throughput total for all Lanes
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL 449
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_TOTAL 449
 
 /*
  * GPU NVLink error information
@@ -1562,34 +1573,34 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L11 474
 
 /*
- * NV Link Bandwidth Counter for Lane 6
+ * NV Link Throughput for Lane 6
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L6 475
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L6 475
 
 /*
- * NV Link Bandwidth Counter for Lane 7
+ * NV Link Throughput for Lane 7
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L7 476
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L7 476
 
 /*
- * NV Link Bandwidth Counter for Lane 8
+ * NV Link Throughput for Lane 8
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L8 477
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L8 477
 
 /*
- * NV Link Bandwidth Counter for Lane 9
+ * NV Link Throughput for Lane 9
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L9 478
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L9 478
 
 /*
- * NV Link Bandwidth Counter for Lane 10
+ * NV Link Throughput for Lane 10
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L10 479
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L10 479
 
 /*
- * NV Link Bandwidth Counter for Lane 11
+ * NV Link Throughput for Lane 11
  */
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L11 480
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L11 480
 
 #define DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L12 406
 #define DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L13 407
@@ -1619,12 +1630,12 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L16 492
 #define DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L17 493
 
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L12 446
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L13 447
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L14 448
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L15 494
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L16 495
-#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L17 496
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L12 446
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L13 447
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L14 448
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L15 494
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L16 495
+#define DCGM_FI_DEV_NVLINK_THROUGHPUT_L17 496
 
 /*
  * NVLink CRC Error Counter
@@ -2199,99 +2210,99 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVSWITCH_LINK_ECC_ERRORS_LANE7 824
 
 /**
- * NV Link TX Bandwidth Counter for Lane 0
+ * NV Link TX Throughput for Lane 0
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L0 825
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L0 825
 
 /**
- * NV Link TX Bandwidth Counter for Lane 1
+ * NV Link TX Throughput for Lane 1
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L1 826
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L1 826
 
 /**
- * NV Link TX Bandwidth Counter for Lane 2
+ * NV Link TX Throughput for Lane 2
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L2 827
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L2 827
 
 /**
- * NV Link TX Bandwidth Counter for Lane 3
+ * NV Link TX Throughput for Lane 3
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L3 828
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L3 828
 
 /**
- * NV Link TX Bandwidth Counter for Lane 4
+ * NV Link TX Throughput for Lane 4
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L4 829
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L4 829
 
 /**
- * NV Link TX Bandwidth Counter for Lane 5
+ * NV Link TX Throughput for Lane 5
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L5 830
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L5 830
 
 /**
- * NV Link TX Bandwidth Counter for Lane 6
+ * NV Link TX Throughput for Lane 6
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L6 831
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L6 831
 
 /**
- * NV Link TX Bandwidth Counter for Lane 7
+ * NV Link TX Throughput for Lane 7
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L7 832
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L7 832
 
 /**
- * NV Link TX Bandwidth Counter for Lane 8
+ * NV Link TX Throughput for Lane 8
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L8 833
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L8 833
 
 /**
- * NV Link TX Bandwidth Counter for Lane 9
+ * NV Link TX Throughput for Lane 9
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L9 834
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L9 834
 
 /**
- * NV Link TX Bandwidth Counter for Lane 10
+ * NV Link TX Throughput for Lane 10
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L10 835
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L10 835
 
 /**
- * NV Link TX Bandwidth Counter for Lane 11
+ * NV Link TX Throughput for Lane 11
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L11 836
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L11 836
 
 /**
- * NV Link TX Bandwidth Counter for Lane 12
+ * NV Link TX Throughput for Lane 12
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L12 837
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L12 837
 
 /**
- * NV Link TX Bandwidth Counter for Lane 13
+ * NV Link TX Throughput for Lane 13
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L13 838
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L13 838
 
 /**
- * NV Link TX Bandwidth Counter for Lane 14
+ * NV Link TX Throughput for Lane 14
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L14 839
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L14 839
 
 /**
- * NV Link TX Bandwidth Counter for Lane 15
+ * NV Link TX Throughput for Lane 15
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L15 840
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L15 840
 
 /**
- * NV Link TX Bandwidth Counter for Lane 16
+ * NV Link TX Throughput for Lane 16
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L16 841
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L16 841
 
 /**
- * NV Link TX Bandwidth Counter for Lane 17
+ * NV Link TX Throughput for Lane 17
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L17 842
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L17 842
 
 /**
- * NV Link Bandwidth Counter total for all TX Lanes
+ * NV Link Throughput total for all TX Lanes
  */
-#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL 843
+#define DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_TOTAL 843
 
 /**
  * NVSwitch fatal error information.
@@ -2371,7 +2382,7 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVSWITCH_LINK_STATUS 870
 
 /**
- * NvLink device type (GPU/Switch).
+ * NvLink device type (NSCQ: GPU=1, Switch=2; NVSDM: CA=1, Switch=2, GPU=5)
  */
 #define DCGM_FI_DEV_NVSWITCH_LINK_TYPE 871
 
@@ -2410,99 +2421,99 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVSWITCH_DEVICE_UUID 878
 
 /**
- * NV Link RX Bandwidth Counter for Lane 0
+ * NV Link RX Throughput for Lane 0
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0 879
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L0 879
 
 /**
- * NV Link RX Bandwidth Counter for Lane 1
+ * NV Link RX Throughput for Lane 1
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1 880
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L1 880
 
 /**
- * NV Link RX Bandwidth Counter for Lane 2
+ * NV Link RX Throughput for Lane 2
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2 881
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L2 881
 
 /**
- * NV Link RX Bandwidth Counter for Lane 3
+ * NV Link RX Throughput for Lane 3
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3 882
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L3 882
 
 /**
- * NV Link RX Bandwidth Counter for Lane 4
+ * NV Link RX Throughput for Lane 4
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4 883
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L4 883
 
 /**
- * NV Link RX Bandwidth Counter for Lane 5
+ * NV Link RX Throughput for Lane 5
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5 884
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L5 884
 
 /**
- * NV Link RX Bandwidth Counter for Lane 6
+ * NV Link RX Throughput for Lane 6
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6 885
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L6 885
 
 /**
- * NV Link RX Bandwidth Counter for Lane 7
+ * NV Link RX Throughput for Lane 7
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7 886
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L7 886
 
 /**
- * NV Link RX Bandwidth Counter for Lane 8
+ * NV Link RX Throughput for Lane 8
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8 887
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L8 887
 
 /**
- * NV Link RX Bandwidth Counter for Lane 9
+ * NV Link RX Throughput for Lane 9
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9 888
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L9 888
 
 /**
- * NV Link RX Bandwidth Counter for Lane 10
+ * NV Link RX Throughput for Lane 10
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10 889
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L10 889
 
 /**
- * NV Link RX Bandwidth Counter for Lane 11
+ * NV Link RX Throughput for Lane 11
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11 890
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L11 890
 
 /**
- * NV Link RX Bandwidth Counter for Lane 12
+ * NV Link RX Throughput for Lane 12
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L12 891
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L12 891
 
 /**
- * NV Link RX Bandwidth Counter for Lane 13
+ * NV Link RX Throughput for Lane 13
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L13 892
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L13 892
 
 /**
- * NV Link RX Bandwidth Counter for Lane 14
+ * NV Link RX Throughput for Lane 14
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L14 893
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L14 893
 
 /**
- * NV Link RX Bandwidth Counter for Lane 15
+ * NV Link RX Throughput for Lane 15
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L15 894
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L15 894
 
 /**
- * NV Link RX Bandwidth Counter for Lane 16
+ * NV Link RX Throughput for Lane 16
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L16 895
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L16 895
 
 /**
- * NV Link RX Bandwidth Counter for Lane 17
+ * NV Link RX Throughput for Lane 17
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L17 896
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L17 896
 
 /**
- * NV Link Bandwidth Counter total for all RX Lanes
+ * NV Link Throughput total for all RX Lanes
  */
-#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL 897
+#define DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_TOTAL 897
 
 /**
  * Last field ID of the NVSwitch instance
@@ -2822,101 +2833,121 @@ typedef unsigned int dcgm_field_eid_t;
 
 /**
  * Total Tx packets on the link in NVLink5
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_TX_PACKETS 1200
 
 /**
  * Total Tx bytes on the link in NVLink5
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_TX_BYTES 1201
 
 /**
  * Total Rx packets on the link in NVLink5
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_PACKETS 1202
 
 /**
  * Total Rx bytes on the link in NVLink5
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_BYTES 1203
 
 /**
  * Number of packets Rx on a link where packets are malformed
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_MALFORMED_PACKET_ERRORS 1204
 
 /**
  * Number of packets that were discarded on Rx due to buffer overrun
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_BUFFER_OVERRUN_ERRORS 1205
 
 /**
  * Total number of packets with errors Rx on a link
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_ERRORS 1206
 
 /**
  * Total number of packets Rx - stomp/EBP marker
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_REMOTE_ERRORS 1207
 
 /**
  * Total number of packets Rx with header mismatch
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_GENERAL_ERRORS 1208
 
 /**
  * Total number of times that the count of local errors exceeded a threshold
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_LOCAL_LINK_INTEGRITY_ERRORS 1209
 
 /**
  * Total number of tx error packets that were discarded
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS 1210
 
 /**
  * Number of times link went from Up to recovery, succeeded and link came back up
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_SUCCESSFUL_EVENTS 1211
 
 /**
  * Number of times link went from Up to recovery, failed and link was declared down
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_FAILED_EVENTS 1212
 
 /**
  * Number of times link went from Up to recovery, irrespective of the result
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_EVENTS 1213
 
 /**
  * Number of errors in rx symbols
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_SYMBOL_ERRORS 1214
 
 /**
  * BER for symbol errors - raw value
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER 1215
 
 /**
  * BER for symbol errors - decoded float (derived from DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER)
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER_FLOAT 1216
 
 /**
  * Effective BER for effective errors - raw value
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER 1217
 
 /**
  * Effective BER for effective errors - decoded float (derived from DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER)
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER_FLOAT 1218
 
 /**
  * Sum of the number of errors in each Nvlink packet
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 #define DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS 1219
 
@@ -3020,95 +3051,111 @@ typedef unsigned int dcgm_field_eid_t;
 
 /**
  * Count of symbol errors that are corrected - bin 0
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0 1404
 
 /**
  * Count of symbol errors that are corrected - bin 1
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1 1405
 
 /**
  * Count of symbol errors that are corrected - bin 2
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2 1406
 
 /**
  * Count of symbol errors that are corrected - bin 3
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3 1407
 
 /**
  * Count of symbol errors that are corrected - bin 4
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4 1408
 
 /**
  * Count of symbol errors that are corrected - bin 5
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5 1409
 
 /**
  * Count of symbol errors that are corrected - bin 6
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6 1410
 
 /**
  * Count of symbol errors that are corrected - bin 7
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7 1411
 
 /**
  * Count of symbol errors that are corrected - bin 8
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8 1412
 
 /**
  * Count of symbol errors that are corrected - bin 9
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9 1413
 
 /**
  * Count of symbol errors that are corrected - bin 10
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10 1414
 
 /**
  * Count of symbol errors that are corrected - bin 11
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11 1415
 
 /**
  * Count of symbol errors that are corrected - bin 12
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12 1416
 /**
  * Count of symbol errors that are corrected - bin 13
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13 1417
 
 /**
  * Count of symbol errors that are corrected - bin 14
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14 1418
 
 /**
  * Count of symbol errors that are corrected - bin 15
+ * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
 #define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15 1419
@@ -3356,10 +3403,93 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_GET_GPU_RECOVERY_ACTION 1523
 
 /**
+ * NVSwitch firmware version string
+ */
+#define DCGM_FI_DEV_NVSWITCH_FIRMWARE_VERSION 1524
+
+/**
  * 1 greater than maximum fields above. This is the 1 greater
  * than the maximum field id that could be allocated.
  */
-#define DCGM_FI_MAX_FIELDS (DCGM_FI_DEV_GET_GPU_RECOVERY_ACTION + 1)
+#define DCGM_FI_MAX_FIELDS (DCGM_FI_DEV_NVSWITCH_FIRMWARE_VERSION + 1)
+
+/** @} */
+
+/*****************************************************************************/
+/** @defgroup deprecated field names.
+ *  These will eventually be removed but are defined here for backward
+ *  compatibility.
+ *  @{
+ */
+
+#define DCGM_DEPRECATED
+
+/* If this symbol is defined the following deprecated symbols will be defined
+   for backward compatibility. Not defining it lets us test that Nvidia DCGM
+   code does not depend on deprecated symbols.
+*/
+
+#ifdef DCGM_DEPRECATED
+
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L0    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L0
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L1    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L1
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L2    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L2
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L3    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L3
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L4    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L4
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L5    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L5
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L6    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L6
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L7    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L7
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L8    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L8
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L9    DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L9
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L10   DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L10
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L11   DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L11
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L12   DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L12
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L13   DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L13
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L14   DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L14
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L15   DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L15
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L16   DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L16
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_L17   DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_L17
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L0       DCGM_FI_DEV_NVLINK_THROUGHPUT_L0
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L1       DCGM_FI_DEV_NVLINK_THROUGHPUT_L1
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L2       DCGM_FI_DEV_NVLINK_THROUGHPUT_L2
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L3       DCGM_FI_DEV_NVLINK_THROUGHPUT_L3
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L4       DCGM_FI_DEV_NVLINK_THROUGHPUT_L4
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L5       DCGM_FI_DEV_NVLINK_THROUGHPUT_L5
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_TOTAL DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_TOTAL
+#define DCGM_FI_DEV_NVLINK_RX_BANDWIDTH_TOTAL DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_TOTAL
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL    DCGM_FI_DEV_NVLINK_THROUGHPUT_TOTAL
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L6       DCGM_FI_DEV_NVLINK_THROUGHPUT_L6
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L7       DCGM_FI_DEV_NVLINK_THROUGHPUT_L7
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L8       DCGM_FI_DEV_NVLINK_THROUGHPUT_L8
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L9       DCGM_FI_DEV_NVLINK_THROUGHPUT_L9
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L10      DCGM_FI_DEV_NVLINK_THROUGHPUT_L10
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L11      DCGM_FI_DEV_NVLINK_THROUGHPUT_L11
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L12      DCGM_FI_DEV_NVLINK_THROUGHPUT_L12
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L13      DCGM_FI_DEV_NVLINK_THROUGHPUT_L13
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L14      DCGM_FI_DEV_NVLINK_THROUGHPUT_L14
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L15      DCGM_FI_DEV_NVLINK_THROUGHPUT_L15
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L16      DCGM_FI_DEV_NVLINK_THROUGHPUT_L16
+#define DCGM_FI_DEV_NVLINK_BANDWIDTH_L17      DCGM_FI_DEV_NVLINK_THROUGHPUT_L17
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L0    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L0
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L1    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L1
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L2    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L2
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L3    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L3
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L4    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L4
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L5    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L5
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L6    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L6
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L7    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L7
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L8    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L8
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L9    DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L9
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L10   DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L10
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L11   DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L11
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L12   DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L12
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L13   DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L13
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L14   DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L14
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L15   DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L15
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L16   DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L16
+#define DCGM_FI_DEV_NVLINK_TX_BANDWIDTH_L17   DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_L17
+
+#endif
 
 /** @} */
 
