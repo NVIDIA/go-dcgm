@@ -499,8 +499,36 @@ const (
 	DCGM_FR_BROKEN_P2P_NVLINK_MEMORY_DEVICE HealthCheckErrorCode = 115
 	// DCGM_FR_BROKEN_P2P_NVLINK_WRITER_DEVICE P2P copy test detected an error writing from this GPU over NVLink
 	DCGM_FR_BROKEN_P2P_NVLINK_WRITER_DEVICE HealthCheckErrorCode = 116
+	// DCGM_FR_TEST_SKIPPED Indicates that the test was skipped
+	DCGM_FR_TEST_SKIPPED HealthCheckErrorCode = 117
+	// DCGM_FR_SRAM_THRESHOLD SRAM Threshold Count exceeded
+	DCGM_FR_SRAM_THRESHOLD HealthCheckErrorCode = 118
+	// DCGM_FR_NVLINK_EFFECTIVE_BER_THRESHOLD Effective BER threshold exceeded
+	DCGM_FR_NVLINK_EFFECTIVE_BER_THRESHOLD HealthCheckErrorCode = 119
+	// DCGM_FR_FALLEN_OFF_BUS GPU has fallen off the bus
+	DCGM_FR_FALLEN_OFF_BUS HealthCheckErrorCode = 120
+	// DCGM_FR_NVLINK_SYMBOL_BER_THRESHOLD Symbol BER threshold exceeded
+	DCGM_FR_NVLINK_SYMBOL_BER_THRESHOLD HealthCheckErrorCode = 121
+	// DCGM_FR_IMEX_UNHEALTHY IMEX domain or daemon status is unhealthy
+	DCGM_FR_IMEX_UNHEALTHY HealthCheckErrorCode = 122
+	// DCGM_FR_FABRIC_PROBE_STATE Fabric probe state error
+	DCGM_FR_FABRIC_PROBE_STATE HealthCheckErrorCode = 123
+	// DCGM_FR_BINARY_PERMISSIONS Binary permissions are incorrect
+	DCGM_FR_BINARY_PERMISSIONS HealthCheckErrorCode = 124
+	// DCGM_FR_GPU_RECOVERY_RESET GPU requires reset to recover from a fault
+	DCGM_FR_GPU_RECOVERY_RESET HealthCheckErrorCode = 125
+	// DCGM_FR_GPU_RECOVERY_REBOOT Node requires reboot due to GPU fault
+	DCGM_FR_GPU_RECOVERY_REBOOT HealthCheckErrorCode = 126
+	// DCGM_FR_GPU_RECOVERY_DRAIN_P2P Peer-to-peer traffic must be drained
+	DCGM_FR_GPU_RECOVERY_DRAIN_P2P HealthCheckErrorCode = 127
+	// DCGM_FR_GPU_RECOVERY_DRAIN_RESET GPU operating at reduced capacity, drain and reset required
+	DCGM_FR_GPU_RECOVERY_DRAIN_RESET HealthCheckErrorCode = 128
+	// DCGM_FR_NCCL_ERROR Detected a NCCL error
+	DCGM_FR_NCCL_ERROR HealthCheckErrorCode = 129
+	// DCGM_FR_RETEST_REQUESTED Retest requested before providing results
+	DCGM_FR_RETEST_REQUESTED HealthCheckErrorCode = 130
 	// DCGM_FR_ERROR_SENTINEL MUST BE THE LAST ERROR CODE
-	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 117
+	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 131
 )
 
 // DcgmBindUnbindEventState represents the state of GPU bind/unbind events
