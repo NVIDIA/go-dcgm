@@ -25,6 +25,7 @@ install-pre-commit:
 generate:
 	@echo "Generating Go code from headers..."
 	go generate ./...
+	gofmt -w pkg/dcgm/const_fields.go
 
 check-generate: generate
 	@echo "Checking if generated code is up to date..."
