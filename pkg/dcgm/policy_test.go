@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"log"
 	"strings"
 	"testing"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 // secureRandomUint returns a random uint in the range [1, max]
@@ -782,4 +784,276 @@ func TestClearPolicyForGroup(t *testing.T) {
 // Helper function to create pointer to uint32
 func ptrUint32(v uint32) *uint32 {
 	return &v
+}
+
+// Test helpers for policy fan-in invariants.
+// Key assumptions:
+//   - ViolationRegistration must stay bounded even when callback queues are full.
+//   - pinPolicyState prevents leaked cleanup goroutines from niling callbacks mid-test.
+//   - goleak.IgnoreCurrent() excludes DCGM background goroutines started by Init.
+
+// resetPolicyChannels rebuilds the per-condition channels and fails fast if a prior test leaked a listener.
+func resetPolicyChannels(t *testing.T) {
+	t.Helper()
+	policyCleanupMux.Lock()
+	listeners := activeListeners
+	policyCleanupMux.Unlock()
+	require.Zero(t, listeners,
+		"policy channels reset requires activeListeners==0; got %d (likely a leak from a prior test)",
+		listeners)
+	cleanupPolicyChannels()
+	makePolicyChannels()
+}
+
+// fillPolicyChannel saturates the per-condition channel for `key` with zero-valued sentinels.
+func fillPolicyChannel(t *testing.T, key string) {
+	t.Helper()
+	for i := 0; i < cap(callbacks[key]); i++ {
+		select {
+		case callbacks[key] <- PolicyViolation{}:
+		default:
+			t.Fatalf("fillPolicyChannel: %s already full at iteration %d (precondition broken)", key, i)
+		}
+	}
+}
+
+// TestViolationRegistration_BoundedTime asserts the cgo callback never blocks on a full per-condition channel.
+func TestViolationRegistration_BoundedTime(t *testing.T) {
+	conditions := []string{"dbe", "pcie", "maxrtpg", "thermal", "power", "nvlink", "xid"}
+	for _, key := range conditions {
+		t.Run(key, func(t *testing.T) {
+			resetPolicyChannels(t)
+			fillPolicyChannel(t, key)
+
+			done := make(chan struct{})
+			go func() {
+				fireFakePolicyCallback(key)
+				close(done)
+			}()
+
+			select {
+			case <-done:
+			case <-time.After(100 * time.Millisecond):
+				t.Fatalf("ViolationRegistration blocked on full %s channel", key)
+			}
+		})
+	}
+}
+
+// TestViolationRegistration_DropCounterAccuracy asserts droppedPolicyViolations increments exactly once per drop.
+func TestViolationRegistration_DropCounterAccuracy(t *testing.T) {
+	resetPolicyChannels(t)
+	fillPolicyChannel(t, "xid")
+
+	const N = 5
+	before := droppedPolicyViolations.Load()
+	for i := 0; i < N; i++ {
+		fireFakePolicyCallback("xid")
+	}
+	got := droppedPolicyViolations.Load() - before
+	require.Equal(t, uint64(N), got, "expected exactly %d drops, got %d", N, got)
+}
+
+// TestRegisterPolicy_SetPolicyFailureNoLeak asserts activeListeners net-zeroes when setPolicy fails before cgo registration.
+func TestRegisterPolicy_SetPolicyFailureNoLeak(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup(t)
+
+	policyCleanupMux.Lock()
+	listenersBefore := activeListeners
+	policyCleanupMux.Unlock()
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	defer cancelCtx()
+
+	var bogus GroupHandle
+	bogus.SetHandle(^uintptr(0)) // out-of-range handle forces dcgmPolicySet -> DCGM_ST_BADPARAM
+
+	ch, err := registerPolicy(ctx, bogus, XidPolicy)
+	require.Error(t, err, "registerPolicy must fail with an out-of-range GroupHandle")
+	require.Nil(t, ch)
+
+	policyCleanupMux.Lock()
+	listenersAfter := activeListeners
+	policyCleanupMux.Unlock()
+	require.Equal(t, listenersBefore, listenersAfter,
+		"activeListeners must net-zero after failed register; before=%d after=%d",
+		listenersBefore, listenersAfter)
+}
+
+// TestRegisterPolicy_LifecycleNoLeak asserts both fan-in and cleanup goroutines exit when the caller cancels.
+func TestRegisterPolicy_LifecycleNoLeak(t *testing.T) {
+	cleanup := setupTest(t)
+	defer cleanup(t)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	group := GroupAllGPUs()
+	ch, err := registerPolicy(ctx, group, XidPolicy)
+	require.NoError(t, err)
+	require.NotNil(t, ch)
+
+	cancel()
+
+	for range ch {
+	}
+
+	waitForNoActiveListeners(t)
+}
+
+// TestViolationRegistration_RecoversAfterDrop asserts post-drain sends succeed after a non-blocking drop.
+func TestViolationRegistration_RecoversAfterDrop(t *testing.T) {
+	resetPolicyChannels(t)
+	fillPolicyChannel(t, "xid")
+
+	fireFakePolicyCallback("xid")
+
+	for len(callbacks["xid"]) > 0 {
+		<-callbacks["xid"]
+	}
+
+	fireFakePolicyCallback("xid")
+	require.Equal(t, 1, len(callbacks["xid"]), "post-drain send must enqueue")
+}
+
+// policyRegisterer is the shared signature of registerPolicy and registerPolicyOnly.
+type policyRegisterer func(context.Context, GroupHandle, ...PolicyCondition) (<-chan PolicyViolation, error)
+
+// withPolicyRegisterStub swaps dcgmPolicyRegisterFn for `stub` for the test's lifetime. Not parallel-safe.
+func withPolicyRegisterStub(t *testing.T, stub func(GroupHandle, uint64) error) {
+	t.Helper()
+	orig := dcgmPolicyRegisterFn
+	dcgmPolicyRegisterFn = stub
+	t.Cleanup(func() {
+		dcgmPolicyRegisterFn = orig
+	})
+}
+
+// waitForNoActiveListeners polls activeListeners until it returns to zero or the deadline elapses.
+func waitForNoActiveListeners(t *testing.T) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		policyCleanupMux.Lock()
+		defer policyCleanupMux.Unlock()
+		return activeListeners == 0
+	}, 2*time.Second, 10*time.Millisecond, "expected activeListeners to return to zero")
+}
+
+// pinPolicyState parks activeListeners at a sentinel so leaked cleanup goroutines cannot nil the callbacks map. See header.
+func pinPolicyState(t *testing.T) {
+	t.Helper()
+	const pin = 1 << 20
+
+	policyCleanupMux.Lock()
+	callbacks = nil
+	policyChannelsInitialized = false
+	activeListeners = pin
+	policyCleanupMux.Unlock()
+
+	t.Cleanup(func() {
+		policyCleanupMux.Lock()
+		callbacks = nil
+		policyChannelsInitialized = false
+		activeListeners = 0
+		policyCleanupMux.Unlock()
+	})
+}
+
+// waitForPolicyChannelDrain blocks until the per-condition channel for `key` is empty.
+func waitForPolicyChannelDrain(t *testing.T, key string) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		ch, ok := callbacks[key]
+		return ok && len(ch) == 0
+	}, time.Second, 10*time.Millisecond, "expected %s callback queue to drain", key)
+}
+
+// TestRunPolicyFanIn_CancellationUnblocksPendingSend asserts a fan-in parked on a blocking send exits within 2s of cancel.
+func TestRunPolicyFanIn_CancellationUnblocksPendingSend(t *testing.T) {
+	resetPolicyChannels(t)
+
+	violation := make(chan PolicyViolation, 1)
+	violation <- PolicyViolation{}
+
+	callbacks["xid"] <- PolicyViolation{}
+	callbacks["xid"] <- PolicyViolation{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		runPolicyFanIn(ctx, violation)
+	}()
+
+	require.Eventually(t, func() bool {
+		return len(callbacks["xid"]) == 1
+	}, time.Second, 10*time.Millisecond,
+		"fan-in did not park on the blocking send; precondition broken")
+
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("runPolicyFanIn did not exit within 2s of cancellation; " +
+			"blocking send is not cancellation-aware")
+	}
+}
+
+// assertRegisterFailureNoLeak drives the registration-failure cleanup path through the supplied registerer.
+func assertRegisterFailureNoLeak(t *testing.T, register policyRegisterer) {
+	t.Helper()
+	cleanup := setupTest(t)
+	defer cleanup(t)
+
+	pinPolicyState(t)
+
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	forcedErr := errors.New("forced dcgmPolicyRegister_v2 failure")
+	withPolicyRegisterStub(t, func(_ GroupHandle, _ uint64) error {
+		fireFakePolicyCallback("xid")
+		waitForPolicyChannelDrain(t, "xid")
+		fireFakePolicyCallback("xid")
+		waitForPolicyChannelDrain(t, "xid")
+		return forcedErr
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	var (
+		ch  <-chan PolicyViolation
+		err error
+	)
+	go func() {
+		ch, err = register(ctx, GroupAllGPUs(), XidPolicy)
+		close(done)
+	}()
+
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 10*time.Millisecond,
+		"register path blocked during registration failure cleanup")
+
+	require.ErrorIs(t, err, forcedErr)
+	require.Nil(t, ch)
+}
+
+// TestRegisterPolicy_RegisterFailureNoLeak covers the failure-cleanup path of registerPolicy.
+func TestRegisterPolicy_RegisterFailureNoLeak(t *testing.T) {
+	assertRegisterFailureNoLeak(t, registerPolicy)
+}
+
+// TestRegisterPolicyOnly_RegisterFailureNoLeak covers the failure-cleanup path of registerPolicyOnly.
+func TestRegisterPolicyOnly_RegisterFailureNoLeak(t *testing.T) {
+	assertRegisterFailureNoLeak(t, registerPolicyOnly)
 }

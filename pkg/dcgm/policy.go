@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -206,19 +207,114 @@ var (
 	policyChannelsInitialized bool
 )
 
+// policyChannelBuffer bounds the per-condition queue between the cgo
+// callback and the fan-in goroutine, with headroom over DCGM_MAX_XID_INFO.
+const policyChannelBuffer = 16
+
+// droppedPolicyViolations counts policy callbacks dropped because the
+// per-condition channel was full. Non-zero values indicate the consumer
+// is too slow or that bursts exceed policyChannelBuffer.
+var droppedPolicyViolations atomic.Uint64
+
+// policyConditionToKey maps a PolicyCondition to its key in the global
+// callbacks map. Returns "" for unknown conditions.
+func policyConditionToKey(c PolicyCondition) string {
+	switch c {
+	case DbePolicy:
+		return "dbe"
+	case PCIePolicy:
+		return "pcie"
+	case MaxRtPgPolicy:
+		return "maxrtpg"
+	case ThermalPolicy:
+		return "thermal"
+	case PowerPolicy:
+		return "power"
+	case NvlinkPolicy:
+		return "nvlink"
+	case XidPolicy:
+		return "xid"
+	}
+	return ""
+}
+
+// dcgmPolicyRegisterFn is the registration call indirected through a package var so tests can stub it.
+var dcgmPolicyRegisterFn = func(groupID GroupHandle, condition uint64) error {
+	result := C.dcgmPolicyRegister_v2(
+		handle.handle,
+		groupID.handle,
+		C.dcgmPolicyCondition_t(condition),
+		C.fpRecvUpdates(C.violationNotify),
+		C.ulong(0),
+	)
+	if err := errorString(result); err != nil {
+		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
+	}
+	return nil
+}
+
+// runPolicyFanIn multiplexes the per-condition callback channels onto violation
+// and returns when ctx is canceled or any per-condition channel is closed. All
+// sends to violation are cancellation-aware so the goroutine cannot block past
+// ctx cancellation, even when the consumer has stopped draining violation.
+func runPolicyFanIn(ctx context.Context, violation chan<- PolicyViolation) {
+	trySend := func(v PolicyViolation) bool {
+		select {
+		case violation <- v:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
+	for {
+		select {
+		case v, ok := <-callbacks["dbe"]:
+			if !ok || !trySend(v) {
+				return
+			}
+		case v, ok := <-callbacks["pcie"]:
+			if !ok || !trySend(v) {
+				return
+			}
+		case v, ok := <-callbacks["maxrtpg"]:
+			if !ok || !trySend(v) {
+				return
+			}
+		case v, ok := <-callbacks["thermal"]:
+			if !ok || !trySend(v) {
+				return
+			}
+		case v, ok := <-callbacks["power"]:
+			if !ok || !trySend(v) {
+				return
+			}
+		case v, ok := <-callbacks["nvlink"]:
+			if !ok || !trySend(v) {
+				return
+			}
+		case v, ok := <-callbacks["xid"]:
+			if !ok || !trySend(v) {
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 func makePolicyChannels() {
 	policyCleanupMux.Lock()
 	defer policyCleanupMux.Unlock()
 
 	if !policyChannelsInitialized {
 		callbacks = make(map[string]chan PolicyViolation)
-		callbacks["dbe"] = make(chan PolicyViolation, 1)
-		callbacks["pcie"] = make(chan PolicyViolation, 1)
-		callbacks["maxrtpg"] = make(chan PolicyViolation, 1)
-		callbacks["thermal"] = make(chan PolicyViolation, 1)
-		callbacks["power"] = make(chan PolicyViolation, 1)
-		callbacks["nvlink"] = make(chan PolicyViolation, 1)
-		callbacks["xid"] = make(chan PolicyViolation, 1)
+		callbacks["dbe"] = make(chan PolicyViolation, policyChannelBuffer)
+		callbacks["pcie"] = make(chan PolicyViolation, policyChannelBuffer)
+		callbacks["maxrtpg"] = make(chan PolicyViolation, policyChannelBuffer)
+		callbacks["thermal"] = make(chan PolicyViolation, policyChannelBuffer)
+		callbacks["power"] = make(chan PolicyViolation, policyChannelBuffer)
+		callbacks["nvlink"] = make(chan PolicyViolation, policyChannelBuffer)
+		callbacks["xid"] = make(chan PolicyViolation, policyChannelBuffer)
 		policyChannelsInitialized = true
 	}
 }
@@ -370,21 +466,19 @@ func ViolationRegistration(data unsafe.Pointer) int {
 		Data:      val,
 	}
 
-	switch con {
-	case DbePolicy:
-		callbacks["dbe"] <- err
-	case PCIePolicy:
-		callbacks["pcie"] <- err
-	case MaxRtPgPolicy:
-		callbacks["maxrtpg"] <- err
-	case ThermalPolicy:
-		callbacks["thermal"] <- err
-	case PowerPolicy:
-		callbacks["power"] <- err
-	case NvlinkPolicy:
-		callbacks["nvlink"] <- err
-	case XidPolicy:
-		callbacks["xid"] <- err
+	key := policyConditionToKey(con)
+	if key == "" {
+		return 0
+	}
+	// Cgo callback runs under DCGM C-side locks; never block. Drop on full buffer
+	// and account via droppedPolicyViolations; log is sampled at powers of two.
+	select {
+	case callbacks[key] <- err:
+	default:
+		n := droppedPolicyViolations.Add(1)
+		if n&(n-1) == 0 {
+			log.Printf("policy: dropped %s violation; consumer may be slow (total dropped=%d, sampled at powers of two)", con, n)
+		}
 	}
 	return 0
 }
@@ -727,76 +821,48 @@ func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondi
 		return nil, err
 	}
 
-	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
+	violation := make(chan PolicyViolation, len(typ))
+	fanInCtx, fanInCancel := context.WithCancel(ctx)
+	fanInDone := make(chan struct{})
 
-	if err = errorString(result); err != nil {
+	// Start the fan-in BEFORE dcgmPolicyRegister_v2: DCGM may invoke the
+	// callback synchronously during registration, so the per-condition
+	// channels need a consumer ready. Do not reorder.
+	go func() {
+		defer close(fanInDone)
+		runPolicyFanIn(fanInCtx, violation)
+	}()
+
+	if err = dcgmPolicyRegisterFn(groupID, uint64(condition)); err != nil {
+		// C-side registration never succeeded -- tear down the fan-in instead
+		// of calling unregisterPolicy.
+		fanInCancel()
+		<-fanInDone
+		close(violation)
 		policyCleanupMux.Lock()
 		activeListeners--
 		policyCleanupMux.Unlock()
-		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		cleanupPolicyChannels()
+		return nil, err
 	}
 
 	log.Println("Listening for violations...")
 
-	violation := make(chan PolicyViolation, len(typ))
-
+	// Cleanup goroutine: wait for fan-in to exit, then unregister and release per-listener state.
 	go func() {
-		defer func() {
-			log.Println("unregister policy violation...")
-			close(violation)
-			unregisterPolicy(groupID, condition)
+		<-fanInDone
+		fanInCancel()
+		log.Println("unregister policy violation...")
+		close(violation)
+		unregisterPolicy(groupID, condition)
 
-			// Decrement active listener count and cleanup if needed
-			policyCleanupMux.Lock()
-			activeListeners--
-			policyCleanupMux.Unlock()
-			cleanupPolicyChannels()
-		}()
-
-		for {
-			select {
-			case dbe, ok := <-callbacks["dbe"]:
-				if !ok {
-					return
-				}
-				violation <- dbe
-			case pcie, ok := <-callbacks["pcie"]:
-				if !ok {
-					return
-				}
-				violation <- pcie
-			case maxrtpg, ok := <-callbacks["maxrtpg"]:
-				if !ok {
-					return
-				}
-				violation <- maxrtpg
-			case thermal, ok := <-callbacks["thermal"]:
-				if !ok {
-					return
-				}
-				violation <- thermal
-			case power, ok := <-callbacks["power"]:
-				if !ok {
-					return
-				}
-				violation <- power
-			case nvlink, ok := <-callbacks["nvlink"]:
-				if !ok {
-					return
-				}
-				violation <- nvlink
-			case xid, ok := <-callbacks["xid"]:
-				if !ok {
-					return
-				}
-				violation <- xid
-			case <-ctx.Done():
-				return
-			}
-		}
+		policyCleanupMux.Lock()
+		activeListeners--
+		policyCleanupMux.Unlock()
+		cleanupPolicyChannels()
 	}()
 
-	return violation, err
+	return violation, nil
 }
 
 func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
@@ -830,73 +896,41 @@ func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyC
 		}
 	}
 
-	// Register for violations without setting policies
-	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
+	violation := make(chan PolicyViolation, len(typ))
+	fanInCtx, fanInCancel := context.WithCancel(ctx)
+	fanInDone := make(chan struct{})
 
-	if err = errorString(result); err != nil {
+	// Reader-first ordering, matching registerPolicy. See the comment
+	// there for the full invariant.
+	go func() {
+		defer close(fanInDone)
+		runPolicyFanIn(fanInCtx, violation)
+	}()
+
+	if err = dcgmPolicyRegisterFn(groupID, uint64(condition)); err != nil {
+		fanInCancel()
+		<-fanInDone
+		close(violation)
 		policyCleanupMux.Lock()
 		activeListeners--
 		policyCleanupMux.Unlock()
-		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		cleanupPolicyChannels()
+		return nil, err
 	}
 
-	violation := make(chan PolicyViolation, len(typ))
-
 	go func() {
-		defer func() {
-			close(violation)
-			unregisterPolicy(groupID, condition)
+		<-fanInDone
+		fanInCancel()
+		close(violation)
+		unregisterPolicy(groupID, condition)
 
-			policyCleanupMux.Lock()
-			activeListeners--
-			policyCleanupMux.Unlock()
-			cleanupPolicyChannels()
-		}()
-
-		for {
-			select {
-			case dbe, ok := <-callbacks["dbe"]:
-				if !ok {
-					return
-				}
-				violation <- dbe
-			case pcie, ok := <-callbacks["pcie"]:
-				if !ok {
-					return
-				}
-				violation <- pcie
-			case maxrtpg, ok := <-callbacks["maxrtpg"]:
-				if !ok {
-					return
-				}
-				violation <- maxrtpg
-			case thermal, ok := <-callbacks["thermal"]:
-				if !ok {
-					return
-				}
-				violation <- thermal
-			case power, ok := <-callbacks["power"]:
-				if !ok {
-					return
-				}
-				violation <- power
-			case nvlink, ok := <-callbacks["nvlink"]:
-				if !ok {
-					return
-				}
-				violation <- nvlink
-			case xid, ok := <-callbacks["xid"]:
-				if !ok {
-					return
-				}
-				violation <- xid
-			case <-ctx.Done():
-				return
-			}
-		}
+		policyCleanupMux.Lock()
+		activeListeners--
+		policyCleanupMux.Unlock()
+		cleanupPolicyChannels()
 	}()
 
-	return violation, err
+	return violation, nil
 }
 
 func unregisterPolicy(groupID GroupHandle, condition C.dcgmPolicyCondition_t) {
