@@ -184,20 +184,28 @@ func TestParseHeader_ClosingStarSlashDoesNotPolluteComment(t *testing.T) {
 }
 
 // A single-line "/** @} */" marker must not leave the parser stuck in
-// comment-block mode. A following alias is handled normally.
+// comment-block mode. Every assertion in this test describes something
+// that happens strictly AFTER the marker -- if the parser got stuck,
+// these assertions fail.
 func TestParseHeader_SingleLineBlockDoesNotGetStuck(t *testing.T) {
 	path := writeHeader(t, `
-/**
- * Lane zero.
- */
-#define DCGM_FI_PROF_NVLINK_L0_TX_BYTES 1000
-
 /** @} */
 
 /**
- * NVLink throughput First.
+ * Field described after the marker.
  */
-#define DCGM_FI_PROF_NVLINK_THROUGHPUT_FIRST DCGM_FI_PROF_NVLINK_L0_TX_BYTES
+#define DCGM_FI_DEV_AFTER_MARKER 999
+
+#define DCGM_DEPRECATED
+
+#ifdef DCGM_DEPRECATED
+#define DCGM_FI_DEV_POST_MARKER_ALIAS DCGM_FI_DEV_AFTER_MARKER
+#endif
+
+/**
+ * Range sentinel with a non-deprecating comment, after the marker.
+ */
+#define DCGM_FI_PROF_POST_MARKER_SENTINEL DCGM_FI_DEV_AFTER_MARKER
 `)
 
 	fields, aliases, err := parseHeader(path)
@@ -205,14 +213,30 @@ func TestParseHeader_SingleLineBlockDoesNotGetStuck(t *testing.T) {
 		t.Fatalf("parseHeader: %v", err)
 	}
 
-	// If the parser were stuck in comment-block mode, the L0_TX_BYTES field
-	// would never be recorded because the "#define" handler wouldn't run.
-	if _, ok := findField(fields, "DCGM_FI_PROF_NVLINK_L0_TX_BYTES"); !ok {
-		t.Errorf("field after single-line block was lost: %+v", fields)
+	// (1) If the parser were stuck in comment-block mode, the integer
+	// define after the marker would never run the #define handler and
+	// no field would be recorded.
+	f, ok := findField(fields, "DCGM_FI_DEV_AFTER_MARKER")
+	if !ok {
+		t.Fatalf("parser stuck after /** @} */: field AFTER_MARKER was never recorded; got %+v", fields)
 	}
-	// And the non-deprecated alias after the marker should still be rejected.
-	if _, ok := aliases["DCGM_FI_PROF_NVLINK_THROUGHPUT_FIRST"]; ok {
-		t.Errorf("single-line marker caused false-positive on later alias: %v", aliases)
+
+	// (2) The marker line itself must not be captured as comment content
+	// for the following field.
+	if !strings.Contains(f.Comment, "Field described after the marker") {
+		t.Errorf("comment on field AFTER_MARKER is not the expected one (marker line may have polluted state): %q", f.Comment)
+	}
+
+	// (3) The #ifdef DCGM_DEPRECATED block after the marker must still
+	// be enterable -- the deprecated alias inside should be recorded.
+	if _, ok := aliases["DCGM_FI_DEV_POST_MARKER_ALIAS"]; !ok {
+		t.Errorf("deprecated alias defined after the marker was not recorded: %v", aliases)
+	}
+
+	// (4) And a non-deprecated alias after the marker should still be
+	// silently rejected by the scope filter.
+	if _, ok := aliases["DCGM_FI_PROF_POST_MARKER_SENTINEL"]; ok {
+		t.Errorf("range sentinel after the marker was accepted as deprecated: %v", aliases)
 	}
 }
 
@@ -272,7 +296,7 @@ func TestResolveAliases_TargetMissing(t *testing.T) {
 
 // Lowercase curated legacy entries in the existing output file are
 // preserved across regeneration.
-func TestGenerateOutput_PreservesCuratedLowercaseLegacy(t *testing.T) {
+func TestExtractLegacyFields_PreservesCuratedLowercaseEntries(t *testing.T) {
 	dir := t.TempDir()
 	outputPath := filepath.Join(dir, "const_fields.go")
 
@@ -304,7 +328,7 @@ var legacyDCGMFields = map[string]Short{
 // DCGM_FI_* uppercase entries in the existing output file are NOT
 // preserved. They re-derive from the header via resolveAliases, so stale
 // entries (aliases removed from the header) disappear naturally.
-func TestGenerateOutput_StaleGeneratedAliasNotPreserved(t *testing.T) {
+func TestExtractLegacyFields_StaleGeneratedAliasNotPreserved(t *testing.T) {
 	dir := t.TempDir()
 	outputPath := filepath.Join(dir, "const_fields.go")
 
@@ -357,5 +381,266 @@ var legacyDCGMFields = map[string]Short{
 	}
 	if !strings.Contains(err.Error(), "MYSTERY_UPPERCASE_NAME") {
 		t.Errorf("error should name the offending entry, got %q", err)
+	}
+}
+
+// A missing output file is normal on first-run; main() inspects the
+// returned error with os.IsNotExist and starts with an empty legacy map.
+func TestExtractLegacyFields_FileNotFound(t *testing.T) {
+	dir := t.TempDir()
+	_, err := extractLegacyFields(filepath.Join(dir, "does-not-exist.go"))
+	if err == nil {
+		t.Fatalf("expected error on missing output file, got nil")
+	}
+	if !os.IsNotExist(err) {
+		t.Errorf("error should satisfy os.IsNotExist so main can tolerate it; got %v", err)
+	}
+}
+
+// Mixed provenance in a single legacy map: lowercase preserved, DCGM_FI_*
+// dropped (re-derived by resolveAliases elsewhere), no error.
+func TestExtractLegacyFields_MixedEntriesReturnsOnlyLowercase(t *testing.T) {
+	dir := t.TempDir()
+	outputPath := filepath.Join(dir, "const_fields.go")
+
+	seeded := `package dcgm
+var legacyDCGMFields = map[string]Short{
+	"dcgm_gpu_temp": 150,
+	"DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL": 449,
+	"dcgm_xid_errors": 230,
+}
+`
+	if err := os.WriteFile(outputPath, []byte(seeded), 0o644); err != nil {
+		t.Fatalf("seed write: %v", err)
+	}
+
+	legacyFields, err := extractLegacyFields(outputPath)
+	if err != nil {
+		t.Fatalf("extractLegacyFields: %v", err)
+	}
+	if len(legacyFields) != 2 {
+		t.Fatalf("want exactly 2 preserved entries, got %d: %v", len(legacyFields), legacyFields)
+	}
+	if legacyFields["dcgm_gpu_temp"] != 150 || legacyFields["dcgm_xid_errors"] != 230 {
+		t.Errorf("lowercase entries not preserved correctly: %v", legacyFields)
+	}
+	if _, ok := legacyFields["DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL"]; ok {
+		t.Errorf("DCGM_FI_* entry should have been dropped: %v", legacyFields)
+	}
+}
+
+// Bare alias inside #ifdef DCGM_DEPRECATED with no preceding comment: the
+// block scope alone is sufficient. This pins the `inDeprecatedBlock`
+// branch of the acceptance rule.
+func TestParseHeader_AliasInsideDeprecatedBlockWithoutComment_Accepted(t *testing.T) {
+	path := writeHeader(t, `
+#define DCGM_FI_DEV_CANONICAL 42
+
+#define DCGM_DEPRECATED
+
+#ifdef DCGM_DEPRECATED
+#define DCGM_FI_DEV_OLD_NAME DCGM_FI_DEV_CANONICAL
+#endif
+`)
+
+	_, aliases, err := parseHeader(path)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+	if target, ok := aliases["DCGM_FI_DEV_OLD_NAME"]; !ok {
+		t.Errorf("bare alias inside deprecated block was dropped: %v", aliases)
+	} else if target != "DCGM_FI_DEV_CANONICAL" {
+		t.Errorf("wrong alias target: %q", target)
+	}
+}
+
+// A nested #ifdef/#endif inside the deprecated block must not prematurely
+// close it. An alias after the inner #endif but before the outer #endif
+// is still in deprecated scope.
+func TestParseHeader_NestedIfdefInsideDeprecatedBlock(t *testing.T) {
+	path := writeHeader(t, `
+#define DCGM_FI_DEV_CANONICAL 42
+
+#define DCGM_DEPRECATED
+
+#ifdef DCGM_DEPRECATED
+#ifdef SOME_UNRELATED_GUARD
+#define DCGM_FI_DEV_INNER_ALIAS DCGM_FI_DEV_CANONICAL
+#endif
+#define DCGM_FI_DEV_OUTER_ALIAS DCGM_FI_DEV_CANONICAL
+#endif
+`)
+
+	_, aliases, err := parseHeader(path)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+	// Both aliases should be recorded: the inner one while the outer guard
+	// is active, the outer one after the inner #endif returns to the
+	// deprecated block but not out of it.
+	if _, ok := aliases["DCGM_FI_DEV_INNER_ALIAS"]; !ok {
+		t.Errorf("alias inside nested #ifdef not recorded: %v", aliases)
+	}
+	if _, ok := aliases["DCGM_FI_DEV_OUTER_ALIAS"]; !ok {
+		t.Errorf("alias after nested #endif but still inside deprecated block not recorded: %v", aliases)
+	}
+}
+
+// The "deprecated:" marker match is case-insensitive. A header that
+// capitalised the whole word should still trigger the heuristic.
+func TestParseHeader_CaseInsensitiveDeprecatedMarker(t *testing.T) {
+	path := writeHeader(t, `
+#define DCGM_FI_DEV_CANONICAL 42
+
+/**
+ * DEPRECATED: Use DCGM_FI_DEV_CANONICAL instead.
+ */
+#define DCGM_FI_DEV_OLD_UPPER DCGM_FI_DEV_CANONICAL
+
+/**
+ * deprecated: lowercase form also counts.
+ */
+#define DCGM_FI_DEV_OLD_LOWER DCGM_FI_DEV_CANONICAL
+`)
+
+	_, aliases, err := parseHeader(path)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+	if _, ok := aliases["DCGM_FI_DEV_OLD_UPPER"]; !ok {
+		t.Errorf("uppercase DEPRECATED: did not trigger: %v", aliases)
+	}
+	if _, ok := aliases["DCGM_FI_DEV_OLD_LOWER"]; !ok {
+		t.Errorf("lowercase deprecated: did not trigger: %v", aliases)
+	}
+}
+
+// Adjectival uses of "deprecated" (without a trailing colon) must not
+// trigger the heuristic. The pattern is specifically "deprecated:" so
+// comments describing some other deprecation don't false-positive.
+func TestParseHeader_DeprecatedWordWithoutColon_DoesNotTrigger(t *testing.T) {
+	path := writeHeader(t, `
+#define DCGM_FI_DEV_CANONICAL 42
+
+/**
+ * This replaces the now-deprecated DCGM_FI_DEV_FOO field; no colon here.
+ */
+#define DCGM_FI_DEV_ALIAS DCGM_FI_DEV_CANONICAL
+`)
+
+	_, aliases, err := parseHeader(path)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+	if _, ok := aliases["DCGM_FI_DEV_ALIAS"]; ok {
+		t.Errorf("adjectival 'deprecated' (no colon) false-positively triggered: %v", aliases)
+	}
+}
+
+// Blank lines between the closing */ and its described #define must
+// preserve the comment state so the comment still attaches to the field.
+// This is the common real-world header layout.
+func TestParseHeader_BlankLineBetweenCommentAndDefineAttaches(t *testing.T) {
+	path := writeHeader(t, `
+/**
+ * Field with blank line between comment and define.
+ */
+
+#define DCGM_FI_DEV_CANONICAL 42
+
+/**
+ * Deprecated: with blank line before alias too.
+ */
+
+#define DCGM_FI_DEV_OLD DCGM_FI_DEV_CANONICAL
+`)
+
+	fields, aliases, err := parseHeader(path)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+
+	f, ok := findField(fields, "DCGM_FI_DEV_CANONICAL")
+	if !ok || !strings.Contains(f.Comment, "blank line between comment and define") {
+		t.Errorf("comment did not attach across blank line: field=%+v", f)
+	}
+	if _, ok := aliases["DCGM_FI_DEV_OLD"]; !ok {
+		t.Errorf("deprecated: marker did not carry across blank line: %v", aliases)
+	}
+}
+
+// Full-pipeline integration: parseHeader -> resolveAliases ->
+// extractLegacyFields -> generateOutput. Reads the emitted file and
+// verifies the expected constants, canonical map entries, and legacy map
+// entries all land in the right sections.
+func TestGenerateOutput_FullPipeline(t *testing.T) {
+	dir := t.TempDir()
+	outputPath := filepath.Join(dir, "const_fields.go")
+
+	// Seed a pre-existing output with a curated lowercase legacy entry
+	// that the pipeline should preserve.
+	seeded := `package dcgm
+var legacyDCGMFields = map[string]Short{
+	"dcgm_gpu_temp": 150,
+}
+`
+	if err := os.WriteFile(outputPath, []byte(seeded), 0o644); err != nil {
+		t.Fatalf("seed write: %v", err)
+	}
+
+	headerPath := writeHeader(t, `
+/**
+ * Canonical field.
+ */
+#define DCGM_FI_DEV_CANONICAL 42
+
+#define DCGM_DEPRECATED
+
+#ifdef DCGM_DEPRECATED
+#define DCGM_FI_DEV_OLD_ALIAS DCGM_FI_DEV_CANONICAL
+#endif
+`)
+
+	fields, aliases, err := parseHeader(headerPath)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+	aliasLegacy, err := resolveAliases(fields, aliases)
+	if err != nil {
+		t.Fatalf("resolveAliases: %v", err)
+	}
+	legacyFields, err := extractLegacyFields(outputPath)
+	if err != nil {
+		t.Fatalf("extractLegacyFields: %v", err)
+	}
+	for name, id := range aliasLegacy {
+		legacyFields[name] = id
+	}
+
+	if err := generateOutput(TemplateData{Fields: fields, LegacyFields: legacyFields}, outputPath); err != nil {
+		t.Fatalf("generateOutput: %v", err)
+	}
+
+	out, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read emitted: %v", err)
+	}
+	got := string(out)
+
+	// Typed constant.
+	if !strings.Contains(got, "DCGM_FI_DEV_CANONICAL Short = 42") {
+		t.Errorf("canonical typed constant missing in output:\n%s", got)
+	}
+	// dcgmFields canonical entry.
+	if !strings.Contains(got, `"DCGM_FI_DEV_CANONICAL": 42`) {
+		t.Errorf("canonical entry missing from dcgmFields:\n%s", got)
+	}
+	// legacyDCGMFields alias entry.
+	if !strings.Contains(got, `"DCGM_FI_DEV_OLD_ALIAS": 42`) {
+		t.Errorf("deprecated alias missing from legacyDCGMFields:\n%s", got)
+	}
+	// legacyDCGMFields curated lowercase entry.
+	if !strings.Contains(got, `"dcgm_gpu_temp": 150`) {
+		t.Errorf("curated lowercase entry not preserved:\n%s", got)
 	}
 }

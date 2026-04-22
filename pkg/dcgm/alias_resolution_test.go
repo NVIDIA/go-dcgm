@@ -80,3 +80,13 @@ func TestAliasResolution_ClockThrottleReasonsResolvesToClocksEventReasons(t *tes
 	assert.True(t, IsLegacyField("DCGM_FI_DEV_CLOCK_THROTTLE_REASONS"),
 		"outside-block deprecated alias must be marked legacy")
 }
+
+// GetFieldIDOrPanic must resolve a deprecated alias without panicking
+// (the existing panic path is reserved for unknown names).
+func TestAliasResolution_GetFieldIDOrPanicDoesNotPanicOnAlias(t *testing.T) {
+	assert.NotPanics(t, func() {
+		id := GetFieldIDOrPanic("DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL")
+		assert.Equal(t, GetFieldIDOrPanic("DCGM_FI_DEV_NVLINK_THROUGHPUT_TOTAL"), id,
+			"GetFieldIDOrPanic on alias must return same ID as its canonical counterpart")
+	})
+}
