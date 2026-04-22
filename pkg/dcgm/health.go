@@ -198,26 +198,32 @@ func healthStatus(status HealthResult) string {
 
 func systemWatch(watch HealthSystem) string {
 	switch watch {
-	case 1:
+	case DCGM_HEALTH_WATCH_PCIE:
 		return "PCIe watches"
-	case 2:
+	case DCGM_HEALTH_WATCH_NVLINK:
 		return "NVLINK watches"
-	case 4:
-		return "Power Managemnt unit watches"
-	case 8:
+	case DCGM_HEALTH_WATCH_PMU:
+		return "Power Management unit watches"
+	case DCGM_HEALTH_WATCH_MCU:
 		return "Microcontroller unit watches"
-	case 16:
+	case DCGM_HEALTH_WATCH_MEM:
 		return "Memory watches"
-	case 32:
+	case DCGM_HEALTH_WATCH_SM:
 		return "Streaming Multiprocessor watches"
-	case 64:
+	case DCGM_HEALTH_WATCH_INFOROM:
 		return "Inforom watches"
-	case 128:
+	case DCGM_HEALTH_WATCH_THERMAL:
 		return "Temperature watches"
-	case 256:
+	case DCGM_HEALTH_WATCH_POWER:
 		return "Power watches"
-	case 512:
+	case DCGM_HEALTH_WATCH_DRIVER:
 		return "Driver-related watches"
+	case DCGM_HEALTH_WATCH_NVSWITCH_NONFATAL:
+		return "NVSwitch non-fatal watches"
+	case DCGM_HEALTH_WATCH_NVSWITCH_FATAL:
+		return "NVSwitch fatal watches"
+	case DCGM_HEALTH_WATCH_CONNECTX:
+		return "ConnectX watches"
 	}
 	return "N/A"
 }

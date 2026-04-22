@@ -804,6 +804,10 @@ func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyC
 	// init policy globals for internal API
 	makePolicyChannels()
 
+	policyCleanupMux.Lock()
+	activeListeners++
+	policyCleanupMux.Unlock()
+
 	// get all conditions to listen for
 	var condition C.dcgmPolicyCondition_t = 0
 
@@ -830,6 +834,9 @@ func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyC
 	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
 
 	if err = errorString(result); err != nil {
+		policyCleanupMux.Lock()
+		activeListeners--
+		policyCleanupMux.Unlock()
 		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
@@ -839,23 +846,49 @@ func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyC
 		defer func() {
 			close(violation)
 			unregisterPolicy(groupID, condition)
+
+			policyCleanupMux.Lock()
+			activeListeners--
+			policyCleanupMux.Unlock()
+			cleanupPolicyChannels()
 		}()
 
 		for {
 			select {
-			case dbe := <-callbacks["dbe"]:
+			case dbe, ok := <-callbacks["dbe"]:
+				if !ok {
+					return
+				}
 				violation <- dbe
-			case pcie := <-callbacks["pcie"]:
+			case pcie, ok := <-callbacks["pcie"]:
+				if !ok {
+					return
+				}
 				violation <- pcie
-			case maxrtpg := <-callbacks["maxrtpg"]:
+			case maxrtpg, ok := <-callbacks["maxrtpg"]:
+				if !ok {
+					return
+				}
 				violation <- maxrtpg
-			case thermal := <-callbacks["thermal"]:
+			case thermal, ok := <-callbacks["thermal"]:
+				if !ok {
+					return
+				}
 				violation <- thermal
-			case power := <-callbacks["power"]:
+			case power, ok := <-callbacks["power"]:
+				if !ok {
+					return
+				}
 				violation <- power
-			case nvlink := <-callbacks["nvlink"]:
+			case nvlink, ok := <-callbacks["nvlink"]:
+				if !ok {
+					return
+				}
 				violation <- nvlink
-			case xid := <-callbacks["xid"]:
+			case xid, ok := <-callbacks["xid"]:
+				if !ok {
+					return
+				}
 				violation <- xid
 			case <-ctx.Done():
 				return
