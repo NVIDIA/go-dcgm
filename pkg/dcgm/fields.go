@@ -143,13 +143,20 @@ func WatchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId
 	return group, nil
 }
 
-// WatchFieldsWithGroupEx starts monitoring fields with custom parameters.
-// fieldsGroup is the handle of the field group to watch.
-// group is the group handle to associate with the watch.
-// updateFreq is the update frequency in microseconds.
-// maxKeepAge is the maximum age of samples to keep in seconds.
-// maxKeepSamples is the maximum number of samples to keep.
-// Returns an error if the watch operation fails.
+// WatchFieldsWithGroupEx starts monitoring the fields in fieldsGroup for all
+// entities in group with caller-supplied sampling parameters.
+//
+//   - updateFreq: how often DCGM samples the fields, in microseconds.
+//   - maxKeepAge: how long (in seconds) DCGM retains historical samples; 0
+//     means keep samples until maxKeepSamples is reached.
+//   - maxKeepSamples: maximum number of samples to retain per field per entity;
+//     0 means unlimited (bounded only by maxKeepAge).
+//
+// After the watch is established, DCGM immediately triggers a field update so
+// values are available without waiting for the first sampling interval.
+//
+// Use [WatchFieldsWithGroup] when the default parameters are acceptable.
+// Call [UnwatchFields] to stop monitoring and release the associated resources.
 func WatchFieldsWithGroupEx(
 	fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
 ) error {
@@ -167,10 +174,29 @@ func WatchFieldsWithGroupEx(
 	return nil
 }
 
-// WatchFieldsWithGroup starts monitoring fields using default parameters.
-// fieldsGroup is the handle of the field group to watch.
-// group is the group handle to associate with the watch.
-// Returns an error if the watch operation fails.
+// WatchFieldsWithGroup starts monitoring the fields in fieldsGroup for all
+// entities in group using the default sampling parameters:
+//
+//   - updateFreq: 30 seconds (30,000,000 µs)
+//   - maxKeepAge: 0 (unlimited; bounded by maxKeepSamples)
+//   - maxKeepSamples: 1 (only the most recent sample is kept)
+//
+// For custom sampling parameters use [WatchFieldsWithGroupEx].
+// Call [UnwatchFields] to stop monitoring and release resources.
+//
+// Example:
+//
+//	fieldGroup, _ := dcgm.FieldGroupCreate("temps", []dcgm.Short{dcgm.DCGM_FI_DEV_GPU_TEMP})
+//	defer dcgm.FieldGroupDestroy(fieldGroup)
+//
+//	gpuGroup := dcgm.GroupAllGPUs()
+//	if err := dcgm.WatchFieldsWithGroup(fieldGroup, gpuGroup); err != nil {
+//	    return err
+//	}
+//	defer dcgm.UnwatchFields(fieldGroup, gpuGroup)
+//
+//	values, _, err := dcgm.GetValuesSince(gpuGroup, fieldGroup, time.Time{})
+//	// process values...
 func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 	return WatchFieldsWithGroupEx(fieldsGroup, group, defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
 }
