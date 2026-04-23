@@ -70,6 +70,12 @@ func GetAllDeviceCount() (uint, error) {
 	return getAllDeviceCount()
 }
 
+// GetHostEngineBuildInfo returns DCGM Host Engine build information including
+// version number, build date, and build flags
+func GetHostEngineBuildInfo() (string, error) {
+	return getHostEngineBuildInfo()
+}
+
 // GetEntityGroupEntities returns all entities of the specified group type
 func GetEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 	return getEntityGroupEntities(entityGroup)
