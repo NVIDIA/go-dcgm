@@ -727,7 +727,7 @@ func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondi
 		return nil, err
 	}
 
-	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
+	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.uint64_t(0))
 
 	if err = errorString(result); err != nil {
 		policyCleanupMux.Lock()
