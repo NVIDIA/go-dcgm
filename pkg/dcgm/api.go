@@ -130,11 +130,15 @@ func HealthCheckByGpuId(gpuID uint) (DeviceHealth, error) {
 }
 
 // ListenForPolicyViolations sets up monitoring for the specified policy conditions on all GPUs.
-// Returns a channel that receives policy violations and any error encountered.
+// Returns a channel that receives policy violations and any error encountered. Delivery is
+// best-effort: callers must drain the returned channel promptly, or matching violations may be
+// dropped for that caller. Use PolicyViolationDropCount to observe local drops.
 //
 // Important: The context MUST be cancelled when monitoring is no longer needed to properly
 // clean up resources and prevent goroutine leaks. When the context is cancelled, the returned
-// channel will be closed and all resources will be automatically cleaned up.
+// channel will be closed after local cleanup completes. Concurrent listeners are independent
+// subscribers; each active listener receives matching violations instead of sharing one queue.
+// Empty condition lists and unknown policy conditions return an error before registering with DCGM.
 //
 // Example:
 //
@@ -155,10 +159,13 @@ func ListenForPolicyViolations(ctx context.Context, typ ...policyCondition) (<-c
 }
 
 // ListenForPolicyViolationsForGroup sets up policy monitoring for the specified GPU group.
-// Returns a channel that receives policy violations and any error encountered.
+// Returns a best-effort channel that receives policy violations and any error encountered.
 //
 // Important: The context MUST be cancelled when monitoring is no longer needed to properly
-// clean up resources and prevent goroutine leaks. See ListenForPolicyViolations for usage example.
+// clean up resources and prevent goroutine leaks. Canceling one listener only closes that
+// listener's channel; surviving listeners remain registered until their contexts are canceled.
+// Empty condition lists and unknown policy conditions return an error before registering with DCGM.
+// See ListenForPolicyViolations for usage example.
 func ListenForPolicyViolationsForGroup(ctx context.Context, group GroupHandle, typ ...policyCondition) (<-chan PolicyViolation, error) {
 	return registerPolicy(ctx, group, typ...)
 }
@@ -209,7 +216,17 @@ func ClearPolicyForGroup(group GroupHandle) error {
 	return clearPolicyForGroup(group)
 }
 
-// WatchPolicyViolationsForGroup registers to receive violation notifications for a specific GPU group
+// WatchPolicyViolationsForGroup registers to receive violation notifications for a specific GPU group.
+// Unlike ListenForPolicyViolationsForGroup, it does not set policy thresholds first. Delivery is
+// best-effort, the context must be canceled to release resources, and canceling one watcher does
+// not stop surviving watchers. Empty condition lists and unknown policy conditions return an error
+// before registering with DCGM.
 func WatchPolicyViolationsForGroup(ctx context.Context, group GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
 	return registerPolicyOnly(ctx, group, typ...)
+}
+
+// PolicyViolationDropCount returns the number of local policy violations dropped because
+// listener channels were full. The counter is process-wide and monotonically increasing.
+func PolicyViolationDropCount() uint64 {
+	return policyCallbacks.dropped()
 }
