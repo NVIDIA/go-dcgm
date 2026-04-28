@@ -166,6 +166,104 @@ func TestPolicyDispatcherFinalSubscriberReset(t *testing.T) {
 	close(second)
 }
 
+func TestPolicyDispatcherSameGroupUnregistersOnlyUnusedCondition(t *testing.T) {
+	dispatcher := newPolicyDispatcher()
+	group := policyTestGroupHandle(1010)
+	xidCondition, ok := policyConditionMask(XidPolicy)
+	require.True(t, ok)
+	thermalCondition, ok := policyConditionMask(ThermalPolicy)
+	require.True(t, ok)
+
+	xidSubID, xidCh, xidRegistration := dispatcher.addSubscription(group, xidCondition, 1)
+	require.NotNil(t, xidRegistration)
+	_, thermalCh, thermalRegistration := dispatcher.addSubscription(group, thermalCondition, 1)
+	require.NotNil(t, thermalRegistration)
+
+	closed, unregisters := dispatcher.removeSubscription(xidSubID)
+	require.Equal(t, xidCh, closed)
+	require.Len(t, unregisters, 1)
+	assert.Equal(t, xidCondition, unregisters[0].condition)
+	close(closed)
+
+	dispatcher.clearRegistrations(unregisters)
+
+	dispatcher.mu.Lock()
+	assert.Equal(t, thermalCondition, dispatcher.registeredByGroup[group.GetHandle()])
+	assert.NotContains(t, dispatcher.registrations, xidRegistration.id)
+	assert.Contains(t, dispatcher.registrations, thermalRegistration.id)
+	dispatcher.mu.Unlock()
+
+	violation := PolicyViolation{Condition: ThermalPolicy}
+	dispatcher.deliver(thermalRegistration.id, violation)
+	assert.Equal(t, violation, receivePolicyViolation(t, thermalCh))
+}
+
+func TestPolicyDispatcherDifferentGroupsUnregistersUnusedGroupOnly(t *testing.T) {
+	dispatcher := newPolicyDispatcher()
+	groupA := policyTestGroupHandle(1011)
+	groupB := policyTestGroupHandle(1012)
+	xidCondition, ok := policyConditionMask(XidPolicy)
+	require.True(t, ok)
+
+	groupASubID, groupACh, groupARegistration := dispatcher.addSubscription(groupA, xidCondition, 1)
+	require.NotNil(t, groupARegistration)
+	_, groupBCh, groupBRegistration := dispatcher.addSubscription(groupB, xidCondition, 1)
+	require.NotNil(t, groupBRegistration)
+
+	closed, unregisters := dispatcher.removeSubscription(groupASubID)
+	require.Equal(t, groupACh, closed)
+	require.Len(t, unregisters, 1)
+	assert.Equal(t, groupA.GetHandle(), unregisters[0].group.GetHandle())
+	assert.Equal(t, xidCondition, unregisters[0].condition)
+	close(closed)
+
+	dispatcher.clearRegistrations(unregisters)
+
+	dispatcher.mu.Lock()
+	assert.NotContains(t, dispatcher.registeredByGroup, groupA.GetHandle())
+	assert.NotContains(t, dispatcher.registrations, groupARegistration.id)
+	assert.Equal(t, xidCondition, dispatcher.registeredByGroup[groupB.GetHandle()])
+	assert.Contains(t, dispatcher.registrations, groupBRegistration.id)
+	dispatcher.mu.Unlock()
+
+	violation := PolicyViolation{Condition: XidPolicy}
+	dispatcher.deliver(groupBRegistration.id, violation)
+	assert.Equal(t, violation, receivePolicyViolation(t, groupBCh))
+}
+
+func TestPolicyDispatcherCombinedRegistrationUnregistersOnlyUnusedCondition(t *testing.T) {
+	dispatcher := newPolicyDispatcher()
+	group := policyTestGroupHandle(1013)
+	xidCondition, ok := policyConditionMask(XidPolicy)
+	require.True(t, ok)
+	thermalCondition, ok := policyConditionMask(ThermalPolicy)
+	require.True(t, ok)
+
+	combinedCondition := xidCondition | thermalCondition
+	combinedSubID, combinedCh, combinedRegistration := dispatcher.addSubscription(group, combinedCondition, 2)
+	require.NotNil(t, combinedRegistration)
+	_, thermalCh, thermalRegistration := dispatcher.addSubscription(group, thermalCondition, 1)
+	require.Nil(t, thermalRegistration)
+
+	closed, unregisters := dispatcher.removeSubscription(combinedSubID)
+	require.Equal(t, combinedCh, closed)
+	require.Len(t, unregisters, 1)
+	assert.Equal(t, xidCondition, unregisters[0].condition)
+	close(closed)
+
+	dispatcher.clearRegistrations(unregisters)
+
+	dispatcher.mu.Lock()
+	require.Contains(t, dispatcher.registrations, combinedRegistration.id)
+	assert.Equal(t, thermalCondition, dispatcher.registrations[combinedRegistration.id].conditions)
+	assert.Equal(t, thermalCondition, dispatcher.registeredByGroup[group.GetHandle()])
+	dispatcher.mu.Unlock()
+
+	violation := PolicyViolation{Condition: ThermalPolicy}
+	dispatcher.deliver(combinedRegistration.id, violation)
+	assert.Equal(t, violation, receivePolicyViolation(t, thermalCh))
+}
+
 func TestPolicyDispatcherClearRegistrationKeepsStateOnUnregisterFailure(t *testing.T) {
 	dispatcher := newPolicyDispatcher()
 	group := policyTestGroupHandle(1005)

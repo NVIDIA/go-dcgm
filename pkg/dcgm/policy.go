@@ -198,6 +198,7 @@ type translatedPolicyConditions struct {
 
 type policySubscription struct {
 	id         uint64
+	group      GroupHandle
 	groupKey   uintptr
 	conditions C.dcgmPolicyCondition_t
 	ch         chan PolicyViolation
@@ -264,6 +265,7 @@ func (d *policyDispatcher) addSubscription(
 	ch := make(chan PolicyViolation, buffer)
 	d.subscriptions[subID] = &policySubscription{
 		id:         subID,
+		group:      group,
 		groupKey:   groupKey,
 		conditions: conditions,
 		ch:         ch,
@@ -287,7 +289,7 @@ func (d *policyDispatcher) addSubscription(
 	return subID, ch, &registration
 }
 
-// removeSubscription removes one listener and returns final-subscriber unregister work.
+// removeSubscription removes one listener and returns newly unused DCGM conditions.
 func (d *policyDispatcher) removeSubscription(subID uint64) (chan PolicyViolation, []policyUnregister) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -298,31 +300,27 @@ func (d *policyDispatcher) removeSubscription(subID uint64) (chan PolicyViolatio
 	}
 	delete(d.subscriptions, subID)
 
-	if len(d.subscriptions) > 0 {
-		// Per-group teardown is intentionally deferred until the final local subscriber exits.
-		// If one group's subscribers leave while another group remains active, callbacks for
-		// the first group can still enter Go, but deliver drops them because no subscription
-		// matches that group. This keeps lifecycle ownership simple until per-group refcounts
-		// are needed.
+	registered := d.registeredByGroup[sub.groupKey]
+	if registered == 0 {
 		return sub.ch, nil
 	}
 
-	unregisterByGroup := make(map[uintptr]policyUnregister)
-	for _, registration := range d.registrations {
-		entry := unregisterByGroup[registration.groupKey]
-		if entry.condition == 0 {
-			entry.group = registration.group
+	var stillNeeded C.dcgmPolicyCondition_t
+	for _, subscription := range d.subscriptions {
+		if subscription.groupKey == sub.groupKey {
+			stillNeeded |= subscription.conditions
 		}
-		entry.condition |= registration.conditions
-		unregisterByGroup[registration.groupKey] = entry
 	}
 
-	unregisters := make([]policyUnregister, 0, len(unregisterByGroup))
-	for _, entry := range unregisterByGroup {
-		unregisters = append(unregisters, entry)
+	unused := registered &^ stillNeeded
+	if unused == 0 {
+		return sub.ch, nil
 	}
 
-	return sub.ch, unregisters
+	return sub.ch, []policyUnregister{{
+		group:     sub.group,
+		condition: unused,
+	}}
 }
 
 // clearRegistrations removes bookkeeping for DCGM registrations that are gone.
@@ -383,7 +381,7 @@ func (d *policyDispatcher) rollbackSubscription(subID uint64, registration *poli
 	}
 }
 
-// unsubscribe closes one listener and unregisters DCGM callbacks when it was the last one.
+// unsubscribe closes one listener and unregisters conditions no remaining listener needs.
 func (d *policyDispatcher) unsubscribe(subID uint64) {
 	d.registerMu.Lock()
 	defer d.registerMu.Unlock()
