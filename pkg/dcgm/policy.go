@@ -1,20 +1,23 @@
 package dcgm
 
 /*
+#include <stdint.h>
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
 
 // wrapper for go callback function
-extern int violationNotify(void* p);
+extern int violationNotify(dcgmPolicyCallbackResponse_t *response, uint64_t userData);
 */
 import "C"
 
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -186,123 +189,480 @@ type XidPolicyCondition struct {
 }
 
 var (
-	policyMapOnce    sync.Once
-	policyCleanupMux sync.Mutex
-
-	// callbacks maps PolicyViolation channels with policy
-	// captures C callback() value for each violation condition
-	callbacks map[string]chan PolicyViolation
-
-	// paramMap maps C.dcgmPolicy_t.parms index and limits
-	// to be used in setPolicy() for setting user selected policies
-	paramMap map[policyIndex]policyConditionParam
-
-	// activeListeners tracks the number of active policy listeners
-	// to prevent premature cleanup of global callback channels
-	activeListeners int
-
-	// policyChannelsInitialized tracks whether policy channels have been initialized
-	// Protected by policyCleanupMux
-	policyChannelsInitialized bool
+	policyCallbacks = newPolicyDispatcher()
 )
 
-func makePolicyChannels() {
-	policyCleanupMux.Lock()
-	defer policyCleanupMux.Unlock()
+type translatedPolicyConditions struct {
+	condition C.dcgmPolicyCondition_t
+}
 
-	if !policyChannelsInitialized {
-		callbacks = make(map[string]chan PolicyViolation)
-		callbacks["dbe"] = make(chan PolicyViolation, 1)
-		callbacks["pcie"] = make(chan PolicyViolation, 1)
-		callbacks["maxrtpg"] = make(chan PolicyViolation, 1)
-		callbacks["thermal"] = make(chan PolicyViolation, 1)
-		callbacks["power"] = make(chan PolicyViolation, 1)
-		callbacks["nvlink"] = make(chan PolicyViolation, 1)
-		callbacks["xid"] = make(chan PolicyViolation, 1)
-		policyChannelsInitialized = true
+type policySubscription struct {
+	id         uint64
+	group      GroupHandle
+	groupKey   uintptr
+	conditions C.dcgmPolicyCondition_t
+	ch         chan PolicyViolation
+}
+
+type policyRegistration struct {
+	id         uint64
+	group      GroupHandle
+	groupKey   uintptr
+	conditions C.dcgmPolicyCondition_t
+}
+
+type policyUnregister struct {
+	group     GroupHandle
+	condition C.dcgmPolicyCondition_t
+}
+
+type policyDispatcher struct {
+	registerMu sync.Mutex
+	mu         sync.Mutex
+	nextID     uint64
+
+	subscriptions     map[uint64]*policySubscription
+	registrations     map[uint64]policyRegistration
+	registeredByGroup map[uintptr]C.dcgmPolicyCondition_t
+
+	drops atomic.Uint64
+}
+
+// newPolicyDispatcher initializes the Go-side policy callback registry.
+func newPolicyDispatcher() *policyDispatcher {
+	return &policyDispatcher{
+		subscriptions:     make(map[uint64]*policySubscription),
+		registrations:     make(map[uint64]policyRegistration),
+		registeredByGroup: make(map[uintptr]C.dcgmPolicyCondition_t),
 	}
 }
 
-// cleanupPolicyChannels cleans up global policy callback channels.
-// This is called internally when there are no more active listeners.
-func cleanupPolicyChannels() {
-	policyCleanupMux.Lock()
-	defer policyCleanupMux.Unlock()
+// nextLocked returns the next non-zero dispatcher ID; d.mu must be held.
+func (d *policyDispatcher) nextLocked() uint64 {
+	d.nextID++
+	if d.nextID == 0 {
+		d.nextID++
+	}
+	return d.nextID
+}
 
-	if activeListeners > 0 {
+// addSubscription records a listener and returns any missing DCGM registration.
+func (d *policyDispatcher) addSubscription(
+	group GroupHandle,
+	conditions C.dcgmPolicyCondition_t,
+	buffer int,
+) (uint64, chan PolicyViolation, *policyRegistration) {
+	if buffer < 1 {
+		buffer = 1
+	}
+
+	groupKey := group.GetHandle()
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	subID := d.nextLocked()
+	ch := make(chan PolicyViolation, buffer)
+	d.subscriptions[subID] = &policySubscription{
+		id:         subID,
+		group:      group,
+		groupKey:   groupKey,
+		conditions: conditions,
+		ch:         ch,
+	}
+
+	missing := conditions &^ d.registeredByGroup[groupKey]
+	if missing == 0 {
+		return subID, ch, nil
+	}
+
+	regID := d.nextLocked()
+	registration := policyRegistration{
+		id:         regID,
+		group:      group,
+		groupKey:   groupKey,
+		conditions: missing,
+	}
+	d.registrations[regID] = registration
+	d.registeredByGroup[groupKey] |= missing
+
+	return subID, ch, &registration
+}
+
+// removeSubscription removes one listener and returns newly unused DCGM conditions.
+func (d *policyDispatcher) removeSubscription(subID uint64) (chan PolicyViolation, []policyUnregister) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	sub, exists := d.subscriptions[subID]
+	if !exists {
+		return nil, nil
+	}
+	delete(d.subscriptions, subID)
+
+	registered := d.registeredByGroup[sub.groupKey]
+	if registered == 0 {
+		return sub.ch, nil
+	}
+
+	var stillNeeded C.dcgmPolicyCondition_t
+	for _, subscription := range d.subscriptions {
+		if subscription.groupKey == sub.groupKey {
+			stillNeeded |= subscription.conditions
+		}
+	}
+
+	unused := registered &^ stillNeeded
+	if unused == 0 {
+		return sub.ch, nil
+	}
+
+	return sub.ch, []policyUnregister{{
+		group:     sub.group,
+		condition: unused,
+	}}
+}
+
+// clearRegistrations removes bookkeeping for DCGM registrations that are gone.
+func (d *policyDispatcher) clearRegistrations(unregisters []policyUnregister) {
+	if len(unregisters) == 0 {
 		return
 	}
 
-	if callbacks != nil {
-		// Drain and close all channels
-		for key, ch := range callbacks {
-			select {
-			case <-ch:
-				// Drain any pending values
-			default:
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	for _, unregister := range unregisters {
+		groupKey := unregister.group.GetHandle()
+		for regID, registration := range d.registrations {
+			if registration.groupKey != groupKey {
+				continue
 			}
-			close(ch)
-			delete(callbacks, key)
+
+			remaining := registration.conditions &^ unregister.condition
+			if remaining == 0 {
+				delete(d.registrations, regID)
+				continue
+			}
+
+			registration.conditions = remaining
+			d.registrations[regID] = registration
 		}
-		callbacks = nil
-		// Reset the initialization flag to allow re-initialization
-		policyChannelsInitialized = false
+
+		remaining := d.registeredByGroup[groupKey] &^ unregister.condition
+		if remaining == 0 {
+			delete(d.registeredByGroup, groupKey)
+		} else {
+			d.registeredByGroup[groupKey] = remaining
+		}
 	}
 }
 
-func makePolicyParmsMap() {
-	const (
-		policyFieldTypeBool    = 0
-		policyFieldTypeLong    = 1
-		policyBoolValue        = 1
-		policyMaxRtPgThreshold = 10
-		policyThermalThreshold = 100
-		policyPowerThreshold   = 250
-	)
-
-	policyMapOnce.Do(func() {
-		paramMap = make(map[policyIndex]policyConditionParam)
-		paramMap[dbePolicyIndex] = policyConditionParam{
-			typ:   policyFieldTypeBool,
-			value: policyBoolValue,
+// rollbackSubscription undoes local state after DCGM registration fails.
+func (d *policyDispatcher) rollbackSubscription(subID uint64, registration *policyRegistration) {
+	d.mu.Lock()
+	sub, exists := d.subscriptions[subID]
+	if exists {
+		delete(d.subscriptions, subID)
+	}
+	if registration != nil {
+		delete(d.registrations, registration.id)
+		remaining := d.registeredByGroup[registration.groupKey] &^ registration.conditions
+		if remaining == 0 {
+			delete(d.registeredByGroup, registration.groupKey)
+		} else {
+			d.registeredByGroup[registration.groupKey] = remaining
 		}
+	}
+	d.mu.Unlock()
 
-		paramMap[pciePolicyIndex] = policyConditionParam{
-			typ:   policyFieldTypeBool,
-			value: policyBoolValue,
-		}
-
-		paramMap[maxRtPgPolicyIndex] = policyConditionParam{
-			typ:   policyFieldTypeLong,
-			value: policyMaxRtPgThreshold,
-		}
-
-		paramMap[thermalPolicyIndex] = policyConditionParam{
-			typ:   policyFieldTypeLong,
-			value: policyThermalThreshold,
-		}
-
-		paramMap[powerPolicyIndex] = policyConditionParam{
-			typ:   policyFieldTypeLong,
-			value: policyPowerThreshold,
-		}
-
-		paramMap[nvlinkPolicyIndex] = policyConditionParam{
-			typ:   policyFieldTypeBool,
-			value: policyBoolValue,
-		}
-
-		paramMap[xidPolicyIndex] = policyConditionParam{
-			typ:   policyFieldTypeBool,
-			value: policyBoolValue,
-		}
-	})
+	if exists {
+		close(sub.ch)
+	}
 }
 
-// ViolationRegistration is a go callback function for dcgmPolicyRegister() wrapped in C.violationNotify()
+// unsubscribe closes one listener and unregisters conditions no remaining listener needs.
+func (d *policyDispatcher) unsubscribe(subID uint64) {
+	d.registerMu.Lock()
+	defer d.registerMu.Unlock()
+
+	ch, unregisters := d.removeSubscription(subID)
+	if ch == nil {
+		return
+	}
+	close(ch)
+
+	succeeded := make([]policyUnregister, 0, len(unregisters))
+	for _, unregister := range unregisters {
+		if err := unregisterPolicy(unregister.group, unregister.condition); err != nil {
+			if unregisterErrorClearsLocalState(err) {
+				log.Printf("policy unregister found no live DCGM registration for group %d condition %d: %v",
+					unregister.group.GetHandle(), unregister.condition, err)
+				succeeded = append(succeeded, unregister)
+				continue
+			}
+
+			log.Printf("error unregistering policy for group %d condition %d: %v; retrying once",
+				unregister.group.GetHandle(), unregister.condition, err)
+			if retryErr := unregisterPolicy(unregister.group, unregister.condition); retryErr != nil {
+				if unregisterErrorClearsLocalState(retryErr) {
+					log.Printf("policy unregister retry found no live DCGM registration for group %d condition %d: %v",
+						unregister.group.GetHandle(), unregister.condition, retryErr)
+					succeeded = append(succeeded, unregister)
+					continue
+				}
+
+				log.Printf("error unregistering policy for group %d condition %d after retry: %v",
+					unregister.group.GetHandle(), unregister.condition, retryErr)
+				continue
+			}
+		}
+		succeeded = append(succeeded, unregister)
+	}
+	d.clearRegistrations(succeeded)
+}
+
+// deliver fans out a violation to interested subscribers without blocking.
+func (d *policyDispatcher) deliver(registrationID uint64, violation PolicyViolation) {
+	condition, ok := policyConditionMask(violation.Condition)
+	if !ok {
+		return
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	registration, exists := d.registrations[registrationID]
+	if !exists {
+		return
+	}
+
+	for _, subscription := range d.subscriptions {
+		if subscription.groupKey != registration.groupKey || subscription.conditions&condition == 0 {
+			continue
+		}
+
+		select {
+		case subscription.ch <- violation:
+		default:
+			d.drops.Add(1)
+		}
+	}
+}
+
+// dropped returns the process-local count of best-effort delivery drops.
+func (d *policyDispatcher) dropped() uint64 {
+	return d.drops.Load()
+}
+
+// policyConditionMask returns the DCGM mask for a public policy condition.
+func policyConditionMask(condition PolicyCondition) (C.dcgmPolicyCondition_t, bool) {
+	return policyConditionInfo(condition)
+}
+
+// policyConditionInfo maps public policy conditions to DCGM condition masks.
+func policyConditionInfo(condition PolicyCondition) (C.dcgmPolicyCondition_t, bool) {
+	switch condition {
+	case DbePolicy:
+		return C.DCGM_POLICY_COND_DBE, true
+	case PCIePolicy:
+		return C.DCGM_POLICY_COND_PCI, true
+	case MaxRtPgPolicy:
+		return C.DCGM_POLICY_COND_MAX_PAGES_RETIRED, true
+	case ThermalPolicy:
+		return C.DCGM_POLICY_COND_THERMAL, true
+	case PowerPolicy:
+		return C.DCGM_POLICY_COND_POWER, true
+	case NvlinkPolicy:
+		return C.DCGM_POLICY_COND_NVLINK, true
+	case XidPolicy:
+		return C.DCGM_POLICY_COND_XID, true
+	default:
+		return 0, false
+	}
+}
+
+// translateConditions validates requested conditions and builds their DCGM mask.
+func translateConditions(conditions []PolicyCondition) (translatedPolicyConditions, error) {
+	if len(conditions) == 0 {
+		return translatedPolicyConditions{}, fmt.Errorf("at least one policy condition must be provided")
+	}
+
+	var translated translatedPolicyConditions
+	for _, condition := range conditions {
+		mask, ok := policyConditionInfo(condition)
+		if !ok {
+			return translatedPolicyConditions{}, fmt.Errorf("unknown policy condition: %s", condition)
+		}
+		translated.condition |= mask
+	}
+
+	return translated, nil
+}
+
+var policyConditionOrder = []PolicyCondition{
+	DbePolicy,
+	PCIePolicy,
+	MaxRtPgPolicy,
+	ThermalPolicy,
+	PowerPolicy,
+	NvlinkPolicy,
+	XidPolicy,
+}
+
+// ensurePolicyForListen preserves existing policy config before a Listen subscription.
+func ensurePolicyForListen(groupID GroupHandle, requested []PolicyCondition) error {
+	status, err := getPolicyForGroup(groupID)
+	if err != nil {
+		if !policyReadNeedsDefaultSetup(err) {
+			return fmt.Errorf("error getting policy before registering listener: %w", err)
+		}
+
+		configs, _ := policyConfigsForListen(nil, requested)
+		return setPolicyForGroupWithConfig(groupID, configs...)
+	}
+
+	configs, needsUpdate := policyConfigsForListen(status, requested)
+	if !needsUpdate {
+		return nil
+	}
+
+	return setPolicyForGroupWithConfig(groupID, configs...)
+}
+
+// policyReadNeedsDefaultSetup reports whether no usable policy exists yet.
+func policyReadNeedsDefaultSetup(err error) bool {
+	var dcgmErr *Error
+	if !errors.As(err, &dcgmErr) {
+		return false
+	}
+
+	return dcgmErr.Code == C.DCGM_ST_INSUFFICIENT_SIZE ||
+		dcgmErr.Code == C.DCGM_ST_NOT_CONFIGURED
+}
+
+// policyConfigsForListen merges missing Listen conditions into existing policy config.
+func policyConfigsForListen(status *PolicyStatus, requested []PolicyCondition) ([]PolicyConfig, bool) {
+	if status == nil {
+		status = &PolicyStatus{
+			Conditions: make(map[PolicyCondition]interface{}),
+		}
+	}
+	if status.Conditions == nil {
+		status.Conditions = make(map[PolicyCondition]interface{})
+	}
+
+	missing := make(map[PolicyCondition]struct{})
+	for _, condition := range requested {
+		if _, exists := status.Conditions[condition]; !exists {
+			missing[condition] = struct{}{}
+		}
+	}
+	if len(missing) == 0 {
+		return nil, false
+	}
+
+	configs := make([]PolicyConfig, 0, len(status.Conditions)+len(missing))
+	for _, condition := range policyConditionOrder {
+		if value, exists := status.Conditions[condition]; exists {
+			configs = append(configs, policyConfigFromStatus(condition, value))
+			continue
+		}
+		if _, needsDefault := missing[condition]; needsDefault {
+			configs = append(configs, defaultPolicyConfig(condition))
+		}
+	}
+
+	if len(configs) > 0 {
+		configs[0].Action = policyActionPtr(status.Action)
+		configs[0].Validation = policyValidationPtr(status.Validation)
+	}
+
+	return configs, true
+}
+
+// policyConfigFromStatus converts a current policy condition into a set config.
+func policyConfigFromStatus(condition PolicyCondition, value interface{}) PolicyConfig {
+	config := PolicyConfig{Condition: condition}
+
+	switch condition {
+	case MaxRtPgPolicy:
+		config.MaxRetiredPages = uint32PolicyPtr(policyThresholdUint32(value, DefaultMaxRetiredPages))
+	case ThermalPolicy:
+		config.MaxTemperature = uint32PolicyPtr(policyThresholdUint32(value, DefaultMaxTemperature))
+	case PowerPolicy:
+		config.MaxPower = uint32PolicyPtr(policyThresholdUint32(value, DefaultMaxPower))
+	}
+
+	return config
+}
+
+// defaultPolicyConfig returns default thresholds for a missing condition.
+func defaultPolicyConfig(condition PolicyCondition) PolicyConfig {
+	switch condition {
+	case MaxRtPgPolicy:
+		return PolicyConfig{
+			Condition:       condition,
+			MaxRetiredPages: uint32PolicyPtr(DefaultMaxRetiredPages),
+		}
+	case ThermalPolicy:
+		return PolicyConfig{
+			Condition:      condition,
+			MaxTemperature: uint32PolicyPtr(DefaultMaxTemperature),
+		}
+	case PowerPolicy:
+		return PolicyConfig{
+			Condition: condition,
+			MaxPower:  uint32PolicyPtr(DefaultMaxPower),
+		}
+	default:
+		return PolicyConfig{Condition: condition}
+	}
+}
+
+// policyThresholdUint32 normalizes numeric thresholds read from DCGM policy status.
+func policyThresholdUint32(value interface{}, defaultValue uint32) uint32 {
+	switch v := value.(type) {
+	case uint32:
+		return v
+	case uint:
+		return uint32(v)
+	case int:
+		if v >= 0 {
+			return uint32(v)
+		}
+	case int32:
+		if v >= 0 {
+			return uint32(v)
+		}
+	case int64:
+		if v >= 0 {
+			return uint32(v)
+		}
+	}
+
+	return defaultValue
+}
+
+// uint32PolicyPtr returns a stable pointer for PolicyConfig threshold fields.
+func uint32PolicyPtr(value uint32) *uint32 {
+	return &value
+}
+
+// policyActionPtr returns a stable pointer for PolicyConfig action.
+func policyActionPtr(value PolicyAction) *PolicyAction {
+	return &value
+}
+
+// policyValidationPtr returns a stable pointer for PolicyConfig validation.
+func policyValidationPtr(value PolicyValidation) *PolicyValidation {
+	return &value
+}
+
+// ViolationRegistration decodes a DCGM callback and dispatches by registration ID.
 //
 //export ViolationRegistration
-func ViolationRegistration(data unsafe.Pointer) int {
+func ViolationRegistration(data unsafe.Pointer, userData C.uint64_t) C.int {
 	var con PolicyCondition
 	var timestamp time.Time
 	var val any
@@ -370,61 +730,9 @@ func ViolationRegistration(data unsafe.Pointer) int {
 		Data:      val,
 	}
 
-	switch con {
-	case DbePolicy:
-		callbacks["dbe"] <- err
-	case PCIePolicy:
-		callbacks["pcie"] <- err
-	case MaxRtPgPolicy:
-		callbacks["maxrtpg"] <- err
-	case ThermalPolicy:
-		callbacks["thermal"] <- err
-	case PowerPolicy:
-		callbacks["power"] <- err
-	case NvlinkPolicy:
-		callbacks["nvlink"] <- err
-	case XidPolicy:
-		callbacks["xid"] <- err
-	}
+	policyCallbacks.deliver(uint64(userData), err)
+
 	return 0
-}
-
-func setPolicy(groupID GroupHandle, condition C.dcgmPolicyCondition_t, paramList []policyIndex) (err error) {
-	var policy C.dcgmPolicy_t
-	policy.version = makeVersion1(unsafe.Sizeof(policy))
-	policy.mode = C.dcgmPolicyMode_t(C.DCGM_OPERATION_MODE_AUTO)
-	policy.action = C.DCGM_POLICY_ACTION_NONE
-	policy.isolation = C.DCGM_POLICY_ISOLATION_NONE
-	policy.validation = C.DCGM_POLICY_VALID_NONE
-	policy.condition = condition
-
-	// iterate on paramMap for given policy conditions
-	for _, key := range paramList {
-		conditionParam, exists := paramMap[key]
-		if !exists {
-			return fmt.Errorf("invalid policy condition: %v does not exist", key)
-		}
-		// set policy condition parameters
-		// set condition type (bool or longlong)
-		policy.parms[key].tag = conditionParam.typ
-
-		// set condition val (violation threshold)
-		// policy.parms.val is a C union type
-		// cgo docs: Go doesn't have support for C's union type
-		// C union types are represented as a Go byte array
-		binary.LittleEndian.PutUint32(policy.parms[key].val[:], conditionParam.value)
-	}
-
-	var statusHandle C.dcgmStatus_t
-
-	result := C.dcgmPolicySet(handle.handle, groupID.handle, &policy, statusHandle)
-	if err = errorString(result); err != nil {
-		return fmt.Errorf("error setting policies: %s", err)
-	}
-
-	log.Println("Policy successfully set.")
-
-	return
 }
 
 func setPolicyInternal(groupID GroupHandle, condition C.dcgmPolicyCondition_t, configs []policyConfigInternal, action PolicyAction, validation PolicyValidation) (err error) {
@@ -480,6 +788,7 @@ type PolicyStatus struct {
 	Conditions map[PolicyCondition]interface{}
 }
 
+// getPolicyForGroup returns current policy config while preserving DCGM error codes.
 func getPolicyForGroup(groupID GroupHandle) (*PolicyStatus, error) {
 	var policy C.dcgmPolicy_t
 	policy.version = makeVersion1(unsafe.Sizeof(policy))
@@ -488,7 +797,7 @@ func getPolicyForGroup(groupID GroupHandle) (*PolicyStatus, error) {
 
 	result := C.dcgmPolicyGet(handle.handle, groupID.handle, 1, &policy, statusHandle)
 	if err := errorString(result); err != nil {
-		return nil, fmt.Errorf("error getting policy: %s", err)
+		return nil, &Error{msg: fmt.Sprintf("error getting policy: %s", err), Code: result}
 	}
 
 	status := &PolicyStatus{
@@ -677,234 +986,101 @@ func setPolicyForGroupWithConfig(groupID GroupHandle, configs ...PolicyConfig) e
 	return setPolicyInternal(groupID, condition, internalConfigs, action, validation)
 }
 
+// registerPolicy configures requested policy conditions before subscribing.
 func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
-	var err error
-	// init policy globals for internal API
-	makePolicyChannels()
-	makePolicyParmsMap()
-
-	// Increment active listener count
-	policyCleanupMux.Lock()
-	activeListeners++
-	policyCleanupMux.Unlock()
-
-	// make a list of policy conditions for setting their parameters
-	paramKeys := make([]policyIndex, len(typ))
-	// get all conditions to be set in setPolicy()
-	var condition C.dcgmPolicyCondition_t = 0
-
-	for i, t := range typ {
-		switch t {
-		case DbePolicy:
-			paramKeys[i] = dbePolicyIndex
-			condition |= C.DCGM_POLICY_COND_DBE
-		case PCIePolicy:
-			paramKeys[i] = pciePolicyIndex
-			condition |= C.DCGM_POLICY_COND_PCI
-		case MaxRtPgPolicy:
-			paramKeys[i] = maxRtPgPolicyIndex
-			condition |= C.DCGM_POLICY_COND_MAX_PAGES_RETIRED
-		case ThermalPolicy:
-			paramKeys[i] = thermalPolicyIndex
-			condition |= C.DCGM_POLICY_COND_THERMAL
-		case PowerPolicy:
-			paramKeys[i] = powerPolicyIndex
-			condition |= C.DCGM_POLICY_COND_POWER
-		case NvlinkPolicy:
-			paramKeys[i] = nvlinkPolicyIndex
-			condition |= C.DCGM_POLICY_COND_NVLINK
-		case XidPolicy:
-			paramKeys[i] = xidPolicyIndex
-			condition |= C.DCGM_POLICY_COND_XID
-		}
+	if ctx == nil {
+		return nil, fmt.Errorf("context must not be nil")
 	}
 
-	err = setPolicy(groupID, condition, paramKeys)
+	translated, err := translateConditions(typ)
 	if err != nil {
-		policyCleanupMux.Lock()
-		activeListeners--
-		policyCleanupMux.Unlock()
 		return nil, err
 	}
 
-	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
+	return subscribePolicy(ctx, groupID, translated.condition, len(typ), func() error {
+		return ensurePolicyForListen(groupID, typ)
+	})
+}
 
-	if err = errorString(result); err != nil {
-		policyCleanupMux.Lock()
-		activeListeners--
-		policyCleanupMux.Unlock()
-		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+// registerPolicyOnly subscribes to existing policy conditions without changing thresholds.
+func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("context must not be nil")
 	}
+
+	translated, err := translateConditions(typ)
+	if err != nil {
+		return nil, err
+	}
+
+	return subscribePolicy(ctx, groupID, translated.condition, len(typ), nil)
+}
+
+// subscribePolicy serializes local subscription setup and DCGM registration.
+func subscribePolicy(
+	ctx context.Context,
+	groupID GroupHandle,
+	condition C.dcgmPolicyCondition_t,
+	buffer int,
+	setup func() error,
+) (<-chan PolicyViolation, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	policyCallbacks.registerMu.Lock()
+	defer policyCallbacks.registerMu.Unlock()
+
+	if setup != nil {
+		if err := setup(); err != nil {
+			return nil, err
+		}
+	}
+
+	subID, violation, registration := policyCallbacks.addSubscription(groupID, condition, buffer)
+	if registration != nil {
+		result := C.dcgmPolicyRegister_v2(
+			handle.handle,
+			groupID.handle,
+			registration.conditions,
+			C.fpRecvUpdates(C.violationNotify),
+			C.uint64_t(registration.id),
+		)
+		if err := errorString(result); err != nil {
+			policyCallbacks.rollbackSubscription(subID, registration)
+			return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		}
+	}
+
+	context.AfterFunc(ctx, func() {
+		policyCallbacks.unsubscribe(subID)
+	})
 
 	log.Println("Listening for violations...")
 
-	violation := make(chan PolicyViolation, len(typ))
-
-	go func() {
-		defer func() {
-			log.Println("unregister policy violation...")
-			close(violation)
-			unregisterPolicy(groupID, condition)
-
-			// Decrement active listener count and cleanup if needed
-			policyCleanupMux.Lock()
-			activeListeners--
-			policyCleanupMux.Unlock()
-			cleanupPolicyChannels()
-		}()
-
-		for {
-			select {
-			case dbe, ok := <-callbacks["dbe"]:
-				if !ok {
-					return
-				}
-				violation <- dbe
-			case pcie, ok := <-callbacks["pcie"]:
-				if !ok {
-					return
-				}
-				violation <- pcie
-			case maxrtpg, ok := <-callbacks["maxrtpg"]:
-				if !ok {
-					return
-				}
-				violation <- maxrtpg
-			case thermal, ok := <-callbacks["thermal"]:
-				if !ok {
-					return
-				}
-				violation <- thermal
-			case power, ok := <-callbacks["power"]:
-				if !ok {
-					return
-				}
-				violation <- power
-			case nvlink, ok := <-callbacks["nvlink"]:
-				if !ok {
-					return
-				}
-				violation <- nvlink
-			case xid, ok := <-callbacks["xid"]:
-				if !ok {
-					return
-				}
-				violation <- xid
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return violation, err
+	return violation, nil
 }
 
-func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
-	var err error
-	// init policy globals for internal API
-	makePolicyChannels()
-
-	policyCleanupMux.Lock()
-	activeListeners++
-	policyCleanupMux.Unlock()
-
-	// get all conditions to listen for
-	var condition C.dcgmPolicyCondition_t = 0
-
-	for _, t := range typ {
-		switch t {
-		case DbePolicy:
-			condition |= C.DCGM_POLICY_COND_DBE
-		case PCIePolicy:
-			condition |= C.DCGM_POLICY_COND_PCI
-		case MaxRtPgPolicy:
-			condition |= C.DCGM_POLICY_COND_MAX_PAGES_RETIRED
-		case ThermalPolicy:
-			condition |= C.DCGM_POLICY_COND_THERMAL
-		case PowerPolicy:
-			condition |= C.DCGM_POLICY_COND_POWER
-		case NvlinkPolicy:
-			condition |= C.DCGM_POLICY_COND_NVLINK
-		case XidPolicy:
-			condition |= C.DCGM_POLICY_COND_XID
-		}
-	}
-
-	// Register for violations without setting policies
-	result := C.dcgmPolicyRegister_v2(handle.handle, groupID.handle, condition, C.fpRecvUpdates(C.violationNotify), C.ulong(0))
-
-	if err = errorString(result); err != nil {
-		policyCleanupMux.Lock()
-		activeListeners--
-		policyCleanupMux.Unlock()
-		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
-	}
-
-	violation := make(chan PolicyViolation, len(typ))
-
-	go func() {
-		defer func() {
-			close(violation)
-			unregisterPolicy(groupID, condition)
-
-			policyCleanupMux.Lock()
-			activeListeners--
-			policyCleanupMux.Unlock()
-			cleanupPolicyChannels()
-		}()
-
-		for {
-			select {
-			case dbe, ok := <-callbacks["dbe"]:
-				if !ok {
-					return
-				}
-				violation <- dbe
-			case pcie, ok := <-callbacks["pcie"]:
-				if !ok {
-					return
-				}
-				violation <- pcie
-			case maxrtpg, ok := <-callbacks["maxrtpg"]:
-				if !ok {
-					return
-				}
-				violation <- maxrtpg
-			case thermal, ok := <-callbacks["thermal"]:
-				if !ok {
-					return
-				}
-				violation <- thermal
-			case power, ok := <-callbacks["power"]:
-				if !ok {
-					return
-				}
-				violation <- power
-			case nvlink, ok := <-callbacks["nvlink"]:
-				if !ok {
-					return
-				}
-				violation <- nvlink
-			case xid, ok := <-callbacks["xid"]:
-				if !ok {
-					return
-				}
-				violation <- xid
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return violation, err
-}
-
-func unregisterPolicy(groupID GroupHandle, condition C.dcgmPolicyCondition_t) {
+// unregisterPolicy unregisters DCGM callbacks for a group condition mask.
+func unregisterPolicy(groupID GroupHandle, condition C.dcgmPolicyCondition_t) error {
 	result := C.dcgmPolicyUnregister(handle.handle, groupID.handle, condition)
 
 	if err := errorString(result); err != nil {
-		log.Println(fmt.Errorf("error unregistering policy: %s", err))
+		return &Error{msg: fmt.Sprintf("error unregistering policy: %s", err), Code: result}
 	}
+
+	return nil
+}
+
+// unregisterErrorClearsLocalState reports whether DCGM state is already gone.
+func unregisterErrorClearsLocalState(err error) bool {
+	var dcgmErr *Error
+	if !errors.As(err, &dcgmErr) {
+		return false
+	}
+
+	return dcgmErr.Code == C.DCGM_ST_UNINITIALIZED ||
+		dcgmErr.Code == C.DCGM_ST_CONNECTION_NOT_VALID
 }
 
 func createTimeStamp(t C.longlong) time.Time {
