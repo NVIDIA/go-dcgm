@@ -1,4 +1,3 @@
-// Package dcgm provides bindings for NVIDIA's Data Center GPU Manager (DCGM)
 package dcgm
 
 /*
