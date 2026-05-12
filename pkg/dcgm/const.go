@@ -94,6 +94,8 @@ const (
 	DCGM_ST_NVML_ERROR = -8
 	// DCGM_ST_PENDING is the value for ECC PENDING
 	DCGM_ST_PENDING = -9
+	// DCGM_ST_UNINITIALIZED is the value for DCGM not initialized
+	DCGM_ST_UNINITIALIZED = -10
 	// DCGM_ST_TIMEOUT is the value for ECC TIMEOUT
 	DCGM_ST_TIMEOUT = -11
 	// DCGM_ST_VER_MISMATCH is the value for ECC VER MISMATCH
@@ -190,8 +192,6 @@ const (
 	DCGM_ST_NVML_DRIVER_TIMEOUT = -57
 	// DCGM_ST_NVVS_NO_AVAILABLE_TEST is the value for ECC NVVS NO AVAILABLE TEST
 	DCGM_ST_NVVS_NO_AVAILABLE_TEST = -58
-	// DCGM_ST_UNINITIALIZED is the value for DCGM not initialized
-	DCGM_ST_UNINITIALIZED = -59
 	// DCGM_ST_NO_NVVS is the value for NVVS not available
 	DCGM_ST_NO_NVVS = -60
 	// DCGM_ST_NVVS_NOT_RUNNING is the value for NVVS not running
