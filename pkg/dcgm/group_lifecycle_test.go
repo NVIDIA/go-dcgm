@@ -189,8 +189,13 @@ func TestWatchPidFieldsReturnsUpdateAllFieldsErrorAndDestroysGroup(t *testing.T)
 	t.Cleanup(func() { updateAllFields = oldUpdateAllFields })
 
 	for i := 0; i < 70; i++ {
-		_, err = watchPidFields(time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples, gpus[0])
-		skipIfPidWatchRequiresRoot(t, err)
+		_, err = watchPidFieldsWithWatcher(
+			func(GroupHandle, time.Duration, time.Duration, int) error { return nil },
+			time.Microsecond*time.Duration(defaultUpdateFreq),
+			time.Second*time.Duration(defaultMaxKeepAge),
+			defaultMaxKeepSamples,
+			gpus[0],
+		)
 		requireNoGroupCapErrorForTest(t, i, err)
 		require.ErrorIs(t, err, updateErr)
 	}

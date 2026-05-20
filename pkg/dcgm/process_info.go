@@ -96,7 +96,13 @@ func WatchPidFieldsEx(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, 
 	return watchPidFields(updateFreq, maxKeepAge, maxKeepSamples, gpus...)
 }
 
+type watchPidFieldsFunc func(GroupHandle, time.Duration, time.Duration, int) error
+
 func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
+	return watchPidFieldsWithWatcher(watchPidFieldsForGroup, updateFreq, maxKeepAge, maxKeepSamples, gpus...)
+}
+
+func watchPidFieldsWithWatcher(watch watchPidFieldsFunc, updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
 	groupName := fmt.Sprintf("watchPids%d", rand.Uint64())
 	group, err := CreateGroup(groupName)
 	if err != nil {
@@ -124,15 +130,22 @@ func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gp
 		}
 	}
 
-	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(updateFreq.Microseconds()), C.double(maxKeepAge.Seconds()), C.int(maxKeepSamples))
-
-	if err = errorString(result); err != nil {
-		return groupId, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+	if err = watch(group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
+		return groupId, err
 	}
 	if err = updateAllFields(); err != nil {
 		return groupId, err
 	}
 	return group, nil
+}
+
+func watchPidFieldsForGroup(group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
+	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(updateFreq.Microseconds()), C.double(maxKeepAge.Seconds()), C.int(maxKeepSamples))
+
+	if err := errorString(result); err != nil {
+		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
+	}
+	return nil
 }
 
 func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, err error) {
