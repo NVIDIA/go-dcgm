@@ -138,6 +138,11 @@ func getProcessInfo(resp http.ResponseWriter, req *http.Request) (pInfo []dcgm.P
 
 		return
 	}
+	defer func() {
+		if err := dcgm.DestroyGroup(group); err != nil {
+			log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		}
+	}()
 
 	// wait for watches to be enabled
 	log.Printf("Enabling DCGM watches to start collecting process stats. This may take a few seconds....")

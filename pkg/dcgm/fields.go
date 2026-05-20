@@ -127,6 +127,11 @@ func WatchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId
 	if err != nil {
 		return groupId, err
 	}
+	defer func() {
+		if err != nil {
+			_ = DestroyGroup(group)
+		}
+	}()
 
 	err = AddToGroup(group, gpuID)
 	if err != nil {
@@ -139,7 +144,9 @@ func WatchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId
 		return groupId, fmt.Errorf("error watching fields: %s", err)
 	}
 
-	_ = UpdateAllFields()
+	if err = updateAllFields(); err != nil {
+		return groupId, err
+	}
 	return group, nil
 }
 
@@ -390,6 +397,10 @@ func UpdateAllFields() error {
 
 	return errorString(result)
 }
+
+// updateAllFields is a test seam for forcing post-watch update failures.
+// Do not reassign it outside tests; tests that mutate it must not run in parallel.
+var updateAllFields = UpdateAllFields
 
 func toFieldValue(cfields []C.dcgmFieldValue_v1) []FieldValue_v1 {
 	fields := make([]FieldValue_v1, len(cfields))

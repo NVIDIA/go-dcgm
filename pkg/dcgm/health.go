@@ -145,6 +145,9 @@ func healthCheckByGpuId(gpuID uint) (deviceHealth DeviceHealth, err error) {
 	if err != nil {
 		return
 	}
+	defer func() {
+		_ = DestroyGroup(groupID)
+	}()
 
 	err = AddToGroup(groupID, gpuID)
 	if err != nil {
@@ -180,7 +183,6 @@ func healthCheckByGpuId(gpuID uint) (deviceHealth DeviceHealth, err error) {
 		Status:  status,
 		Watches: watches,
 	}
-	_ = DestroyGroup(groupID)
 	return
 }
 

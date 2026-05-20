@@ -102,6 +102,12 @@ func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gp
 	if err != nil {
 		return
 	}
+	defer func() {
+		if err != nil {
+			_ = DestroyGroup(group)
+		}
+	}()
+
 	numGpus := len(gpus)
 
 	if numGpus == 0 {
@@ -123,7 +129,9 @@ func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gp
 	if err = errorString(result); err != nil {
 		return groupId, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
-	_ = UpdateAllFields()
+	if err = updateAllFields(); err != nil {
+		return groupId, err
+	}
 	return group, nil
 }
 
