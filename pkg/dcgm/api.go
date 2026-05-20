@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -20,14 +19,13 @@ var (
 // - Embedded: Start hostengine within this process
 // - Standalone: Connect to an already running nv-hostengine
 // - StartHostengine: Start and connect to nv-hostengine, terminate before exiting
-// Returns a cleanup function and any error encountered
+// Returns a cleanup function on success. On error, cleanup is nil.
 func Init(m mode, args ...string) (cleanup func(), err error) {
 	mux.Lock()
 	defer mux.Unlock()
 
 	if dcgmInitCounter < 0 {
-		count := strconv.Itoa(dcgmInitCounter)
-		err = fmt.Errorf("shutdown() is called %s times, before init()", count[1:])
+		return nil, fmt.Errorf("shutdown() is called %d times, before init()", -dcgmInitCounter)
 	}
 
 	if dcgmInitCounter == 0 {
@@ -53,7 +51,7 @@ func Shutdown() (err error) {
 	defer mux.Unlock()
 
 	if dcgmInitCounter <= 0 {
-		err = errors.New("init() needs to be called before shutdown()")
+		return errors.New("init() needs to be called before shutdown()")
 	}
 
 	if dcgmInitCounter == 1 {
