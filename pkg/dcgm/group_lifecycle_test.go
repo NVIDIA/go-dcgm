@@ -163,12 +163,14 @@ func TestWatchFieldsReturnsUpdateAllFieldsErrorAndDestroysGroup(t *testing.T) {
 	}()
 
 	updateErr := errors.New("forced update error")
-	oldUpdateAllFields := updateAllFields
-	updateAllFields = func() error { return updateErr }
-	t.Cleanup(func() { updateAllFields = oldUpdateAllFields })
 
 	for i := 0; i < 70; i++ {
-		_, err = WatchFields(gpus[0], fieldGroup, "watch-fields-update-fail")
+		_, err = watchFieldsWithUpdater(
+			func() error { return updateErr },
+			gpus[0],
+			fieldGroup,
+			"watch-fields-update-fail",
+		)
 		requireNoGroupCapErrorForTest(t, i, err)
 		require.ErrorIs(t, err, updateErr)
 	}
@@ -184,13 +186,11 @@ func TestWatchPidFieldsReturnsUpdateAllFieldsErrorAndDestroysGroup(t *testing.T)
 	require.NotEmpty(t, gpus)
 
 	updateErr := errors.New("forced update error")
-	oldUpdateAllFields := updateAllFields
-	updateAllFields = func() error { return updateErr }
-	t.Cleanup(func() { updateAllFields = oldUpdateAllFields })
 
 	for i := 0; i < 70; i++ {
 		_, err = watchPidFieldsWithWatcher(
 			func(GroupHandle, time.Duration, time.Duration, int) error { return nil },
+			func() error { return updateErr },
 			time.Microsecond*time.Duration(defaultUpdateFreq),
 			time.Second*time.Duration(defaultMaxKeepAge),
 			defaultMaxKeepSamples,

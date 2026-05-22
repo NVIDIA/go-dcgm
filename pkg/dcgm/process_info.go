@@ -99,10 +99,10 @@ func WatchPidFieldsEx(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, 
 type watchPidFieldsFunc func(GroupHandle, time.Duration, time.Duration, int) error
 
 func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
-	return watchPidFieldsWithWatcher(watchPidFieldsForGroup, updateFreq, maxKeepAge, maxKeepSamples, gpus...)
+	return watchPidFieldsWithWatcher(watchPidFieldsForGroup, UpdateAllFields, updateFreq, maxKeepAge, maxKeepSamples, gpus...)
 }
 
-func watchPidFieldsWithWatcher(watch watchPidFieldsFunc, updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
+func watchPidFieldsWithWatcher(watch watchPidFieldsFunc, update func() error, updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
 	groupName := fmt.Sprintf("watchPids%d", rand.Uint64())
 	group, err := CreateGroup(groupName)
 	if err != nil {
@@ -133,7 +133,7 @@ func watchPidFieldsWithWatcher(watch watchPidFieldsFunc, updateFreq, maxKeepAge 
 	if err = watch(group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
 		return groupId, err
 	}
-	if err = updateAllFields(); err != nil {
+	if err = update(); err != nil {
 		return groupId, err
 	}
 	return group, nil
