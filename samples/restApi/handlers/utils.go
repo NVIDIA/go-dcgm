@@ -95,13 +95,28 @@ CPU(%)          : {{printf "%.2f" .CPU}}
 `
 )
 
+// logRequestError emits a log line tagged with the inbound request's Host
+// and URL plus a descriptive message. Caller-controlled fields (Host, URL,
+// msg) are formatted with %q so newlines, null bytes, ANSI escapes, and
+// other control characters are rendered as Go-quoted escape sequences
+// instead of being passed through verbatim. This closes gosec G706 (log
+// injection via taint analysis) and defends against an attacker forging
+// fake log entries by stuffing LF/CRLF into the Host header.
+func logRequestError(req *http.Request, msg string) {
+	var urlStr string
+	if req.URL != nil {
+		urlStr = req.URL.String()
+	}
+	log.Printf("error: host=%q url=%q msg=%q", req.Host, urlStr, msg)
+}
+
 // getId converts a string key to a GPU ID
 // Returns math.MaxUint32 if the conversion fails
 func getId(resp http.ResponseWriter, req *http.Request, key string) uint {
 	id, err := strconv.ParseUint(key, base, bitsize)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusBadRequest)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 
 		return math.MaxUint32
 	}
@@ -113,7 +128,7 @@ func getIdByUuid(resp http.ResponseWriter, req *http.Request, key string) uint {
 	id, exists := uuids[key]
 	if !exists {
 		http.NotFound(resp, req)
-		log.Printf("error: %v%v:  %v (page not found)", req.Host, req.URL, http.StatusNotFound)
+		logRequestError(req, fmt.Sprintf("%d (page not found)", http.StatusNotFound))
 
 		return math.MaxUint32
 	}
@@ -127,14 +142,14 @@ func isValidId(id uint, resp http.ResponseWriter, req *http.Request) bool {
 	count, err := dcgm.GetAllDeviceCount()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 
 		return false
 	}
 
 	if id >= count {
 		http.NotFound(resp, req)
-		log.Printf("error: %v%v: %v (page not found)", req.Host, req.URL, http.StatusNotFound)
+		logRequestError(req, fmt.Sprintf("%d (page not found)", http.StatusNotFound))
 
 		return false
 	}
@@ -148,7 +163,7 @@ func isDcgmSupported(gpuId uint, resp http.ResponseWriter, req *http.Request) bo
 	gpus, err := dcgm.GetSupportedDevices()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 
 		return false
 	}
@@ -161,7 +176,7 @@ func isDcgmSupported(gpuId uint, resp http.ResponseWriter, req *http.Request) bo
 
 	err = fmt.Errorf("error adding gpu %d to group: This gpu is not supported by dcgm", gpuId)
 	http.Error(resp, err.Error(), http.StatusInternalServerError)
-	log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+	logRequestError(req, err.Error())
 
 	return false
 }
@@ -178,7 +193,7 @@ func printer(resp http.ResponseWriter, req *http.Request, stats any, templ strin
 	t := template.Must(template.New("").Parse(templ))
 	if err := t.Execute(resp, stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 	}
 }
 
@@ -188,7 +203,7 @@ func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 
 	if err := json.NewEncoder(resp).Encode(stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 	}
 }
 
@@ -198,7 +213,7 @@ func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.Proc
 	for i := range pInfo {
 		if err := t.Execute(resp, pInfo[i]); err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
-			log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+			logRequestError(req, err.Error())
 
 			return
 		}

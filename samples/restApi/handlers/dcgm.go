@@ -15,7 +15,7 @@ func getStatus(resp http.ResponseWriter, req *http.Request) (status *dcgm.Status
 	st, err := dcgm.Introspect()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 
 		return
 	}
@@ -47,7 +47,7 @@ func getDeviceInfo(resp http.ResponseWriter, req *http.Request) (device *dcgm.De
 	d, err := dcgm.GetDeviceInfo(id)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 
 		return
 	}
@@ -83,7 +83,7 @@ func getDeviceStatus(resp http.ResponseWriter, req *http.Request) (status *dcgm.
 	st, err := dcgm.GetDeviceStatus(id)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 
 		return
 	}
@@ -115,7 +115,7 @@ func getHealth(resp http.ResponseWriter, req *http.Request) (health *dcgm.Device
 	h, err := dcgm.HealthCheckByGpuId(id)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 
 		return
 	}
@@ -134,7 +134,7 @@ func getProcessInfo(resp http.ResponseWriter, req *http.Request) (pInfo []dcgm.P
 	group, err := dcgm.WatchPidFields()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 
 		return
 	}
@@ -146,7 +146,7 @@ func getProcessInfo(resp http.ResponseWriter, req *http.Request) (pInfo []dcgm.P
 	pInfo, err = dcgm.GetProcessInfo(group, pid)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err.Error())
 	}
 
 	return
