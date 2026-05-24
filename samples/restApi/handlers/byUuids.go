@@ -21,7 +21,7 @@ func DevicesUuids() {
 		return
 	}
 
-	for i := uint(0); i < count; i++ {
+	for i := range count {
 		deviceInfo, err := dcgm.GetDeviceInfo(i)
 		if err != nil {
 			log.Printf("(DCGM) Error getting device information: %s", err)
@@ -45,7 +45,7 @@ func DeviceInfoByUuid(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, device, deviceInfo)
+	printer(resp, req, device, deviceInfoTmpl)
 }
 
 // DeviceStatusByUuid handles HTTP requests for device status by GPU UUID
@@ -61,7 +61,7 @@ func DeviceStatusByUuid(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, st, deviceStatus)
+	printer(resp, req, st, deviceStatusTmpl)
 }
 
 // HealthByUuid handles HTTP requests for device health status by GPU UUID
@@ -77,5 +77,5 @@ func HealthByUuid(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, h, healthStatus)
+	printer(resp, req, h, healthStatusTmpl)
 }
