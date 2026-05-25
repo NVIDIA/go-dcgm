@@ -41,18 +41,17 @@ func TestPrinter(t *testing.T) {
 			http.StatusOK, "Status             : OK", "",
 		},
 
-		// negative — template can't render the stats. Note: Execute() writes
-		// the static prefix before hitting the failing action, which
-		// implicitly commits HTTP 200 to the recorder. The subsequent
-		// http.Error() in printer() then appends the error message to the
-		// body but cannot rewrite the status code. We assert what actually
-		// happens (status stays 200, error text appears in body) — fixing
-		// the "should return 500" wart is a separate change, out of scope
-		// for the G708 hardening.
+		// negative — template can't render the stats. printer() buffers the
+		// Execute output into a bytes.Buffer before writing it to the
+		// response, so a mid-render failure aborts cleanly: status 500 with
+		// the error message, and the partial template prefix (e.g.,
+		// "Memory(KB)      : ") never reaches the client. The wantSubstr /
+		// notSubstr pair pins both halves of the contract: the error text
+		// must appear, and the partial template output must NOT.
 		{
-			"negative_unknown_field_appends_error_in_body", "negative", hostengineTmpl,
+			"negative_unknown_field_returns_500_with_clean_body", "negative", hostengineTmpl,
 			struct{ Unrelated string }{"x"},
-			http.StatusOK, "can't evaluate field Memory", "",
+			http.StatusInternalServerError, "can't evaluate field Memory", "Memory(KB)",
 		},
 
 		// boundary — empty/zero stats render zero values, no panic.

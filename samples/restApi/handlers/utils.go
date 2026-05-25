@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -186,11 +187,25 @@ func isJson(req *http.Request) bool {
 }
 
 // printer formats and writes templated text output to the response.
+//
 // The template is supplied as a pre-parsed *template.Template so the parse
 // step cannot accept attacker-controlled text (closes gosec G708).
+//
+// Execute renders into a bytes.Buffer first and only copies to the response
+// on success. If rendering fails midway, the partial output is discarded
+// and a clean HTTP 500 (with the template error message) is returned —
+// previously, Execute wrote the static template prefix directly to resp
+// before hitting the failing action, which implicitly committed HTTP 200
+// and caused the subsequent http.Error() to silently fail to set 500.
 func printer(resp http.ResponseWriter, req *http.Request, stats any, tmpl *template.Template) {
-	if err := tmpl.Execute(resp, stats); err != nil {
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
+		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+
+		return
+	}
+	if _, err := buf.WriteTo(resp); err != nil {
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 	}
 }
@@ -207,13 +222,21 @@ func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 
 // processPrint formats and writes process information to the response using
 // the pre-parsed processInfoTmpl (closes gosec G708 for this call site).
+//
+// As with printer(), all template renders go into a bytes.Buffer first so a
+// mid-iteration failure can return a clean HTTP 500 without leaking the
+// successfully-rendered earlier entries or a partial in-progress entry.
 func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.ProcessInfo) {
+	var buf bytes.Buffer
 	for i := range pInfo {
-		if err := processInfoTmpl.Execute(resp, pInfo[i]); err != nil {
+		if err := processInfoTmpl.Execute(&buf, pInfo[i]); err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 
 			return
 		}
+	}
+	if _, err := buf.WriteTo(resp); err != nil {
+		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 	}
 }
