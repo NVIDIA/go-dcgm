@@ -123,10 +123,19 @@ func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 // groupName is a name for the watch group.
 // Returns a group handle and any error encountered.
 func WatchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId GroupHandle, err error) {
+	return watchFieldsWithUpdater(UpdateAllFields, gpuID, fieldsGroup, groupName)
+}
+
+func watchFieldsWithUpdater(update func() error, gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId GroupHandle, err error) {
 	group, err := CreateGroup(groupName)
 	if err != nil {
 		return groupId, err
 	}
+	defer func() {
+		if err != nil {
+			_ = DestroyGroup(group)
+		}
+	}()
 
 	err = AddToGroup(group, gpuID)
 	if err != nil {
@@ -139,7 +148,9 @@ func WatchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId
 		return groupId, fmt.Errorf("error watching fields: %s", err)
 	}
 
-	_ = UpdateAllFields()
+	if err = update(); err != nil {
+		return groupId, err
+	}
 	return group, nil
 }
 

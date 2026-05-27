@@ -1,12 +1,22 @@
 package tests
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
+
+func skipIfPidWatchRequiresRoot(t *testing.T, err error) {
+	t.Helper()
+
+	var dcgmErr *dcgm.Error
+	if errors.As(err, &dcgmErr) && int(dcgmErr.Code) == dcgm.DCGM_ST_REQUIRES_ROOT {
+		t.Skipf("PID field watches require root on this DCGM host: %v", err)
+	}
+}
 
 // TestProcessInfo demonstrates getting process information for GPU processes
 // This is equivalent to the processInfo sample
@@ -20,6 +30,7 @@ func TestProcessInfo(t *testing.T) {
 	// Request DCGM to start recording stats for GPU process fields
 	group, err := dcgm.WatchPidFields()
 	if err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
 		t.Fatalf("Failed to watch PID fields: %v", err)
 	}
 
@@ -73,6 +84,7 @@ func TestProcessInfoWithSpecificPID(t *testing.T) {
 	// Request DCGM to start recording stats for GPU process fields
 	group, err := dcgm.WatchPidFields()
 	if err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
 		t.Fatalf("Failed to watch PID fields: %v", err)
 	}
 
@@ -102,6 +114,7 @@ func TestWatchPidFields(t *testing.T) {
 	// Test WatchPidFields function
 	group, err := dcgm.WatchPidFields()
 	if err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
 		t.Fatalf("Failed to watch PID fields: %v", err)
 	}
 

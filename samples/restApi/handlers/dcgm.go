@@ -123,7 +123,23 @@ func getHealth(resp http.ResponseWriter, req *http.Request) (health *dcgm.Device
 	return &h
 }
 
+type processInfoDeps struct {
+	watchPidFields func() (dcgm.GroupHandle, error)
+	getProcessInfo func(dcgm.GroupHandle, uint) ([]dcgm.ProcessInfo, error)
+	destroyGroup   func(dcgm.GroupHandle) error
+	sleep          func(time.Duration)
+}
+
 func getProcessInfo(resp http.ResponseWriter, req *http.Request) (pInfo []dcgm.ProcessInfo) {
+	return getProcessInfoWithDeps(resp, req, processInfoDeps{
+		watchPidFields: dcgm.WatchPidFields,
+		getProcessInfo: dcgm.GetProcessInfo,
+		destroyGroup:   dcgm.DestroyGroup,
+		sleep:          time.Sleep,
+	})
+}
+
+func getProcessInfoWithDeps(resp http.ResponseWriter, req *http.Request, deps processInfoDeps) (pInfo []dcgm.ProcessInfo) {
 	params := mux.Vars(req)
 
 	pid := getId(resp, req, params["pid"])
@@ -131,19 +147,24 @@ func getProcessInfo(resp http.ResponseWriter, req *http.Request) (pInfo []dcgm.P
 		return
 	}
 
-	group, err := dcgm.WatchPidFields()
+	group, err := deps.watchPidFields()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 
 		return
 	}
+	defer func() {
+		if err := deps.destroyGroup(group); err != nil {
+			log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		}
+	}()
 
 	// wait for watches to be enabled
 	log.Printf("Enabling DCGM watches to start collecting process stats. This may take a few seconds....")
-	time.Sleep(3000 * time.Millisecond)
+	deps.sleep(3000 * time.Millisecond)
 
-	pInfo, err = dcgm.GetProcessInfo(group, pid)
+	pInfo, err = deps.getProcessInfo(group, pid)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
