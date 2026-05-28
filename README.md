@@ -8,7 +8,9 @@ You will also find samples for these bindings in this repository.
 
 ### Generating Field Constants
 
-The DCGM field constants in `pkg/dcgm/const_fields.go` are automatically generated from `pkg/dcgm/dcgm_fields.h`. To regenerate these constants after updating the header file:
+The DCGM field constants in `pkg/dcgm/const_fields.go` are automatically generated from `pkg/dcgm/dcgm_fields.h`. Curated lowercase compatibility names are tracked in `pkg/dcgm/legacy_fields.csv` and included during generation.
+
+To regenerate these constants after updating the header file:
 
 ```bash
 make generate

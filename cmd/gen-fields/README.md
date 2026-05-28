@@ -10,8 +10,8 @@ The generator parses `dcgm_fields.h` and generates a Go file with:
 - `dcgmFields`: maps canonical name to field ID.
 - `legacyDCGMFields`: maps backward-compatible names to the same IDs.
   Populated from two sources:
-    - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`),
-      preserved across regenerations.
+    - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`)
+      listed in `pkg/dcgm/legacy_fields.csv`.
     - Deprecated-alias `#define OLD NEW` lines in the header, either
       inside an `#ifdef DCGM_DEPRECATED` block or preceded by a
       `Deprecated:` comment.
@@ -36,13 +36,15 @@ You can also run the generator directly:
 
 ```bash
 go run cmd/gen-fields/main.go cmd/gen-fields/template.go \
+    --legacy-fields pkg/dcgm/legacy_fields.csv \
     pkg/dcgm/dcgm_fields.h \
     pkg/dcgm/const_fields.go
 ```
 
 Arguments:
-1. Path to `dcgm_fields.h` (input)
-2. Path to `const_fields.go` (output)
+1. Optional `--legacy-fields` CSV path for curated lowercase names
+2. Path to `dcgm_fields.h` (input)
+3. Path to `const_fields.go` (output)
 
 ## How It Works
 
@@ -56,9 +58,9 @@ Arguments:
 2. **Resolve aliases**: each recorded alias is mapped to its target
    field's canonical ID. If a target isn't a known field, generation
    fails so header churn can't silently drop previously-exposed names.
-3. **Preserve curated legacy names**: lowercase DCGM 1.x names in the
-   previously-generated `const_fields.go` are round-tripped. `DCGM_FI_*`
-   entries are not preserved here; they re-derive from step 2 every run.
+3. **Read curated legacy names**: lowercase DCGM 1.x names are read from
+   `legacy_fields.csv`. `DCGM_FI_*` entries are not listed there; they
+   re-derive from step 2 every run.
 4. **Emit Go code** via `template.go`, then run `gofmt -w` on the output
    so `make check-generate` stays stable.
 
@@ -80,7 +82,7 @@ var dcgmFields = map[string]Short{
 }
 
 var legacyDCGMFields = map[string]Short{
-    // DCGM 1.x lowercase names, preserved from the prior generation:
+    // DCGM 1.x lowercase names from legacy_fields.csv:
     "dcgm_gpu_temp":   150,
     "dcgm_power_usage": 155,
     // Deprecated aliases resolved from dcgm_fields.h:
@@ -106,7 +108,8 @@ When DCGM adds new fields:
 1. Update `pkg/dcgm/dcgm_fields.h` with the latest version from DCGM
 2. Run `make generate`
 3. Review the diff in `pkg/dcgm/const_fields.go`
-4. Commit both the header and generated file
+4. If a curated lowercase compatibility name is needed, update
+   `pkg/dcgm/legacy_fields.csv`
+5. Commit the header, generated file, and any legacy CSV changes
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md#updating-dcgm-fields) for detailed instructions.
-
