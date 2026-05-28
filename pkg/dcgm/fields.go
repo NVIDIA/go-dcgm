@@ -1,6 +1,6 @@
 package dcgm
 
-//go:generate go run ../../cmd/gen-fields/main.go ../../cmd/gen-fields/template.go dcgm_fields.h const_fields.go
+//go:generate go run ../../cmd/gen-fields/main.go ../../cmd/gen-fields/template.go --legacy-fields legacy_fields.csv dcgm_fields.h const_fields.go
 
 /*
 #include "dcgm_agent.h"
