@@ -33,6 +33,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -124,28 +125,67 @@ func stopEmbedded() (err error) {
 	return
 }
 
+type standaloneConnection struct {
+	address    string
+	socketFlag string
+	useV3      bool
+}
+
+func standaloneConnectionArgs(args ...string) (standaloneConnection, error) {
+	if len(args) > 0 && isDCGMConnectionString(args[0]) {
+		return standaloneConnection{address: args[0], useV3: true}, nil
+	}
+	if len(args) < 2 {
+		return standaloneConnection{}, errors.New("missing dcgm address and / or port")
+	}
+	return standaloneConnection{address: args[0], socketFlag: args[1]}, nil
+}
+
+func isDCGMConnectionString(address string) bool {
+	lower := strings.ToLower(address)
+	return strings.HasPrefix(lower, "tcp://") ||
+		strings.HasPrefix(lower, "unix://") ||
+		strings.HasPrefix(lower, "vsock://")
+}
+
+func dcgmSymbolAvailable(symbol string) bool {
+	if dcgmLibHandle == nil {
+		return false
+	}
+	cSymbol := C.CString(symbol)
+	defer freeCString(cSymbol)
+	return C.dlsym(dcgmLibHandle, cSymbol) != nil
+}
+
 func connectStandalone(args ...string) (err error) {
+	conn, err := standaloneConnectionArgs(args...)
+	if err != nil {
+		return err
+	}
+	if conn.useV3 {
+		return connectStandaloneV3(conn.address)
+	}
+	return connectStandaloneV2(conn.address, conn.socketFlag)
+}
+
+func connectStandaloneV2(address, socketFlag string) (err error) {
 	var (
 		cHandle       C.dcgmHandle_t
 		connectParams C.dcgmConnectV2Params_v2
 	)
-
-	if len(args) < 2 {
-		return errors.New("missing dcgm address and / or port")
-	}
 
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("error initializing DCGM: %s", err)
 	}
 
-	addr := C.CString(args[0])
+	addr := C.CString(address)
 	defer freeCString(addr)
 	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
 
-	sck, err := strconv.ParseUint(args[1], 10, 32)
+	sck, err := strconv.ParseUint(socketFlag, 10, 32)
 	if err != nil {
-		return fmt.Errorf("error parsing %s: %v", args[1], err)
+		return fmt.Errorf("error parsing %s: %v", socketFlag, err)
 	}
 	connectParams.addressIsUnixSocket = C.uint(sck)
 
@@ -155,8 +195,36 @@ func connectStandalone(args ...string) (err error) {
 	}
 
 	handle = dcgmHandle{cHandle}
+	return nil
+}
 
-	return
+func connectStandaloneV3(connectionString string) (err error) {
+	const dcgmConnectV3Symbol = "dcgmConnect_v3"
+	if !dcgmSymbolAvailable(dcgmConnectV3Symbol) {
+		return fmt.Errorf("%s is not available in libdcgm.so.4; DCGM connection strings require DCGM 4.5.0 or newer", dcgmConnectV3Symbol)
+	}
+
+	var (
+		cHandle       C.dcgmHandle_t
+		connectParams C.dcgmConnectV3Params_v1
+	)
+
+	result := C.dcgmInit()
+	if err = errorString(result); err != nil {
+		return fmt.Errorf("error initializing DCGM: %s", err)
+	}
+
+	cConnectionString := C.CString(connectionString)
+	defer freeCString(cConnectionString)
+	connectParams.version = makeVersion1(unsafe.Sizeof(connectParams))
+
+	result = C.dcgmConnect_v3(cConnectionString, &connectParams, &cHandle)
+	if err = errorString(result); err != nil {
+		return fmt.Errorf("error connecting to nv-hostengine: %s", err)
+	}
+
+	handle = dcgmHandle{cHandle}
+	return nil
 }
 
 func disconnectStandalone() (err error) {
