@@ -95,6 +95,18 @@ CPU(%)          : {{printf "%.2f" .CPU}}
 `
 )
 
+// Pre-parsed templates. Parsing happens once at package init from the const
+// strings above; printer() and processPrint() consume the *template.Template
+// directly, which closes gosec G708 (template injection) by making the type
+// system reject free-form strings as a template source.
+var (
+	deviceInfoTmpl   = template.Must(template.New("DeviceInfo").Parse(deviceInfo))
+	deviceStatusTmpl = template.Must(template.New("DeviceStatus").Parse(deviceStatus))
+	processInfoTmpl  = template.Must(template.New("ProcessInfo").Parse(processInfo))
+	healthStatusTmpl = template.Must(template.New("HealthStatus").Parse(healthStatus))
+	hostengineTmpl   = template.Must(template.New("HostEngine").Parse(hostengine))
+)
+
 // getId converts a string key to a GPU ID
 // Returns math.MaxUint32 if the conversion fails
 func getId(resp http.ResponseWriter, req *http.Request, key string) uint {
@@ -173,10 +185,11 @@ func isJson(req *http.Request) bool {
 	return url[len(url)-4:] == "json"
 }
 
-// print formats and writes templated text output to the response
-func printer(resp http.ResponseWriter, req *http.Request, stats any, templ string) {
-	t := template.Must(template.New("").Parse(templ))
-	if err := t.Execute(resp, stats); err != nil {
+// printer formats and writes templated text output to the response.
+// The template is supplied as a pre-parsed *template.Template so the parse
+// step cannot accept attacker-controlled text (closes gosec G708).
+func printer(resp http.ResponseWriter, req *http.Request, stats any, tmpl *template.Template) {
+	if err := tmpl.Execute(resp, stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 	}
@@ -192,11 +205,11 @@ func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 	}
 }
 
-// processPrint formats and writes process information to the response
+// processPrint formats and writes process information to the response using
+// the pre-parsed processInfoTmpl (closes gosec G708 for this call site).
 func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.ProcessInfo) {
-	t := template.Must(template.New("Process").Parse(processInfo))
 	for i := range pInfo {
-		if err := t.Execute(resp, pInfo[i]); err != nil {
+		if err := processInfoTmpl.Execute(resp, pInfo[i]); err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 
