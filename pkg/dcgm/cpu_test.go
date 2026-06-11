@@ -17,9 +17,11 @@
 package dcgm
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCPUHierarchyV2IncludesSerial(t *testing.T) {
@@ -63,4 +65,40 @@ func TestCPUHierarchyV2HandlesEmptyHierarchy(t *testing.T) {
 
 	assert.Equal(t, uint(testCPUHierarchyVersion2), hierarchy.Version)
 	assert.Equal(t, uint(0), hierarchy.NumCPUs)
+}
+
+func TestCPUHierarchyErrorWrapsDCGMError(t *testing.T) {
+	tests := []struct {
+		name      string
+		operation string
+		result    testDCGMReturn
+		status    string
+	}{
+		{
+			name:      "v1 hierarchy error",
+			operation: "error retrieving DCGM CPU hierarchy",
+			result:    testDCGMStatusVersionMismatch,
+			status:    "API version mismatch",
+		},
+		{
+			name:      "v2 hierarchy error",
+			operation: "error retrieving DCGM CPU hierarchy v2",
+			result:    testDCGMStatusFunctionNotFound,
+			status:    "The requested function was not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := wrapCPUHierarchyError(tt.operation, tt.result, tt.status)
+
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.operation)
+			assert.ErrorContains(t, err, tt.status)
+
+			var dcgmErr *Error
+			require.True(t, errors.As(err, &dcgmErr))
+			assert.Equal(t, tt.result, dcgmErr.Code)
+		})
+	}
 }

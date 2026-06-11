@@ -58,10 +58,18 @@ func GetCPUHierarchy() (hierarchy CPUHierarchy_v1, err error) {
 	result := C.dcgmGetCpuHierarchy(handle.handle, ptr_hierarchy)
 
 	if err = errorString(result); err != nil {
-		return toCpuHierarchy(c_hierarchy), fmt.Errorf("error retrieving DCGM CPU hierarchy: %s", err)
+		return toCpuHierarchy(c_hierarchy), cpuHierarchyError("error retrieving DCGM CPU hierarchy", result)
 	}
 
 	return toCpuHierarchy(c_hierarchy), nil
+}
+
+func cpuHierarchyError(operation string, result C.dcgmReturn_t) error {
+	return wrapCPUHierarchyError(operation, result, C.GoString(C.errorString(result)))
+}
+
+func wrapCPUHierarchyError(operation string, result C.dcgmReturn_t, status string) error {
+	return fmt.Errorf("%s: %w", operation, &Error{msg: status, Code: result})
 }
 
 func toCpuHierarchy(c_hierarchy C.dcgmCpuHierarchy_v1) CPUHierarchy_v1 {
@@ -112,7 +120,7 @@ func GetCPUHierarchy_v2() (hierarchy CPUHierarchy_v2, err error) {
 	result := C.dcgmGetCpuHierarchy_v2(handle.handle, ptrHierarchy)
 
 	if err = errorString(result); err != nil {
-		return toCpuHierarchy_v2(cHierarchy), fmt.Errorf("error retrieving DCGM CPU hierarchy v2: %s", err)
+		return toCpuHierarchy_v2(cHierarchy), cpuHierarchyError("error retrieving DCGM CPU hierarchy v2", result)
 	}
 
 	return toCpuHierarchy_v2(cHierarchy), nil

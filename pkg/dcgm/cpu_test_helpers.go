@@ -26,7 +26,13 @@ import "C"
 
 import "unsafe"
 
-const testCPUHierarchyVersion2 = C.dcgmCpuHierarchy_version2
+const (
+	testCPUHierarchyVersion2       = C.dcgmCpuHierarchy_version2
+	testDCGMStatusVersionMismatch  = C.DCGM_ST_VER_MISMATCH
+	testDCGMStatusFunctionNotFound = C.DCGM_ST_FUNCTION_NOT_FOUND
+)
+
+type testDCGMReturn = C.dcgmReturn_t
 
 type testCPUHierarchyV2CPU struct {
 	cpuID             uint
