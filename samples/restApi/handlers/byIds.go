@@ -17,7 +17,7 @@ func DeviceInfo(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, device, deviceInfo)
+	printer(resp, req, device, deviceInfoTmpl)
 }
 
 // DeviceStatus handles HTTP requests for device status by device ID
@@ -33,7 +33,7 @@ func DeviceStatus(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, st, deviceStatus)
+	printer(resp, req, st, deviceStatusTmpl)
 }
 
 // ProcessInfo handles HTTP requests for process information by PID
@@ -65,7 +65,7 @@ func Health(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, h, healthStatus)
+	printer(resp, req, h, healthStatusTmpl)
 }
 
 // Status handles HTTP requests for DCGM daemon status
@@ -81,5 +81,5 @@ func Status(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, st, hostengine)
+	printer(resp, req, st, hostengineTmpl)
 }

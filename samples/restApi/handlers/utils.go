@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -95,6 +96,18 @@ CPU(%)          : {{printf "%.2f" .CPU}}
 `
 )
 
+// Pre-parsed templates. Parsing happens once at package init from the const
+// strings above; printer() and processPrint() consume the *template.Template
+// directly, which closes gosec G708 (template injection) by making the type
+// system reject free-form strings as a template source.
+var (
+	deviceInfoTmpl   = template.Must(template.New("DeviceInfo").Parse(deviceInfo))
+	deviceStatusTmpl = template.Must(template.New("DeviceStatus").Parse(deviceStatus))
+	processInfoTmpl  = template.Must(template.New("ProcessInfo").Parse(processInfo))
+	healthStatusTmpl = template.Must(template.New("HealthStatus").Parse(healthStatus))
+	hostengineTmpl   = template.Must(template.New("HostEngine").Parse(hostengine))
+)
+
 // getId converts a string key to a GPU ID
 // Returns math.MaxUint32 if the conversion fails
 func getId(resp http.ResponseWriter, req *http.Request, key string) uint {
@@ -173,11 +186,26 @@ func isJson(req *http.Request) bool {
 	return url[len(url)-4:] == "json"
 }
 
-// print formats and writes templated text output to the response
-func printer(resp http.ResponseWriter, req *http.Request, stats any, templ string) {
-	t := template.Must(template.New("").Parse(templ))
-	if err := t.Execute(resp, stats); err != nil {
+// printer formats and writes templated text output to the response.
+//
+// The template is supplied as a pre-parsed *template.Template so the parse
+// step cannot accept attacker-controlled text (closes gosec G708).
+//
+// Execute renders into a bytes.Buffer first and only copies to the response
+// on success. If rendering fails midway, the partial output is discarded
+// and a clean HTTP 500 (with the template error message) is returned —
+// previously, Execute wrote the static template prefix directly to resp
+// before hitting the failing action, which implicitly committed HTTP 200
+// and caused the subsequent http.Error() to silently fail to set 500.
+func printer(resp http.ResponseWriter, req *http.Request, stats any, tmpl *template.Template) {
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
+		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+
+		return
+	}
+	if _, err := buf.WriteTo(resp); err != nil {
 		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 	}
 }
@@ -192,15 +220,23 @@ func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 	}
 }
 
-// processPrint formats and writes process information to the response
+// processPrint formats and writes process information to the response using
+// the pre-parsed processInfoTmpl (closes gosec G708 for this call site).
+//
+// As with printer(), all template renders go into a bytes.Buffer first so a
+// mid-iteration failure can return a clean HTTP 500 without leaking the
+// successfully-rendered earlier entries or a partial in-progress entry.
 func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.ProcessInfo) {
-	t := template.Must(template.New("Process").Parse(processInfo))
+	var buf bytes.Buffer
 	for i := range pInfo {
-		if err := t.Execute(resp, pInfo[i]); err != nil {
+		if err := processInfoTmpl.Execute(&buf, pInfo[i]); err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 
 			return
 		}
+	}
+	if _, err := buf.WriteTo(resp); err != nil {
+		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
 	}
 }
