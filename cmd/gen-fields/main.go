@@ -18,14 +18,20 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
+	"flag"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"text/template"
 )
+
+const legacyFieldsCSVName = "legacy_fields.csv"
 
 type Field struct {
 	Name    string
@@ -39,40 +45,50 @@ type TemplateData struct {
 }
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: gen-fields <dcgm_fields.h> <const_fields.go>\n")
-		os.Exit(1)
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("gen-fields", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	legacyFieldsFlag := flags.String(
+		"legacy-fields",
+		"",
+		"CSV file containing curated legacy field names (default: output directory)",
+	)
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 1
+	}
+	if len(flags.Args()) != 2 {
+		fmt.Fprintf(stderr, "Usage: gen-fields [--legacy-fields path] <dcgm_fields.h> <const_fields.go>\n")
+		return 1
 	}
 
-	headerPath := os.Args[1]
-	outputPath := os.Args[2]
+	headerPath := flags.Arg(0)
+	outputPath := flags.Arg(1)
+	legacyFieldsPath := legacyFieldsCSVPath(*legacyFieldsFlag, outputPath)
 
 	// Parse header file
 	fields, aliases, err := parseHeader(headerPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing header: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error parsing header: %v\n", err)
+		return 1
 	}
 
 	// Resolve deprecated aliases to their target field IDs.
 	aliasLegacy, err := resolveAliases(fields, aliases)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error resolving aliases: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error resolving aliases: %v\n", err)
+		return 1
 	}
 
-	// Extract legacy fields from existing file. Missing file on first-run is
-	// fine; anything else (unreadable file, unrecognised legacy entry) is
-	// treated as a hard error so we don't silently regenerate with lost
-	// backward-compat names.
-	legacyFields, err := extractLegacyFields(outputPath)
+	legacyFields, err := readLegacyFieldsCSV(legacyFieldsPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			legacyFields = make(map[string]int)
-		} else {
-			fmt.Fprintf(os.Stderr, "Error extracting legacy fields: %v\n", err)
-			os.Exit(1)
-		}
+		fmt.Fprintf(stderr, "Error reading legacy fields from %q: %v\n", legacyFieldsPath, err)
+		return 1
 	}
 
 	// Merge resolved aliases into the legacy map. Alias names start with
@@ -89,12 +105,20 @@ func main() {
 
 	err = generateOutput(data, outputPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating output: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error generating output: %v\n", err)
+		return 1
 	}
 
-	fmt.Printf("Generated %d fields (+ %d deprecated aliases) to %s\n",
+	fmt.Fprintf(stdout, "Generated %d fields (+ %d deprecated aliases) to %s\n",
 		len(fields), len(aliasLegacy), outputPath)
+	return 0
+}
+
+func legacyFieldsCSVPath(flagPath, outputPath string) string {
+	if flagPath != "" {
+		return flagPath
+	}
+	return filepath.Join(filepath.Dir(outputPath), legacyFieldsCSVName)
 }
 
 // containsDeprecatedMarker reports whether the line contains the
@@ -298,85 +322,65 @@ func resolveAliases(fields []Field, aliases map[string]string) (map[string]int, 
 		if !ok {
 			return nil, fmt.Errorf(
 				"deprecated alias %q points at unknown target %q; check dcgm_fields.h",
-				alias, target)
+				alias, target,
+			)
 		}
 		resolved[alias] = id
 	}
 	return resolved, nil
 }
 
-// extractLegacyFields preserves curated legacy entries across regeneration.
-// Provenance rules:
-//
-//   - Lowercase names (the hand-maintained DCGM 1.x backward-compat family,
-//     e.g. "dcgm_gpu_temp") are preserved.
-//   - DCGM_FI_* uppercase names are re-derived every run by resolveAliases
-//     (see main), so they are skipped here to avoid stale entries persisting
-//     after they disappear from the header.
-//   - Any other uppercase name is an unrecognised provenance and fails
-//     generation loudly, so hand-added names can't silently disappear on the
-//     next regenerate and so unexpected patterns surface immediately.
-func extractLegacyFields(path string) (map[string]int, error) {
+func readLegacyFieldsCSV(path string) (map[string]int, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open legacy fields CSV: %w", err)
 	}
 	defer file.Close()
 
-	legacyFields := make(map[string]int)
+	reader := csv.NewReader(file)
+	reader.Comment = '#'
+	reader.TrimLeadingSpace = true
 
-	// Pattern: "field_name": 123,
-	entryPattern := regexp.MustCompile(`^\s*"([^"]+)":\s*(\d+),`)
-
-	inLegacySection := false
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Look for the start of legacyDCGMFields map
-		if strings.Contains(line, "var legacyDCGMFields") {
-			inLegacySection = true
-			continue
-		}
-
-		// If we're in the legacy section
-		if inLegacySection {
-			// Look for closing brace
-			if strings.TrimSpace(line) == "}" {
-				break
-			}
-
-			// Extract entries
-			if matches := entryPattern.FindStringSubmatch(line); len(matches) == 3 {
-				name := matches[1]
-				id, err := strconv.Atoi(matches[2])
-				if err != nil {
-					continue
-				}
-
-				switch {
-				case name == strings.ToLower(name):
-					// Curated DCGM 1.x backward-compat name.
-					legacyFields[name] = id
-				case strings.HasPrefix(name, "DCGM_FI_"):
-					// Generated alias; skip so it can be re-derived by
-					// resolveAliases. Stale entries removed from the header
-					// disappear naturally on regeneration.
-					continue
-				default:
-					return nil, fmt.Errorf(
-						"extractLegacyFields: %q has unrecognised provenance "+
-							"(neither a lowercase DCGM 1.x name nor a DCGM_FI_* alias); "+
-							"teach the generator how to regenerate it before adding it",
-						name)
-				}
-			}
-		}
+	header, err := reader.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read legacy fields CSV header: %w", err)
+	}
+	if len(header) != 2 || strings.TrimSpace(header[0]) != "name" || strings.TrimSpace(header[1]) != "id" {
+		return nil, fmt.Errorf("legacy fields CSV header must be: name,id")
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	legacyFields := make(map[string]int)
+	for row := 2; ; row++ {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("legacy fields CSV row %d: %w", row, err)
+		}
+		if len(record) != 2 {
+			return nil, fmt.Errorf("legacy fields CSV row %d: expected 2 columns, got %d", row, len(record))
+		}
+
+		name := strings.TrimSpace(record[0])
+		idText := strings.TrimSpace(record[1])
+		if name == "" {
+			return nil, fmt.Errorf("legacy fields CSV row %d: name is required", row)
+		}
+		if name != strings.ToLower(name) {
+			return nil, fmt.Errorf("legacy fields CSV row %d: %q must be lowercase", row, name)
+		}
+		if idText == "" {
+			return nil, fmt.Errorf("legacy fields CSV row %d: id is required", row)
+		}
+		id, err := strconv.Atoi(idText)
+		if err != nil || id < 0 {
+			return nil, fmt.Errorf("legacy fields CSV row %d: %q is not a valid non-negative integer ID", row, idText)
+		}
+		if _, exists := legacyFields[name]; exists {
+			return nil, fmt.Errorf("legacy fields CSV row %d: duplicate name %q", row, name)
+		}
+		legacyFields[name] = id
 	}
 
 	return legacyFields, nil
