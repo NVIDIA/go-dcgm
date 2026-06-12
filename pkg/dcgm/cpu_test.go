@@ -86,7 +86,7 @@ func TestCPUHierarchyErrorWrapsDCGMError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := cpuHierarchyError(tt.operation, tt.result)
+			err := cpuHierarchyError(tt.operation, &Error{msg: "dcgm error", Code: tt.result})
 
 			require.Error(t, err)
 			assert.ErrorContains(t, err, tt.operation)
