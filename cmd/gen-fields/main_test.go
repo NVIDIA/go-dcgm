@@ -334,6 +334,32 @@ dcgm_gpu_temp,150
 	}
 }
 
+func TestRun_UsesExplicitLegacyCSVPath(t *testing.T) {
+	headerPath := writeHeader(t, `
+/**
+ * GPU temperature.
+ */
+#define DCGM_FI_DEV_GPU_TEMP 150
+`)
+	legacyCSVPath := writeLegacyCSV(t, `name,id
+dcgm_gpu_temp,150
+`)
+	outputPath := filepath.Join(t.TempDir(), "const_fields.go")
+
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"--legacy-fields", legacyCSVPath, headerPath, outputPath}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run returned %d, stderr: %s", code, stderr.String())
+	}
+
+	out, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if !strings.Contains(string(out), `"dcgm_gpu_temp": 150`) {
+		t.Fatalf("explicit legacy CSV entry missing from output:\n%s", out)
+	}
+}
+
 func TestRun_HelpReturnsSuccess(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"-h"}, &stdout, &stderr); code != 0 {
