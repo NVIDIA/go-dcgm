@@ -42,7 +42,8 @@ go run cmd/gen-fields/main.go cmd/gen-fields/template.go \
 ```
 
 Arguments:
-1. Optional `--legacy-fields` CSV path for curated lowercase names
+1. Optional `--legacy-fields` CSV path for curated lowercase names; when omitted,
+   the generator reads `legacy_fields.csv` from the output file's directory.
 2. Path to `dcgm_fields.h` (input)
 3. Path to `const_fields.go` (output)
 

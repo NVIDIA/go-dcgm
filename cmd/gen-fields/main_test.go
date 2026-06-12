@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -302,6 +303,50 @@ func writeLegacyCSV(t *testing.T, contents string) string {
 		t.Fatalf("writing legacy CSV: %v", err)
 	}
 	return path
+}
+
+func TestRun_DefaultsLegacyCSVToOutputDirectory(t *testing.T) {
+	headerPath := writeHeader(t, `
+/**
+ * GPU temperature.
+ */
+#define DCGM_FI_DEV_GPU_TEMP 150
+`)
+	dir := t.TempDir()
+	outputPath := filepath.Join(dir, "const_fields.go")
+	if err := os.WriteFile(filepath.Join(dir, legacyFieldsCSVName), []byte(`name,id
+dcgm_gpu_temp,150
+`), 0o644); err != nil {
+		t.Fatalf("writing default legacy CSV: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{headerPath, outputPath}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run returned %d, stderr: %s", code, stderr.String())
+	}
+
+	out, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if !strings.Contains(string(out), `"dcgm_gpu_temp": 150`) {
+		t.Fatalf("default legacy CSV entry missing from output:\n%s", out)
+	}
+}
+
+func TestRun_MissingDefaultLegacyCSVFails(t *testing.T) {
+	headerPath := writeHeader(t, `
+#define DCGM_FI_DEV_GPU_TEMP 150
+`)
+	outputPath := filepath.Join(t.TempDir(), "const_fields.go")
+
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{headerPath, outputPath}, &stdout, &stderr); code == 0 {
+		t.Fatalf("run unexpectedly succeeded, stdout: %s", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), legacyFieldsCSVName) {
+		t.Fatalf("stderr should name missing default CSV, got: %s", stderr.String())
+	}
 }
 
 func TestReadLegacyFieldsCSV(t *testing.T) {

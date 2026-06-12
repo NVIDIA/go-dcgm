@@ -23,12 +23,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"text/template"
 )
+
+const legacyFieldsCSVName = "legacy_fields.csv"
 
 type Field struct {
 	Name    string
@@ -42,42 +45,47 @@ type TemplateData struct {
 }
 
 func main() {
-	flags := flag.NewFlagSet("gen-fields", flag.ExitOnError)
-	flags.SetOutput(os.Stderr)
-	legacyFieldsPath := flags.String("legacy-fields", "", "CSV file containing curated legacy field names")
-	if err := flags.Parse(os.Args[1:]); err != nil {
-		os.Exit(1)
-	}
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
 
+func run(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("gen-fields", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	legacyFieldsFlag := flags.String(
+		"legacy-fields",
+		"",
+		"CSV file containing curated legacy field names (default: output directory)",
+	)
+	if err := flags.Parse(args); err != nil {
+		return 1
+	}
 	if len(flags.Args()) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: gen-fields [--legacy-fields path] <dcgm_fields.h> <const_fields.go>\n")
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Usage: gen-fields [--legacy-fields path] <dcgm_fields.h> <const_fields.go>\n")
+		return 1
 	}
 
 	headerPath := flags.Arg(0)
 	outputPath := flags.Arg(1)
+	legacyFieldsPath := legacyFieldsCSVPath(*legacyFieldsFlag, outputPath)
 
 	// Parse header file
 	fields, aliases, err := parseHeader(headerPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing header: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error parsing header: %v\n", err)
+		return 1
 	}
 
 	// Resolve deprecated aliases to their target field IDs.
 	aliasLegacy, err := resolveAliases(fields, aliases)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error resolving aliases: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error resolving aliases: %v\n", err)
+		return 1
 	}
 
-	legacyFields := make(map[string]int)
-	if *legacyFieldsPath != "" {
-		legacyFields, err = readLegacyFieldsCSV(*legacyFieldsPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading legacy fields: %v\n", err)
-			os.Exit(1)
-		}
+	legacyFields, err := readLegacyFieldsCSV(legacyFieldsPath)
+	if err != nil {
+		fmt.Fprintf(stderr, "Error reading legacy fields from %q: %v\n", legacyFieldsPath, err)
+		return 1
 	}
 
 	// Merge resolved aliases into the legacy map. Alias names start with
@@ -94,12 +102,20 @@ func main() {
 
 	err = generateOutput(data, outputPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating output: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error generating output: %v\n", err)
+		return 1
 	}
 
-	fmt.Printf("Generated %d fields (+ %d deprecated aliases) to %s\n",
+	fmt.Fprintf(stdout, "Generated %d fields (+ %d deprecated aliases) to %s\n",
 		len(fields), len(aliasLegacy), outputPath)
+	return 0
+}
+
+func legacyFieldsCSVPath(flagPath, outputPath string) string {
+	if flagPath != "" {
+		return flagPath
+	}
+	return filepath.Join(filepath.Dir(outputPath), legacyFieldsCSVName)
 }
 
 // containsDeprecatedMarker reports whether the line contains the
@@ -303,7 +319,8 @@ func resolveAliases(fields []Field, aliases map[string]string) (map[string]int, 
 		if !ok {
 			return nil, fmt.Errorf(
 				"deprecated alias %q points at unknown target %q; check dcgm_fields.h",
-				alias, target)
+				alias, target,
+			)
 		}
 		resolved[alias] = id
 	}
