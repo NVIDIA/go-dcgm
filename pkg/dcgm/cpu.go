@@ -50,7 +50,8 @@ type CPUHierarchy_v1 struct {
 	CPUs [MAX_NUM_CPUS]CPUHierarchyCPU_v1
 }
 
-// GetCPUHierarchy retrieves the CPU hierarchy information from DCGM
+// GetCPUHierarchy retrieves version 1 CPU hierarchy information from DCGM.
+// Use GetCPUHierarchy_v2 when CPU serials are needed.
 func GetCPUHierarchy() (hierarchy CPUHierarchy_v1, err error) {
 	var c_hierarchy C.dcgmCpuHierarchy_v1
 	c_hierarchy.version = C.dcgmCpuHierarchy_version1
@@ -58,10 +59,15 @@ func GetCPUHierarchy() (hierarchy CPUHierarchy_v1, err error) {
 	result := C.dcgmGetCpuHierarchy(handle.handle, ptr_hierarchy)
 
 	if err = errorString(result); err != nil {
-		return toCpuHierarchy(c_hierarchy), fmt.Errorf("error retrieving DCGM CPU hierarchy: %s", err)
+		dcgmErr := &Error{msg: err.Error(), Code: result}
+		return toCpuHierarchy(c_hierarchy), cpuHierarchyError("error retrieving DCGM CPU hierarchy", dcgmErr)
 	}
 
 	return toCpuHierarchy(c_hierarchy), nil
+}
+
+func cpuHierarchyError(operation string, dcgmErr *Error) error {
+	return fmt.Errorf("%s: %w", operation, dcgmErr)
 }
 
 func toCpuHierarchy(c_hierarchy C.dcgmCpuHierarchy_v1) CPUHierarchy_v1 {
@@ -78,6 +84,61 @@ func toCpuHierarchy(c_hierarchy C.dcgmCpuHierarchy_v1) CPUHierarchy_v1 {
 		hierarchy.CPUs[i] = CPUHierarchyCPU_v1{
 			CPUID:      uint(c_hierarchy.cpus[i].cpuId),
 			OwnedCores: bits,
+		}
+	}
+
+	return hierarchy
+}
+
+// CPUHierarchyCPU_v2 represents information about a single CPU, its owned cores, and its serial.
+type CPUHierarchyCPU_v2 struct {
+	// CPUID is the unique identifier for this CPU
+	CPUID uint
+	// OwnedCores is a bitmask array representing the cores owned by this CPU
+	OwnedCores []uint64
+	// Serial is the CPU serial number. It may be empty when unavailable.
+	Serial string
+}
+
+// CPUHierarchy_v2 represents version 2 of the CPU hierarchy information.
+type CPUHierarchy_v2 struct {
+	// Version is the version number of the hierarchy structure
+	Version uint
+	// NumCPUs is the number of CPUs in the system
+	NumCPUs uint
+	// CPUs contains information about each CPU in the system
+	CPUs [MAX_NUM_CPUS]CPUHierarchyCPU_v2
+}
+
+// GetCPUHierarchy_v2 retrieves version 2 CPU hierarchy information from DCGM.
+func GetCPUHierarchy_v2() (hierarchy CPUHierarchy_v2, err error) {
+	var cHierarchy C.dcgmCpuHierarchy_v2
+	cHierarchy.version = C.dcgmCpuHierarchy_version2
+	ptrHierarchy := (*C.dcgmCpuHierarchy_v2)(unsafe.Pointer(&cHierarchy))
+	result := C.dcgmGetCpuHierarchy_v2(handle.handle, ptrHierarchy)
+
+	if err = errorString(result); err != nil {
+		dcgmErr := &Error{msg: err.Error(), Code: result}
+		return toCpuHierarchy_v2(cHierarchy), cpuHierarchyError("error retrieving DCGM CPU hierarchy v2", dcgmErr)
+	}
+
+	return toCpuHierarchy_v2(cHierarchy), nil
+}
+
+func toCpuHierarchy_v2(cHierarchy C.dcgmCpuHierarchy_v2) CPUHierarchy_v2 {
+	var hierarchy CPUHierarchy_v2
+	hierarchy.Version = uint(cHierarchy.version)
+	hierarchy.NumCPUs = uint(cHierarchy.numCpus)
+	for i := uint(0); i < hierarchy.NumCPUs; i++ {
+		bits := make([]uint64, MAX_CPU_CORE_BITMASK_COUNT)
+		for j := uint(0); j < MAX_CPU_CORE_BITMASK_COUNT; j++ {
+			bits[j] = uint64(cHierarchy.cpus[i].ownedCores.bitmask[j])
+		}
+
+		hierarchy.CPUs[i] = CPUHierarchyCPU_v2{
+			CPUID:      uint(cHierarchy.cpus[i].cpuId),
+			OwnedCores: bits,
+			Serial:     *stringPtr(&cHierarchy.cpus[i].serial[0]),
 		}
 	}
 
