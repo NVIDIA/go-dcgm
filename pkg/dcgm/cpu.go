@@ -65,11 +65,7 @@ func GetCPUHierarchy() (hierarchy CPUHierarchy_v1, err error) {
 }
 
 func cpuHierarchyError(operation string, result C.dcgmReturn_t) error {
-	return wrapCPUHierarchyError(operation, result, C.GoString(C.errorString(result)))
-}
-
-func wrapCPUHierarchyError(operation string, result C.dcgmReturn_t, status string) error {
-	return fmt.Errorf("%s: %w", operation, &Error{msg: status, Code: result})
+	return fmt.Errorf("%s: %w", operation, &Error{msg: C.GoString(C.errorString(result)), Code: result})
 }
 
 func toCpuHierarchy(c_hierarchy C.dcgmCpuHierarchy_v1) CPUHierarchy_v1 {
