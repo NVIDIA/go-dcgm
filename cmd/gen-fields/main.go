@@ -57,6 +57,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		"CSV file containing curated legacy field names (default: output directory)",
 	)
 	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
 		return 1
 	}
 	if len(flags.Args()) != 2 {

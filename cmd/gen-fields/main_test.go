@@ -334,6 +334,16 @@ dcgm_gpu_temp,150
 	}
 }
 
+func TestRun_HelpReturnsSuccess(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"-h"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run returned %d for help, stderr: %s", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "legacy-fields") {
+		t.Fatalf("help output should describe legacy-fields flag, got: %s", stderr.String())
+	}
+}
+
 func TestRun_MissingDefaultLegacyCSVFails(t *testing.T) {
 	headerPath := writeHeader(t, `
 #define DCGM_FI_DEV_GPU_TEMP 150
