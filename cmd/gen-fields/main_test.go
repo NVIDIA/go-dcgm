@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -294,138 +295,153 @@ func TestResolveAliases_TargetMissing(t *testing.T) {
 	}
 }
 
-// Lowercase curated legacy entries in the existing output file are
-// preserved across regeneration.
-func TestExtractLegacyFields_PreservesCuratedLowercaseEntries(t *testing.T) {
+func writeLegacyCSV(t *testing.T, contents string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "legacy_fields.csv")
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("writing legacy CSV: %v", err)
+	}
+	return path
+}
+
+func TestRun_DefaultsLegacyCSVToOutputDirectory(t *testing.T) {
+	headerPath := writeHeader(t, `
+/**
+ * GPU temperature.
+ */
+#define DCGM_FI_DEV_GPU_TEMP 150
+`)
 	dir := t.TempDir()
 	outputPath := filepath.Join(dir, "const_fields.go")
-
-	// Seed an existing output containing a curated lowercase entry.
-	seeded := `package dcgm
-
-const (
-)
-var dcgmFields = map[string]Short{
-}
-var legacyDCGMFields = map[string]Short{
-	"dcgm_gpu_temp": 150,
-}
-`
-	if err := os.WriteFile(outputPath, []byte(seeded), 0o644); err != nil {
-		t.Fatalf("seed write: %v", err)
+	if err := os.WriteFile(filepath.Join(dir, legacyFieldsCSVName), []byte(`name,id
+dcgm_gpu_temp,150
+`), 0o644); err != nil {
+		t.Fatalf("writing default legacy CSV: %v", err)
 	}
 
-	legacyFields, err := extractLegacyFields(outputPath)
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{headerPath, outputPath}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run returned %d, stderr: %s", code, stderr.String())
+	}
+
+	out, err := os.ReadFile(outputPath)
 	if err != nil {
-		t.Fatalf("extractLegacyFields: %v", err)
+		t.Fatalf("read output: %v", err)
 	}
-
-	if got := legacyFields["dcgm_gpu_temp"]; got != 150 {
-		t.Errorf("lost curated lowercase entry; got %v", legacyFields)
+	if !strings.Contains(string(out), `"dcgm_gpu_temp": 150`) {
+		t.Fatalf("default legacy CSV entry missing from output:\n%s", out)
 	}
 }
 
-// DCGM_FI_* uppercase entries in the existing output file are NOT
-// preserved. They re-derive from the header via resolveAliases, so stale
-// entries (aliases removed from the header) disappear naturally.
-func TestExtractLegacyFields_StaleGeneratedAliasNotPreserved(t *testing.T) {
-	dir := t.TempDir()
-	outputPath := filepath.Join(dir, "const_fields.go")
+func TestRun_UsesExplicitLegacyCSVPath(t *testing.T) {
+	headerPath := writeHeader(t, `
+/**
+ * GPU temperature.
+ */
+#define DCGM_FI_DEV_GPU_TEMP 150
+`)
+	legacyCSVPath := writeLegacyCSV(t, `name,id
+dcgm_gpu_temp,150
+`)
+	outputPath := filepath.Join(t.TempDir(), "const_fields.go")
 
-	seeded := `package dcgm
-
-const (
-)
-var dcgmFields = map[string]Short{
-}
-var legacyDCGMFields = map[string]Short{
-	"dcgm_gpu_temp": 150,
-	"DCGM_FI_DEV_SOMETHING_REMOVED": 99,
-}
-`
-	if err := os.WriteFile(outputPath, []byte(seeded), 0o644); err != nil {
-		t.Fatalf("seed write: %v", err)
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"--legacy-fields", legacyCSVPath, headerPath, outputPath}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run returned %d, stderr: %s", code, stderr.String())
 	}
 
-	legacyFields, err := extractLegacyFields(outputPath)
+	out, err := os.ReadFile(outputPath)
 	if err != nil {
-		t.Fatalf("extractLegacyFields: %v", err)
+		t.Fatalf("read output: %v", err)
 	}
-
-	if _, ok := legacyFields["DCGM_FI_DEV_SOMETHING_REMOVED"]; ok {
-		t.Errorf("stale DCGM_FI_* entry was preserved; got %v", legacyFields)
-	}
-	if got := legacyFields["dcgm_gpu_temp"]; got != 150 {
-		t.Errorf("curated lowercase entry lost alongside stale drop; got %v", legacyFields)
+	if !strings.Contains(string(out), `"dcgm_gpu_temp": 150`) {
+		t.Fatalf("explicit legacy CSV entry missing from output:\n%s", out)
 	}
 }
 
-// An uppercase non-DCGM_FI_* entry in the existing output is unrecognised
-// provenance and causes a hard error.
-func TestExtractLegacyFields_UnrecognisedUppercaseErrors(t *testing.T) {
-	dir := t.TempDir()
-	outputPath := filepath.Join(dir, "const_fields.go")
-
-	seeded := `package dcgm
-var legacyDCGMFields = map[string]Short{
-	"MYSTERY_UPPERCASE_NAME": 777,
-}
-`
-	if err := os.WriteFile(outputPath, []byte(seeded), 0o644); err != nil {
-		t.Fatalf("seed write: %v", err)
+func TestRun_HelpReturnsSuccess(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"-h"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("run returned %d for help, stderr: %s", code, stderr.String())
 	}
-
-	_, err := extractLegacyFields(outputPath)
-	if err == nil {
-		t.Fatalf("expected error on unrecognised uppercase entry, got nil")
-	}
-	if !strings.Contains(err.Error(), "MYSTERY_UPPERCASE_NAME") {
-		t.Errorf("error should name the offending entry, got %q", err)
+	if !strings.Contains(stderr.String(), "legacy-fields") {
+		t.Fatalf("help output should describe legacy-fields flag, got: %s", stderr.String())
 	}
 }
 
-// A missing output file is normal on first-run; main() inspects the
-// returned error with os.IsNotExist and starts with an empty legacy map.
-func TestExtractLegacyFields_FileNotFound(t *testing.T) {
-	dir := t.TempDir()
-	_, err := extractLegacyFields(filepath.Join(dir, "does-not-exist.go"))
-	if err == nil {
-		t.Fatalf("expected error on missing output file, got nil")
+func TestRun_MissingDefaultLegacyCSVFails(t *testing.T) {
+	headerPath := writeHeader(t, `
+#define DCGM_FI_DEV_GPU_TEMP 150
+`)
+	outputPath := filepath.Join(t.TempDir(), "const_fields.go")
+
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{headerPath, outputPath}, &stdout, &stderr); code == 0 {
+		t.Fatalf("run unexpectedly succeeded, stdout: %s", stdout.String())
 	}
-	if !os.IsNotExist(err) {
-		t.Errorf("error should satisfy os.IsNotExist so main can tolerate it; got %v", err)
+	if !strings.Contains(stderr.String(), legacyFieldsCSVName) {
+		t.Fatalf("stderr should name missing default CSV, got: %s", stderr.String())
 	}
 }
 
-// Mixed provenance in a single legacy map: lowercase preserved, DCGM_FI_*
-// dropped (re-derived by resolveAliases elsewhere), no error.
-func TestExtractLegacyFields_MixedEntriesReturnsOnlyLowercase(t *testing.T) {
-	dir := t.TempDir()
-	outputPath := filepath.Join(dir, "const_fields.go")
+func TestReadLegacyFieldsCSV(t *testing.T) {
+	path := writeLegacyCSV(t, `name,id
+dcgm_gpu_temp,150
+dcgm_xid_errors,230
+`)
 
-	seeded := `package dcgm
-var legacyDCGMFields = map[string]Short{
-	"dcgm_gpu_temp": 150,
-	"DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL": 449,
-	"dcgm_xid_errors": 230,
-}
-`
-	if err := os.WriteFile(outputPath, []byte(seeded), 0o644); err != nil {
-		t.Fatalf("seed write: %v", err)
-	}
-
-	legacyFields, err := extractLegacyFields(outputPath)
+	legacyFields, err := readLegacyFieldsCSV(path)
 	if err != nil {
-		t.Fatalf("extractLegacyFields: %v", err)
+		t.Fatalf("readLegacyFieldsCSV: %v", err)
 	}
 	if len(legacyFields) != 2 {
-		t.Fatalf("want exactly 2 preserved entries, got %d: %v", len(legacyFields), legacyFields)
+		t.Fatalf("want 2 entries, got %d: %v", len(legacyFields), legacyFields)
 	}
 	if legacyFields["dcgm_gpu_temp"] != 150 || legacyFields["dcgm_xid_errors"] != 230 {
-		t.Errorf("lowercase entries not preserved correctly: %v", legacyFields)
+		t.Errorf("legacy entries not read correctly: %v", legacyFields)
 	}
-	if _, ok := legacyFields["DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL"]; ok {
-		t.Errorf("DCGM_FI_* entry should have been dropped: %v", legacyFields)
+}
+
+func TestReadLegacyFieldsCSV_InvalidRows(t *testing.T) {
+	tests := []struct {
+		name     string
+		contents string
+		want     string
+	}{
+		{
+			name:     "bad header",
+			contents: "field,id\ndcgm_gpu_temp,150\n",
+			want:     "header",
+		},
+		{
+			name:     "uppercase name",
+			contents: "name,id\nDCGM_FI_DEV_GPU_TEMP,150\n",
+			want:     "must be lowercase",
+		},
+		{
+			name:     "invalid id",
+			contents: "name,id\ndcgm_gpu_temp,not-a-number\n",
+			want:     "valid non-negative integer",
+		},
+		{
+			name:     "duplicate name",
+			contents: "name,id\ndcgm_gpu_temp,150\ndcgm_gpu_temp,151\n",
+			want:     "duplicate",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			path := writeLegacyCSV(t, tc.contents)
+			_, err := readLegacyFieldsCSV(path)
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error %q does not contain %q", err, tc.want)
+			}
+		})
 	}
 }
 
@@ -570,23 +586,15 @@ func TestParseHeader_BlankLineBetweenCommentAndDefineAttaches(t *testing.T) {
 }
 
 // Full-pipeline integration: parseHeader -> resolveAliases ->
-// extractLegacyFields -> generateOutput. Reads the emitted file and
+// readLegacyFieldsCSV -> generateOutput. Reads the emitted file and
 // verifies the expected constants, canonical map entries, and legacy map
 // entries all land in the right sections.
 func TestGenerateOutput_FullPipeline(t *testing.T) {
 	dir := t.TempDir()
 	outputPath := filepath.Join(dir, "const_fields.go")
-
-	// Seed a pre-existing output with a curated lowercase legacy entry
-	// that the pipeline should preserve.
-	seeded := `package dcgm
-var legacyDCGMFields = map[string]Short{
-	"dcgm_gpu_temp": 150,
-}
-`
-	if err := os.WriteFile(outputPath, []byte(seeded), 0o644); err != nil {
-		t.Fatalf("seed write: %v", err)
-	}
+	legacyCSV := writeLegacyCSV(t, `name,id
+dcgm_gpu_temp,150
+`)
 
 	headerPath := writeHeader(t, `
 /**
@@ -609,9 +617,9 @@ var legacyDCGMFields = map[string]Short{
 	if err != nil {
 		t.Fatalf("resolveAliases: %v", err)
 	}
-	legacyFields, err := extractLegacyFields(outputPath)
+	legacyFields, err := readLegacyFieldsCSV(legacyCSV)
 	if err != nil {
-		t.Fatalf("extractLegacyFields: %v", err)
+		t.Fatalf("readLegacyFieldsCSV: %v", err)
 	}
 	for name, id := range aliasLegacy {
 		legacyFields[name] = id
