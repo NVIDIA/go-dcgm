@@ -124,7 +124,8 @@ func TestHealthCheckPCIE(t *testing.T) {
 
 func resetPCICReplayCounter(t *testing.T, gpuIDs []uint) {
 	gpuID := gpuIDs[0]
-	err := InjectFieldValue(gpuID,
+	err := InjectFieldValue(
+		gpuID,
 		DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
 		DCGM_FT_INT64,
 		0,
@@ -155,7 +156,8 @@ func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen, pcieLanes, pcieReplay
 	skipTestIfUnhealthy(t, groupID)
 
 	// inject PCIe Gen and width/lanes
-	err = InjectFieldValue(gpuID,
+	err = InjectFieldValue(
+		gpuID,
 		DCGM_FI_DEV_PCIE_LINK_GEN,
 		DCGM_FT_INT64,
 		0,
@@ -164,7 +166,8 @@ func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen, pcieLanes, pcieReplay
 	)
 	require.NoError(t, err)
 
-	err = InjectFieldValue(gpuID,
+	err = InjectFieldValue(
+		gpuID,
 		DCGM_FI_DEV_PCIE_LINK_WIDTH,
 		DCGM_FT_INT64,
 		0,
@@ -173,7 +176,8 @@ func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen, pcieLanes, pcieReplay
 	)
 	require.NoError(t, err)
 
-	err = InjectFieldValue(gpuID,
+	err = InjectFieldValue(
+		gpuID,
 		DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
 		DCGM_FT_INT64,
 		0,
@@ -188,7 +192,8 @@ func healthCheckPCIE(t *testing.T, gpuIDs []uint, pcieGen, pcieLanes, pcieReplay
 	require.Equal(t, DCGM_HEALTH_RESULT_PASS, response.OverallHealth)
 
 	// inject an error into PCIe
-	err = InjectFieldValue(gpuID,
+	err = InjectFieldValue(
+		gpuID,
 		DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
 		DCGM_FT_INT64,
 		0,
@@ -214,7 +219,7 @@ func skipTestIfUnhealthy(t *testing.T, groupId GroupHandle) {
 	require.NoError(t, err)
 	if health.OverallHealth != DCGM_HEALTH_RESULT_PASS {
 		msg := "Skipping health check test because we are already unhealthy: "
-		incidents := []string{}
+		incidents := make([]string, 0, len(health.Incidents))
 		for _, incident := range health.Incidents {
 			incidents = append(incidents, incident.Error.Message)
 		}

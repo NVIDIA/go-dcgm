@@ -108,7 +108,7 @@ func gpuTestName(t int) string {
 	return ""
 }
 
-func getErrorMsg(entityId uint, testId uint, response C.dcgmDiagResponse_v12) (msg string, code uint) {
+func getErrorMsg(entityId, testId uint, response C.dcgmDiagResponse_v12) (msg string, code uint) {
 	for i := 0; i < int(response.numErrors); i++ {
 		if uint(response.errors[i].entity.entityId) != entityId || uint(response.errors[i].testId) != testId {
 			continue
@@ -122,7 +122,7 @@ func getErrorMsg(entityId uint, testId uint, response C.dcgmDiagResponse_v12) (m
 	return
 }
 
-func getInfoMsg(entityId uint, testId uint, response C.dcgmDiagResponse_v12) string {
+func getInfoMsg(entityId, testId uint, response C.dcgmDiagResponse_v12) string {
 	var msgs []string
 	for i := 0; i < int(response.numInfo); i++ {
 		if uint(response.info[i].entity.entityId) != entityId || uint(response.info[i].testId) != testId {

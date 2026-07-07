@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
@@ -36,64 +38,65 @@ func TestTopology(t *testing.T) {
 	t.Log(" NV#  = Connection traversing a bonded set of # NVLinks")
 
 	// Print header
-	header := "     "
+	var header strings.Builder
+	header.WriteString("     ")
 	for _, gpu := range gpus {
-		header += " GPU" + string(rune('0'+gpu))
+		header.WriteString(" GPU")
+		header.WriteString(strconv.FormatUint(uint64(gpu), 10))
 	}
-	header += " CPUAffinity"
-	t.Log(header)
+	header.WriteString(" CPUAffinity")
+	t.Log(header.String())
 
-	numGpus := len(gpus)
-	gpuTopo := make([]string, numGpus)
-
-	for i := 0; i < numGpus; i++ {
+	for i := range gpus {
 		topo, err := dcgm.GetDeviceTopology(gpus[i])
 		if err != nil {
 			t.Errorf("Failed to get topology for GPU %d: %v", gpus[i], err)
 			continue
 		}
 
-		// Build topology row
-		row := "GPU" + string(rune('0'+gpus[i]))
-
-		// Initialize topology array
-		for j := 0; j < numGpus; j++ {
-			gpuTopo[j] = ""
+		gpuTopo := make(map[uint]string, len(gpus))
+		for _, gpu := range gpus {
+			gpuTopo[gpu] = ""
 		}
 
 		// Fill topology information
 		for _, topoInfo := range topo {
-			//nolint:gosec // disable G115
-			if int(topoInfo.GPU) < numGpus {
+			if _, ok := gpuTopo[topoInfo.GPU]; ok {
 				gpuTopo[topoInfo.GPU] = topoInfo.Link.PCIPaths()
 			}
 		}
 
 		// Self connection
-		gpuTopo[i] = "X"
+		gpuTopo[gpus[i]] = "X"
 
 		// Add topology info to row
-		for j := 0; j < numGpus; j++ {
-			if gpuTopo[j] == "" {
-				gpuTopo[j] = "N/A"
+		var row strings.Builder
+		row.WriteString("GPU")
+		row.WriteString(strconv.FormatUint(uint64(gpus[i]), 10))
+		for _, gpu := range gpus {
+			path := gpuTopo[gpu]
+			if path == "" {
+				path = "N/A"
 			}
-			row += "  " + gpuTopo[j]
+			row.WriteString("  ")
+			row.WriteString(path)
 		}
 
 		// Get device info for CPU affinity
 		deviceInfo, err := dcgm.GetDeviceInfo(gpus[i])
 		if err != nil {
 			t.Errorf("Failed to get device info for GPU %d: %v", gpus[i], err)
-			row += "  N/A"
+			row.WriteString("  N/A")
 		} else {
 			if deviceInfo.CPUAffinity != "" {
-				row += "  " + deviceInfo.CPUAffinity
+				row.WriteString("  ")
+				row.WriteString(deviceInfo.CPUAffinity)
 			} else {
-				row += "  N/A"
+				row.WriteString("  N/A")
 			}
 		}
 
-		t.Log(row)
+		t.Log(row.String())
 	}
 }
 

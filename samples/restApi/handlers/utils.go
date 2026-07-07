@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
@@ -95,13 +96,48 @@ CPU(%)          : {{printf "%.2f" .CPU}}
 `
 )
 
+var (
+	deviceInfoTemplate   = template.Must(template.New("deviceInfo").Parse(deviceInfo))
+	deviceStatusTemplate = template.Must(template.New("deviceStatus").Parse(deviceStatus))
+	processInfoTemplate  = template.Must(template.New("processInfo").Parse(processInfo))
+	healthStatusTemplate = template.Must(template.New("healthStatus").Parse(healthStatus))
+	hostengineTemplate   = template.Must(template.New("hostengine").Parse(hostengine))
+)
+
+func logRequestError(req *http.Request, err error) {
+	if err != nil {
+		logRequestMessage(req, err.Error())
+	}
+}
+
+func logRequestStatus(req *http.Request, status int) {
+	logRequestMessage(req, http.StatusText(status))
+}
+
+func logRequestMessage(req *http.Request, message string) {
+	method, path := "", ""
+	if req != nil {
+		method = req.Method
+		if req.URL != nil {
+			path = req.URL.Path
+		}
+	}
+
+	log.Printf(
+		"error: method=%s path=%s message=%s",
+		strconv.Quote(method),
+		strconv.Quote(path),
+		strconv.Quote(message),
+	)
+}
+
 // getId converts a string key to a GPU ID
 // Returns math.MaxUint32 if the conversion fails
 func getId(resp http.ResponseWriter, req *http.Request, key string) uint {
 	id, err := strconv.ParseUint(key, base, bitsize)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusBadRequest)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err)
 
 		return math.MaxUint32
 	}
@@ -113,7 +149,7 @@ func getIdByUuid(resp http.ResponseWriter, req *http.Request, key string) uint {
 	id, exists := uuids[key]
 	if !exists {
 		http.NotFound(resp, req)
-		log.Printf("error: %v%v:  %v (page not found)", req.Host, req.URL, http.StatusNotFound)
+		logRequestStatus(req, http.StatusNotFound)
 
 		return math.MaxUint32
 	}
@@ -127,14 +163,14 @@ func isValidId(id uint, resp http.ResponseWriter, req *http.Request) bool {
 	count, err := dcgm.GetAllDeviceCount()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err)
 
 		return false
 	}
 
 	if id >= count {
 		http.NotFound(resp, req)
-		log.Printf("error: %v%v: %v (page not found)", req.Host, req.URL, http.StatusNotFound)
+		logRequestStatus(req, http.StatusNotFound)
 
 		return false
 	}
@@ -148,7 +184,7 @@ func isDcgmSupported(gpuId uint, resp http.ResponseWriter, req *http.Request) bo
 	gpus, err := dcgm.GetSupportedDevices()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err)
 
 		return false
 	}
@@ -161,24 +197,23 @@ func isDcgmSupported(gpuId uint, resp http.ResponseWriter, req *http.Request) bo
 
 	err = fmt.Errorf("error adding gpu %d to group: This gpu is not supported by dcgm", gpuId)
 	http.Error(resp, err.Error(), http.StatusInternalServerError)
-	log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+	logRequestError(req, err)
 
 	return false
 }
 
-// isJson checks if the request URL ends with "json" to determine output format
+// isJson checks if the request URL ends with "/json" to determine output format
 // Returns true if JSON output is requested
 func isJson(req *http.Request) bool {
-	url := (req.URL).String()
-	return url[len(url)-4:] == "json"
+	return strings.HasSuffix(req.URL.Path, "/json")
 }
 
 // print formats and writes templated text output to the response
-func printer(resp http.ResponseWriter, req *http.Request, stats any, templ string) {
-	t := template.Must(template.New("").Parse(templ))
+func printer(resp http.ResponseWriter, req *http.Request, stats any, t *template.Template) {
+	// #nosec G708 -- t is selected from package-owned templates parsed at initialization.
 	if err := t.Execute(resp, stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err)
 	}
 }
 
@@ -188,17 +223,17 @@ func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 
 	if err := json.NewEncoder(resp).Encode(stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+		logRequestError(req, err)
 	}
 }
 
 // processPrint formats and writes process information to the response
 func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.ProcessInfo) {
-	t := template.Must(template.New("Process").Parse(processInfo))
 	for i := range pInfo {
-		if err := t.Execute(resp, pInfo[i]); err != nil {
+		// #nosec G708 -- processInfoTemplate is package-owned and parsed at initialization.
+		if err := processInfoTemplate.Execute(resp, pInfo[i]); err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
-			log.Printf("error: %v%v: %v", req.Host, req.URL, err.Error())
+			logRequestError(req, err)
 
 			return
 		}

@@ -19,6 +19,7 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -39,9 +40,17 @@ type Field struct {
 	Comment string
 }
 
+// DeprecatedFieldAlias describes a deprecated DCGM field name that aliases a current field.
+type DeprecatedFieldAlias struct {
+	Name   string
+	Target string
+	ID     int
+}
+
 type TemplateData struct {
-	Fields       []Field
-	LegacyFields map[string]int
+	Fields            []Field
+	DeprecatedAliases []DeprecatedFieldAlias
+	LegacyFields      map[string]int
 }
 
 func main() {
@@ -79,7 +88,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	// Resolve deprecated aliases to their target field IDs.
-	aliasLegacy, err := resolveAliases(fields, aliases)
+	deprecatedAliases, err := resolveDeprecatedFieldAliases(fields, aliases)
 	if err != nil {
 		fmt.Fprintf(stderr, "Error resolving aliases: %v\n", err)
 		return 1
@@ -93,14 +102,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	// Merge resolved aliases into the legacy map. Alias names start with
 	// DCGM_FI_ and so never collide with the lowercase curated 1.x names.
-	for name, id := range aliasLegacy {
-		legacyFields[name] = id
+	for _, alias := range deprecatedAliases {
+		legacyFields[alias.Name] = alias.ID
 	}
 
 	// Generate output
 	data := TemplateData{
-		Fields:       fields,
-		LegacyFields: legacyFields,
+		Fields:            fields,
+		DeprecatedAliases: deprecatedAliases,
+		LegacyFields:      legacyFields,
 	}
 
 	err = generateOutput(data, outputPath)
@@ -110,7 +120,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	fmt.Fprintf(stdout, "Generated %d fields (+ %d deprecated aliases) to %s\n",
-		len(fields), len(aliasLegacy), outputPath)
+		len(fields), len(deprecatedAliases), outputPath)
 	return 0
 }
 
@@ -138,8 +148,10 @@ func parseHeader(path string) ([]Field, map[string]string, error) {
 
 	// #define DCGM_FI_XXX 123
 	definePattern := regexp.MustCompile(`^#define\s+(DCGM_FI_\w+)\s+(\d+)`)
-	// #define DCGM_FI_OLD DCGM_FI_NEW -- deprecated-alias shape.
-	aliasPattern := regexp.MustCompile(`^#define\s+(DCGM_FI_\w+)\s+(DCGM_FI_\w+)\s*$`)
+	// #define DCGM_FI_OLD DCGM_FI_NEW -- deprecated-alias shape. A
+	// trailing line or block comment is allowed because DCGM 4.6 annotates
+	// renamed aliases with their numeric ID.
+	aliasPattern := regexp.MustCompile(`^#define\s+(DCGM_FI_\w+)\s+(DCGM_FI_\w+)(?:\s*(?://.*|/\*.*\*/))?\s*$`)
 	// Content of a block-comment interior line: " * <content>".
 	commentPattern := regexp.MustCompile(`^\s*\*\s*(.+)$`)
 
@@ -174,7 +186,7 @@ func parseHeader(path string) ([]Field, map[string]string, error) {
 
 		// Deprecated-block entry/exit. Track nesting so any #ifdef/#ifndef/#if
 		// inside the block doesn't prematurely close it on its #endif.
-		if trimmed == "#ifdef DCGM_DEPRECATED" {
+		if isDeprecatedBlockStart(trimmed) {
 			inDeprecatedBlock = true
 			deprecatedBlockDepth = 1
 			lastComment = ""
@@ -201,22 +213,32 @@ func parseHeader(path string) ([]Field, map[string]string, error) {
 			}
 		}
 
-		hasOpen := strings.Contains(line, "/*")
-		hasClose := strings.Contains(line, "*/")
-
-		// Single-line block like "/** @} */" or "/** Deprecated: X */":
-		// inspect for the deprecated marker, do not enter block mode, do not
-		// capture as field-describing content.
-		if hasOpen && hasClose {
-			if containsDeprecatedMarker(line) {
+		if strings.HasPrefix(trimmed, "//") {
+			if containsDeprecatedMarker(trimmed) {
 				commentHasDeprecated = true
 			}
-			inCommentBlock = false
 			continue
 		}
 
+		hasOpen := strings.Contains(line, "/*")
+		hasClose := strings.Contains(line, "*/")
+
+		// Single-line comment block like "/** @} */" or "/** Deprecated: X */":
+		// inspect for the deprecated marker, do not enter block mode, do not
+		// capture as field-describing content. Keep #define lines with inline
+		// block comments for define/alias parsing below.
+		if hasOpen && hasClose && strings.HasPrefix(trimmed, "/*") {
+			lastComment = ""
+			commentHasDeprecated = containsDeprecatedMarker(line)
+			inCommentBlock = false
+			continue
+		}
+		if hasOpen && hasClose && containsDeprecatedMarker(line) {
+			commentHasDeprecated = true
+		}
+
 		// Block opener without a matching close on the same line.
-		if hasOpen {
+		if hasOpen && !hasClose {
 			inCommentBlock = true
 			lastComment = ""
 			commentHasDeprecated = false
@@ -306,17 +328,28 @@ func parseHeader(path string) ([]Field, map[string]string, error) {
 	return fields, aliases, nil
 }
 
-// resolveAliases maps each deprecated alias to its target field's ID.
+func isDeprecatedBlockStart(trimmed string) bool {
+	switch trimmed {
+	case "#ifdef DCGM_DEPRECATED",
+		"#if DCGM_DEPRECATED",
+		"#if defined(DCGM_DEPRECATED)":
+		return true
+	default:
+		return false
+	}
+}
+
+// resolveDeprecatedFieldAliases maps each deprecated alias to its target field's ID.
 // Returns an error if any alias target is not a known field: we would rather
 // fail generation loudly than silently ship a legacy map missing names that
 // were previously exposed.
-func resolveAliases(fields []Field, aliases map[string]string) (map[string]int, error) {
+func resolveDeprecatedFieldAliases(fields []Field, aliases map[string]string) ([]DeprecatedFieldAlias, error) {
 	fieldByName := make(map[string]int, len(fields))
 	for _, f := range fields {
 		fieldByName[f.Name] = f.ID
 	}
 
-	resolved := make(map[string]int, len(aliases))
+	resolved := make([]DeprecatedFieldAlias, 0, len(aliases))
 	for alias, target := range aliases {
 		id, ok := fieldByName[target]
 		if !ok {
@@ -325,8 +358,20 @@ func resolveAliases(fields []Field, aliases map[string]string) (map[string]int, 
 				alias, target,
 			)
 		}
-		resolved[alias] = id
+		resolved = append(resolved, DeprecatedFieldAlias{
+			Name:   alias,
+			Target: target,
+			ID:     id,
+		})
 	}
+
+	sort.Slice(resolved, func(i, j int) bool {
+		if resolved[i].ID != resolved[j].ID {
+			return resolved[i].ID < resolved[j].ID
+		}
+		return resolved[i].Name < resolved[j].Name
+	})
+
 	return resolved, nil
 }
 
@@ -346,7 +391,7 @@ func readLegacyFieldsCSV(path string) (map[string]int, error) {
 		return nil, fmt.Errorf("failed to read legacy fields CSV header: %w", err)
 	}
 	if len(header) != 2 || strings.TrimSpace(header[0]) != "name" || strings.TrimSpace(header[1]) != "id" {
-		return nil, fmt.Errorf("legacy fields CSV header must be: name,id")
+		return nil, errors.New("legacy fields CSV header must be: name,id")
 	}
 
 	legacyFields := make(map[string]int)

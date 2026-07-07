@@ -14,7 +14,7 @@
 
 GOLANGCILINT_TIMEOUT ?= 10m
 
-.PHONY: all binary check-format install install-pre-commit generate check-generate
+.PHONY: all binary format check-format install install-pre-commit generate check-generate
 all: binary test-main check-format
 
 install-pre-commit:
@@ -31,6 +31,9 @@ check-generate: generate
 	@echo "Checking if generated code is up to date..."
 	@git diff --exit-code pkg/dcgm/const_fields.go || \
 		(echo "Error: const_fields.go is out of sync. Run 'make generate'" && exit 1)
+
+format:
+	gofumpt -w .
 
 binary: generate
 	go build ./pkg/dcgm
@@ -52,7 +55,7 @@ test-main: generate
 	go test -v ./tests
 
 check-format:
-	test $$(gofumpt -l -w . | tee /dev/stderr | wc -l) -eq 0
+	test $$(gofumpt -l . | tee /dev/stderr | wc -l) -eq 0
 
 clean:
 	rm -f samples/deviceInfo/deviceInfo
@@ -65,7 +68,7 @@ clean:
 	rm -f samples/topology/topology
 
 lint:
-	golangci-lint run ./... --timeout $(GOLANGCILINT_TIMEOUT)  --new-from-rev=HEAD~1 --fix
+	golangci-lint run ./... --timeout $(GOLANGCILINT_TIMEOUT) --new-from-rev=HEAD~1
 
 lint-full:
-	golangci-lint run ./... --timeout $(GOLANGCILINT_TIMEOUT) --fix
+	golangci-lint run ./... --timeout $(GOLANGCILINT_TIMEOUT)

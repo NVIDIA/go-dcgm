@@ -130,10 +130,12 @@ func watchPidFieldsWithWatcher(watch watchPidFieldsFunc, update func() error, up
 		}
 	}
 
-	if err = watch(group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
+	err = watch(group, updateFreq, maxKeepAge, maxKeepSamples)
+	if err != nil {
 		return groupId, err
 	}
-	if err = update(); err != nil {
+	err = update()
+	if err != nil {
 		return groupId, err
 	}
 	return group, nil

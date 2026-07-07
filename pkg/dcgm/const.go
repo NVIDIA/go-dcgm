@@ -192,10 +192,16 @@ const (
 	DCGM_ST_NVML_DRIVER_TIMEOUT = -57
 	// DCGM_ST_NVVS_NO_AVAILABLE_TEST is the value for ECC NVVS NO AVAILABLE TEST
 	DCGM_ST_NVVS_NO_AVAILABLE_TEST = -58
-	// DCGM_ST_NO_NVVS is the value for NVVS not available
-	DCGM_ST_NO_NVVS = -60
-	// DCGM_ST_NVVS_NOT_RUNNING is the value for NVVS not running
-	DCGM_ST_NVVS_NOT_RUNNING = -61
+	// DCGM_ST_MNDIAG_CONNECTION_NOT_AVAILABLE is the value for MNDIAG CONNECTION NOT AVAILABLE
+	DCGM_ST_MNDIAG_CONNECTION_NOT_AVAILABLE = -59
+	// DCGM_ST_MNDIAG_CONNECTION_UNAUTHORIZED is the value for MNDIAG CONNECTION UNAUTHORIZED
+	DCGM_ST_MNDIAG_CONNECTION_UNAUTHORIZED = -60
+	// DCGM_ST_REMOTE_SSH_CONNECTION_FAILED is the value for REMOTE SSH CONNECTION FAILED
+	DCGM_ST_REMOTE_SSH_CONNECTION_FAILED = -61
+	// DCGM_ST_NO_NVVS is retained for source compatibility with older go-dcgm releases.
+	DCGM_ST_NO_NVVS = DCGM_ST_MNDIAG_CONNECTION_UNAUTHORIZED
+	// DCGM_ST_NVVS_NOT_RUNNING is retained for source compatibility with older go-dcgm releases.
+	DCGM_ST_NVVS_NOT_RUNNING = DCGM_ST_REMOTE_SSH_CONNECTION_FAILED
 	// DCGM_ST_CHILD_SPAWN_FAILED is the value for child spawn failed
 	DCGM_ST_CHILD_SPAWN_FAILED = -62
 	// DCGM_ST_FILE_IO_ERROR is the value for file I/O error
@@ -206,6 +212,8 @@ const (
 	DCGM_ST_CALLER_ALREADY_STOPPED = -65
 	// DCGM_ST_DIAG_STOPPED is the value for diagnostic stopped
 	DCGM_ST_DIAG_STOPPED = -66
+	// DCGM_ST_GPUS_DETACHED is the value for GPUs detached
+	DCGM_ST_GPUS_DETACHED = -67
 )
 
 // DCGM_FV_FLAG_LIVE_DATA is a flag for the DCGM fields.
@@ -529,16 +537,27 @@ const (
 	DCGM_FR_NCCL_ERROR HealthCheckErrorCode = 129
 	// DCGM_FR_RETEST_REQUESTED Retest requested before providing results
 	DCGM_FR_RETEST_REQUESTED HealthCheckErrorCode = 130
+	// DCGM_FR_CONTAINED_ERROR GPU contained error
+	DCGM_FR_CONTAINED_ERROR HealthCheckErrorCode = 131
+	// DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT Uncorrectable row remap threshold exceeded
+	DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT HealthCheckErrorCode = 132
 	// DCGM_FR_ERROR_SENTINEL MUST BE THE LAST ERROR CODE
-	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 131
+	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 133
 )
 
-// DcgmBindUnbindEventState represents the state of GPU bind/unbind events
-type DcgmBindUnbindEventState int
+// BindUnbindEventState represents the state of GPU bind/unbind events
+type BindUnbindEventState int
+
+// DcgmBindUnbindEventState is maintained for backward compatibility.
+//
+// Deprecated: use BindUnbindEventState.
+//
+//nolint:revive // Compatibility alias keeps existing dcgm.DcgmBindUnbindEventState users building.
+type DcgmBindUnbindEventState = BindUnbindEventState
 
 const (
 	// DcgmBUEventStateSystemReinitializing indicates the system is reinitializing (GPU unbind)
-	DcgmBUEventStateSystemReinitializing DcgmBindUnbindEventState = 1
+	DcgmBUEventStateSystemReinitializing BindUnbindEventState = 1
 	// DcgmBUEventStateSystemReinitializationCompleted indicates system reinitialization is complete (GPU bind)
-	DcgmBUEventStateSystemReinitializationCompleted DcgmBindUnbindEventState = 2
+	DcgmBUEventStateSystemReinitializationCompleted BindUnbindEventState = 2
 )

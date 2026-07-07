@@ -21,9 +21,14 @@ package dcgm
 #cgo linux LDFLAGS: -ldl -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files
 #cgo darwin LDFLAGS: -ldl -Wl,--export-dynamic -Wl,-undefined,dynamic_lookup
 
+#include <stdint.h>
+#include <stdbool.h>
 #include "dcgm_test_apis.h"
 #include "dcgm_test_structs.h"
 #include "dcgm_structs_internal.h"
+
+DCGM_CASSERT(sizeof(dcgmEntitiesGetLatestValues_v4) <= ((4 * 1024 * 1024) - 24),
+             dcgmEntitiesGetLatestValues_v4_exceeds_proto_limit);
 */
 import "C"
 
@@ -100,7 +105,7 @@ func InjectFieldValue(gpu uint, fieldID Short, fieldType uint, status int, ts in
 		fieldId:   C.ushort(fieldID),
 		fieldType: C.ushort(fieldType),
 		status:    C.int(status),
-		ts:        C.long(ts),
+		ts:        C.int64_t(ts),
 	}
 
 	switch fieldType {
