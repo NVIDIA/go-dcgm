@@ -80,6 +80,10 @@ type ErrorMeta struct {
 }
 
 func getErrorMeta(code HealthCheckErrorCode) *ErrorMeta {
+	if code >= HealthCheckErrorCode(C.DCGM_FR_ERROR_SENTINEL) {
+		return nil
+	}
+
 	meta := C.dcgmGetErrorMeta(C.dcgmError_t(code))
 	if meta == nil {
 		return nil
@@ -87,9 +91,17 @@ func getErrorMeta(code HealthCheckErrorCode) *ErrorMeta {
 
 	return &ErrorMeta{
 		ErrorID:       HealthCheckErrorCode(meta.errorId),
-		MessageFormat: C.GoString(meta.msgFormat),
-		Suggestion:    C.GoString(meta.suggestion),
+		MessageFormat: goStringOrEmpty(meta.msgFormat),
+		Suggestion:    goStringOrEmpty(meta.suggestion),
 		Severity:      ErrorSeverity(meta.severity),
 		Category:      ErrorCategory(meta.category),
 	}
+}
+
+func goStringOrEmpty(value *C.char) string {
+	if value == nil {
+		return ""
+	}
+
+	return C.GoString(value)
 }
