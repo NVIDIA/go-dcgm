@@ -115,6 +115,8 @@ type PolicyConfig struct {
 
 // PolicyViolation represents a detected violation of a policy condition
 type PolicyViolation struct {
+	// GPU is the ID of the GPU that triggered the violation
+	GPU uint
 	// Condition specifies the type of policy that was violated
 	Condition PolicyCondition
 	// Timestamp indicates when the violation occurred
@@ -188,9 +190,7 @@ type XidPolicyCondition struct {
 	ErrNum uint
 }
 
-var (
-	policyCallbacks = newPolicyDispatcher()
-)
+var policyCallbacks = newPolicyDispatcher()
 
 type translatedPolicyConditions struct {
 	condition C.dcgmPolicyCondition_t
@@ -251,7 +251,7 @@ func (d *policyDispatcher) addSubscription(
 	group GroupHandle,
 	conditions C.dcgmPolicyCondition_t,
 	buffer int,
-) (uint64, chan PolicyViolation, *policyRegistration) {
+) (subID uint64, ch chan PolicyViolation, registration *policyRegistration) {
 	if buffer < 1 {
 		buffer = 1
 	}
@@ -261,8 +261,8 @@ func (d *policyDispatcher) addSubscription(
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	subID := d.nextLocked()
-	ch := make(chan PolicyViolation, buffer)
+	subID = d.nextLocked()
+	ch = make(chan PolicyViolation, buffer)
 	d.subscriptions[subID] = &policySubscription{
 		id:         subID,
 		group:      group,
@@ -277,16 +277,16 @@ func (d *policyDispatcher) addSubscription(
 	}
 
 	regID := d.nextLocked()
-	registration := policyRegistration{
+	registration = &policyRegistration{
 		id:         regID,
 		group:      group,
 		groupKey:   groupKey,
 		conditions: missing,
 	}
-	d.registrations[regID] = registration
+	d.registrations[regID] = *registration
 	d.registeredByGroup[groupKey] |= missing
 
-	return subID, ch, &registration
+	return subID, ch, registration
 }
 
 // removeSubscription removes one listener and returns newly unused DCGM conditions.
@@ -485,7 +485,7 @@ func policyConditionInfo(condition PolicyCondition) (C.dcgmPolicyCondition_t, bo
 // translateConditions validates requested conditions and builds their DCGM mask.
 func translateConditions(conditions []PolicyCondition) (translatedPolicyConditions, error) {
 	if len(conditions) == 0 {
-		return translatedPolicyConditions{}, fmt.Errorf("at least one policy condition must be provided")
+		return translatedPolicyConditions{}, errors.New("at least one policy condition must be provided")
 	}
 
 	var translated translatedPolicyConditions
@@ -725,6 +725,7 @@ func ViolationRegistration(data unsafe.Pointer, userData C.uint64_t) C.int {
 	}
 
 	err := PolicyViolation{
+		GPU:       uint(response.gpuId),
 		Condition: con,
 		Timestamp: timestamp,
 		Data:      val,
@@ -790,15 +791,35 @@ type PolicyStatus struct {
 
 // getPolicyForGroup returns current policy config while preserving DCGM error codes.
 func getPolicyForGroup(groupID GroupHandle) (*PolicyStatus, error) {
-	var policy C.dcgmPolicy_t
-	policy.version = makeVersion1(unsafe.Sizeof(policy))
+	groupInfo, err := GetGroupInfo(groupID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting group info: %w", err)
+	}
+
+	gpuCount := 0
+	for _, entity := range groupInfo.EntityList {
+		if entity.EntityGroupId == FE_GPU {
+			gpuCount++
+		}
+	}
+	if gpuCount == 0 {
+		return nil, errors.New("cannot get policy for a group with no GPUs")
+	}
+
+	policies := make([]C.dcgmPolicy_t, gpuCount)
+	for i := range policies {
+		policies[i].version = makeVersion1(unsafe.Sizeof(policies[i]))
+	}
 
 	var statusHandle C.dcgmStatus_t
 
-	result := C.dcgmPolicyGet(handle.handle, groupID.handle, 1, &policy, statusHandle)
+	result := C.dcgmPolicyGet(handle.handle, groupID.handle, C.int(gpuCount), &policies[0], statusHandle)
 	if err := errorString(result); err != nil {
 		return nil, &Error{msg: fmt.Sprintf("error getting policy: %s", err), Code: result}
 	}
+	// SetPolicyForGroup applies one policy to the whole group, so the first
+	// per-GPU result represents that uniform group policy.
+	policy := policies[0]
 
 	status := &PolicyStatus{
 		Mode:       uint32(policy.mode),
@@ -881,7 +902,7 @@ func setPolicyForGroupWithConfig(groupID GroupHandle, configs ...PolicyConfig) e
 	)
 
 	if len(configs) == 0 {
-		return fmt.Errorf("at least one policy config must be provided")
+		return errors.New("at least one policy config must be provided")
 	}
 
 	// Extract action and validation from first config (applies to all conditions)
@@ -989,7 +1010,7 @@ func setPolicyForGroupWithConfig(groupID GroupHandle, configs ...PolicyConfig) e
 // registerPolicy configures requested policy conditions before subscribing.
 func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("context must not be nil")
+		return nil, errors.New("context must not be nil")
 	}
 
 	translated, err := translateConditions(typ)
@@ -1005,7 +1026,7 @@ func registerPolicy(ctx context.Context, groupID GroupHandle, typ ...PolicyCondi
 // registerPolicyOnly subscribes to existing policy conditions without changing thresholds.
 func registerPolicyOnly(ctx context.Context, groupID GroupHandle, typ ...PolicyCondition) (<-chan PolicyViolation, error) {
 	if ctx == nil {
-		return nil, fmt.Errorf("context must not be nil")
+		return nil, errors.New("context must not be nil")
 	}
 
 	translated, err := translateConditions(typ)

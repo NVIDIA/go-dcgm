@@ -45,7 +45,7 @@ func DeviceInfoByUuid(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, device, deviceInfo)
+	printer(resp, req, device, deviceInfoTemplate)
 }
 
 // DeviceStatusByUuid handles HTTP requests for device status by GPU UUID
@@ -61,7 +61,7 @@ func DeviceStatusByUuid(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, st, deviceStatus)
+	printer(resp, req, st, deviceStatusTemplate)
 }
 
 // HealthByUuid handles HTTP requests for device health status by GPU UUID
@@ -77,5 +77,5 @@ func HealthByUuid(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	printer(resp, req, h, healthStatus)
+	printer(resp, req, h, healthStatusTemplate)
 }

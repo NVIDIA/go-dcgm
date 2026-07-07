@@ -285,8 +285,8 @@ func TestGetFieldIDBindUnbindEvent(t *testing.T) {
 // TestBindUnbindEventConstants tests that bind/unbind event state constants are defined
 func TestBindUnbindEventConstants(t *testing.T) {
 	// These constants should be defined from the updated headers
-	assert.Equal(t, DcgmBindUnbindEventState(1), DcgmBUEventStateSystemReinitializing)
-	assert.Equal(t, DcgmBindUnbindEventState(2), DcgmBUEventStateSystemReinitializationCompleted)
+	assert.Equal(t, DcgmBUEventStateSystemReinitializing, DcgmBindUnbindEventState(1))
+	assert.Equal(t, DcgmBUEventStateSystemReinitializationCompleted, DcgmBindUnbindEventState(2))
 }
 
 // TestGetEntityGroupEntitiesAfterDetach tests that GetEntityGroupEntities and GetSupportedDevices work correctly
@@ -308,7 +308,7 @@ func TestGetEntityGroupEntitiesAfterDetach(t *testing.T) {
 	require.NotEmpty(t, initialSupported, "Should have supported GPUs initially")
 
 	// Both should return the same count initially
-	assert.Equal(t, len(initialEntities), len(initialSupported), "Entity count should match supported count initially")
+	assert.Len(t, initialSupported, len(initialEntities), "Entity count should match supported count initially")
 
 	// Detach driver (fake GPUs remain active)
 	err = DetachDriver()

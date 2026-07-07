@@ -241,8 +241,8 @@ func getDeviceInfo(gpuID uint) (deviceInfo Device, err error) {
 	busid := *stringPtr(&device.identifiers.pciBusId[0])
 
 	var (
-		topology  []P2PLink
-		bandwidth int64
+		topology    []P2PLink
+		bandwidth   int64
 		cpuAffinity string
 	)
 

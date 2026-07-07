@@ -8,7 +8,13 @@ import "C"
 
 import (
 	"fmt"
+	"math/bits"
 	"unsafe"
+)
+
+const (
+	dcgmTopologyPCIPathMask uint64 = 0xFF
+	maxNVLinkCount          uint   = 36
 )
 
 // P2PLinkType represents the type of peer-to-peer connection between GPUs
@@ -64,7 +70,25 @@ func (l P2PLinkType) PCIPaths() string {
 		return "NV4"
 	case P2PLinkUnknown:
 	}
+	if count, ok := l.nvLinkCount(); ok {
+		return fmt.Sprintf("NV%d", count)
+	}
 	return "N/A"
+}
+
+func (l P2PLinkType) nvLinkCount() (uint, bool) {
+	if l < SingleNVLINKLink {
+		return 0, false
+	}
+	count := uint(l-SingleNVLINKLink) + 1
+	if count > maxNVLinkCount {
+		return 0, false
+	}
+	return count, true
+}
+
+func nvLinkP2PLinkType(count uint) P2PLinkType {
+	return P2PLinkType(uint(SingleNVLINKLink) + count - 1)
 }
 
 // P2PLink contains information about a peer-to-peer connection
@@ -77,30 +101,40 @@ type P2PLink struct {
 	Link P2PLinkType
 }
 
-func getP2PLink(path uint) P2PLinkType {
-	switch path {
-	case C.DCGM_TOPOLOGY_BOARD:
+func getP2PLink(path uint64) P2PLinkType {
+	if count, ok := nvLinkCountFromPath(path); ok {
+		return nvLinkP2PLinkType(count)
+	}
+
+	switch path & dcgmTopologyPCIPathMask {
+	case uint64(C.DCGM_TOPOLOGY_BOARD):
 		return P2PLinkSameBoard
-	case C.DCGM_TOPOLOGY_SINGLE:
+	case uint64(C.DCGM_TOPOLOGY_SINGLE):
 		return P2PLinkSingleSwitch
-	case C.DCGM_TOPOLOGY_MULTIPLE:
+	case uint64(C.DCGM_TOPOLOGY_MULTIPLE):
 		return P2PLinkMultiSwitch
-	case C.DCGM_TOPOLOGY_HOSTBRIDGE:
+	case uint64(C.DCGM_TOPOLOGY_HOSTBRIDGE):
 		return P2PLinkHostBridge
-	case C.DCGM_TOPOLOGY_CPU:
+	case uint64(C.DCGM_TOPOLOGY_CPU):
 		return P2PLinkSameCPU
-	case C.DCGM_TOPOLOGY_SYSTEM:
+	case uint64(C.DCGM_TOPOLOGY_SYSTEM):
 		return P2PLinkCrossCPU
-	case C.DCGM_TOPOLOGY_NVLINK1:
-		return SingleNVLINKLink
-	case C.DCGM_TOPOLOGY_NVLINK2:
-		return TwoNVLINKLinks
-	case C.DCGM_TOPOLOGY_NVLINK3:
-		return ThreeNVLINKLinks
-	case C.DCGM_TOPOLOGY_NVLINK4:
-		return FourNVLINKLinks
 	}
 	return P2PLinkUnknown
+}
+
+func nvLinkCountFromPath(path uint64) (uint, bool) {
+	nvLinkPath := path &^ dcgmTopologyPCIPathMask
+	if nvLinkPath == 0 || bits.OnesCount64(nvLinkPath) != 1 {
+		return 0, false
+	}
+
+	// DCGM encodes NVLink counts as one-hot bits 8..43, where bit 8 means NV1.
+	count := uint(bits.TrailingZeros64(nvLinkPath) - 7)
+	if count < 1 || count > maxNVLinkCount {
+		return 0, false
+	}
+	return count, true
 }
 
 func getBusID(gpuID uint) (string, error) {
@@ -115,8 +149,8 @@ func getBusID(gpuID uint) (string, error) {
 }
 
 func getDeviceTopology(gpuID uint) (links []P2PLink, err error) {
-	var topology C.dcgmDeviceTopology_v1
-	topology.version = makeVersion1(unsafe.Sizeof(topology))
+	var topology C.dcgmDeviceTopology_v2
+	topology.version = makeVersion2(unsafe.Sizeof(topology))
 
 	result := C.dcgmGetDeviceTopology(handle.handle, C.uint(gpuID), &topology)
 	if result == C.DCGM_ST_NOT_SUPPORTED {
@@ -134,7 +168,7 @@ func getDeviceTopology(gpuID uint) (links []P2PLink, err error) {
 	for i := uint(0); i < uint(topology.numGpus); i++ {
 		links[i].GPU = uint(topology.gpuPaths[i].gpuId)
 		links[i].BusID = busid
-		links[i].Link = getP2PLink(uint(topology.gpuPaths[i].path))
+		links[i].Link = getP2PLink(uint64(topology.gpuPaths[i].path))
 	}
 	return
 }
@@ -166,8 +200,8 @@ type NvLinkStatus struct {
 }
 
 func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
-	var linkStatus C.dcgmNvLinkStatus_v4
-	linkStatus.version = makeVersion4(unsafe.Sizeof(linkStatus))
+	var linkStatus C.dcgmNvLinkStatus_v5
+	linkStatus.version = makeVersion5(unsafe.Sizeof(linkStatus))
 
 	result := C.dcgmGetNvLinkLinkStatus(handle.handle, &linkStatus)
 	if result == C.DCGM_ST_NOT_SUPPORTED {

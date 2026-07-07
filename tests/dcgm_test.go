@@ -171,10 +171,10 @@ func BenchmarkDeviceInfo1(b *testing.B) {
 	_ = dcgm.Shutdown()
 }
 
-func assertInRange(t *testing.T, name string, val, min, max float64) {
+func assertInRange(t *testing.T, name string, val, minimum, maximum float64) {
 	t.Helper()
-	if val < min || val > max {
-		t.Errorf("%s out of range: got %v, want [%v, %v]", name, val, min, max)
+	if val < minimum || val > maximum {
+		t.Errorf("%s out of range: got %v, want [%v, %v]", name, val, minimum, maximum)
 	}
 }
 

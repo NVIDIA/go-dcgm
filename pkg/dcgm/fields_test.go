@@ -56,7 +56,8 @@ func TestGetLatestValuesForFields(t *testing.T) {
 	}()
 
 	// Inject test value
-	err = InjectFieldValue(gpuId,
+	err = InjectFieldValue(
+		gpuId,
 		DCGM_FI_DEV_XID_ERRORS,
 		DCGM_FT_INT64,
 		0,
@@ -155,7 +156,8 @@ func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 
 			// Inject values for all fields
 			for _, fieldId := range fieldIds {
-				err = InjectFieldValue(gpuId,
+				err = InjectFieldValue(
+					gpuId,
 					fieldId,
 					DCGM_FT_INT64,
 					0,

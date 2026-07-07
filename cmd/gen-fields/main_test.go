@@ -28,7 +28,7 @@ func writeHeader(t *testing.T, contents string) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "dcgm_fields.h")
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 		t.Fatalf("writing test header: %v", err)
 	}
 	return path
@@ -124,6 +124,27 @@ func TestParseHeader_AliasOutsideBlockWithDeprecatedComment_Accepted(t *testing.
 		t.Fatalf("expected CLOCK_THROTTLE_REASONS alias to be recorded, got %v", aliases)
 	}
 	if target != "DCGM_FI_DEV_CLOCKS_EVENT_REASONS" {
+		t.Errorf("wrong alias target: %q", target)
+	}
+}
+
+func TestParseHeader_AliasWithInlineBlockComment_Accepted(t *testing.T) {
+	path := writeHeader(t, `
+#define DCGM_FI_DEV_CANONICAL 42
+
+#define DCGM_FI_DEV_OLD_NAME DCGM_FI_DEV_CANONICAL /* Deprecated: Use DCGM_FI_DEV_CANONICAL instead. */
+`)
+
+	_, aliases, err := parseHeader(path)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+
+	target, ok := aliases["DCGM_FI_DEV_OLD_NAME"]
+	if !ok {
+		t.Fatalf("expected OLD_NAME alias to be recorded, got %v", aliases)
+	}
+	if target != "DCGM_FI_DEV_CANONICAL" {
 		t.Errorf("wrong alias target: %q", target)
 	}
 }
@@ -280,13 +301,33 @@ func TestParseHeader_DeprecatedCommentOnNumericDefineDoesNotLeakToAlias(t *testi
 	}
 }
 
-// resolveAliases returns an error when the target of a deprecated alias
+func TestParseHeader_StandaloneBlockCommentResetsDeprecatedState(t *testing.T) {
+	path := writeHeader(t, `
+#define DCGM_FI_DEV_CANONICAL 42
+
+/**
+ * Deprecated: Use DCGM_FI_DEV_CANONICAL instead.
+ */
+/** @} */
+#define DCGM_FI_DEV_OLD_NAME DCGM_FI_DEV_CANONICAL
+`)
+
+	_, aliases, err := parseHeader(path)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+	if _, ok := aliases["DCGM_FI_DEV_OLD_NAME"]; ok {
+		t.Fatalf("standalone block comment did not reset deprecated state: %v", aliases)
+	}
+}
+
+// resolveDeprecatedFieldAliases returns an error when the target of a deprecated alias
 // isn't in the fields slice.
-func TestResolveAliases_TargetMissing(t *testing.T) {
+func TestResolveDeprecatedFieldAliases_TargetMissing(t *testing.T) {
 	fields := []Field{{Name: "DCGM_FI_DEV_REAL", ID: 1}}
 	aliases := map[string]string{"DCGM_FI_DEV_OLD": "DCGM_FI_DEV_GONE"}
 
-	_, err := resolveAliases(fields, aliases)
+	_, err := resolveDeprecatedFieldAliases(fields, aliases)
 	if err == nil {
 		t.Fatalf("expected error when alias target is missing, got nil")
 	}
@@ -299,7 +340,7 @@ func writeLegacyCSV(t *testing.T, contents string) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "legacy_fields.csv")
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 		t.Fatalf("writing legacy CSV: %v", err)
 	}
 	return path
@@ -316,7 +357,7 @@ func TestRun_DefaultsLegacyCSVToOutputDirectory(t *testing.T) {
 	outputPath := filepath.Join(dir, "const_fields.go")
 	if err := os.WriteFile(filepath.Join(dir, legacyFieldsCSVName), []byte(`name,id
 dcgm_gpu_temp,150
-`), 0o644); err != nil {
+`), 0o600); err != nil {
 		t.Fatalf("writing default legacy CSV: %v", err)
 	}
 
@@ -470,6 +511,35 @@ func TestParseHeader_AliasInsideDeprecatedBlockWithoutComment_Accepted(t *testin
 	}
 }
 
+// DCGM 4.6 wraps renamed field aliases in "#if DCGM_DEPRECATED" and annotates
+// each #define with a trailing numeric-ID comment.
+func TestParseHeader_AliasInsideIfDeprecatedWithTrailingComment_Accepted(t *testing.T) {
+	path := writeHeader(t, `
+#define DCGM_FI_DEV_GPU_TEMP_CELSIUS 150
+
+#ifndef DCGM_DEPRECATED
+#define DCGM_DEPRECATED 1
+#endif
+
+#if DCGM_DEPRECATED
+#define DCGM_FI_DEV_GPU_TEMP DCGM_FI_DEV_GPU_TEMP_CELSIUS // 150
+#endif
+`)
+
+	_, aliases, err := parseHeader(path)
+	if err != nil {
+		t.Fatalf("parseHeader: %v", err)
+	}
+
+	target, ok := aliases["DCGM_FI_DEV_GPU_TEMP"]
+	if !ok {
+		t.Fatalf("expected GPU_TEMP alias to be recorded, got %v", aliases)
+	}
+	if target != "DCGM_FI_DEV_GPU_TEMP_CELSIUS" {
+		t.Errorf("wrong alias target: %q", target)
+	}
+}
+
 // A nested #ifdef/#endif inside the deprecated block must not prematurely
 // close it. An alias after the inner #endif but before the outer #endif
 // is still in deprecated scope.
@@ -585,7 +655,7 @@ func TestParseHeader_BlankLineBetweenCommentAndDefineAttaches(t *testing.T) {
 	}
 }
 
-// Full-pipeline integration: parseHeader -> resolveAliases ->
+// Full-pipeline integration: parseHeader -> resolveDeprecatedFieldAliases ->
 // readLegacyFieldsCSV -> generateOutput. Reads the emitted file and
 // verifies the expected constants, canonical map entries, and legacy map
 // entries all land in the right sections.
@@ -613,19 +683,24 @@ dcgm_gpu_temp,150
 	if err != nil {
 		t.Fatalf("parseHeader: %v", err)
 	}
-	aliasLegacy, err := resolveAliases(fields, aliases)
+	deprecatedAliases, err := resolveDeprecatedFieldAliases(fields, aliases)
 	if err != nil {
-		t.Fatalf("resolveAliases: %v", err)
+		t.Fatalf("resolveDeprecatedFieldAliases: %v", err)
 	}
 	legacyFields, err := readLegacyFieldsCSV(legacyCSV)
 	if err != nil {
 		t.Fatalf("readLegacyFieldsCSV: %v", err)
 	}
-	for name, id := range aliasLegacy {
-		legacyFields[name] = id
+	for _, alias := range deprecatedAliases {
+		legacyFields[alias.Name] = alias.ID
 	}
 
-	if err := generateOutput(TemplateData{Fields: fields, LegacyFields: legacyFields}, outputPath); err != nil {
+	err = generateOutput(TemplateData{
+		Fields:            fields,
+		DeprecatedAliases: deprecatedAliases,
+		LegacyFields:      legacyFields,
+	}, outputPath)
+	if err != nil {
 		t.Fatalf("generateOutput: %v", err)
 	}
 
@@ -638,6 +713,10 @@ dcgm_gpu_temp,150
 	// Typed constant.
 	if !strings.Contains(got, "DCGM_FI_DEV_CANONICAL Short = 42") {
 		t.Errorf("canonical typed constant missing in output:\n%s", got)
+	}
+	// Deprecated Go const alias.
+	if !strings.Contains(got, "DCGM_FI_DEV_OLD_ALIAS Short = DCGM_FI_DEV_CANONICAL") {
+		t.Errorf("deprecated Go const alias missing in output:\n%s", got)
 	}
 	// dcgmFields canonical entry.
 	if !strings.Contains(got, `"DCGM_FI_DEV_CANONICAL": 42`) {

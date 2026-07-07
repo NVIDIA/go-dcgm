@@ -36,7 +36,7 @@ func createTestDiagResponse() C.dcgmDiagResponse_v12 {
 }
 
 // addInfoMessage adds an info message to a dcgmDiagResponse_v12 for testing
-func addInfoMessage(response *C.dcgmDiagResponse_v12, entityID uint, testID uint, message string) {
+func addInfoMessage(response *C.dcgmDiagResponse_v12, entityID, testID uint, message string) {
 	idx := response.numInfo
 	cStr := C.CString(message)
 	defer C.free(unsafe.Pointer(cStr))
@@ -48,7 +48,7 @@ func addInfoMessage(response *C.dcgmDiagResponse_v12, entityID uint, testID uint
 }
 
 // addDiagResult adds a diagnostic result to a dcgmDiagResponse_v12 for testing
-func addDiagResult(response *C.dcgmDiagResponse_v12, entityID uint, testID uint, result int) {
+func addDiagResult(response *C.dcgmDiagResponse_v12, entityID, testID uint, result int) {
 	idx := response.numResults
 	response.results[idx].entity.entityId = C.uint(entityID)
 	response.results[idx].entity.entityGroupId = C.DCGM_FE_GPU

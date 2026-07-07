@@ -40,9 +40,15 @@ func secureRandomUint64() (uint64, error) {
 func TestGetValuesSince(t *testing.T) {
 	teardownTest := setupTest(t)
 	defer teardownTest(t)
-	runOnlyWithLiveGPUs(t)
 
-	const gpu uint = 0
+	gpus, err := withInjectionGPUs(t, 1)
+	require.NoError(t, err)
+	gpu := gpus[0]
+
+	group, err := CreateGroup("get-values-since")
+	require.NoError(t, err)
+	defer func() { require.NoError(t, DestroyGroup(group)) }()
+	require.NoError(t, AddToGroup(group, gpu))
 
 	// Create a group of fields
 	const (
@@ -67,7 +73,7 @@ func TestGetValuesSince(t *testing.T) {
 	var nextTime time.Time
 
 	t.Run("When there is no data return error", func(t *testing.T) {
-		values, nextTime, err = GetValuesSince(GroupAllGPUs(),
+		values, nextTime, err = GetValuesSince(group,
 			fieldsGroup, time.Time{})
 		require.Error(t, err)
 		require.Empty(t, nextTime)
@@ -75,11 +81,15 @@ func TestGetValuesSince(t *testing.T) {
 	})
 
 	t.Run("When there are a few entries", func(t *testing.T) {
+		require.NoError(t, WatchFieldsWithGroup(fieldsGroup, group))
+		defer func() { require.NoError(t, UnwatchFields(fieldsGroup, group)) }()
+
 		expectedNumberOfErrors := int64(43)
 		expectedInjectedValuesCount := 0
 
 		t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_XID_ERRORS", gpu)
-		err = InjectFieldValue(gpu,
+		err = InjectFieldValue(
+			gpu,
 			DCGM_FI_DEV_XID_ERRORS,
 			DCGM_FT_INT64,
 			0,
@@ -91,7 +101,8 @@ func TestGetValuesSince(t *testing.T) {
 		expectedInjectedValuesCount++
 
 		for i := 4; i > 0; i-- {
-			err = InjectFieldValue(gpu,
+			err = InjectFieldValue(
+				gpu,
 				DCGM_FI_DEV_XID_ERRORS,
 				DCGM_FT_INT64,
 				0,
@@ -105,7 +116,7 @@ func TestGetValuesSince(t *testing.T) {
 		// Force an update of the fields so that we can fetch initial values.
 		err = UpdateAllFields()
 		require.NoError(t, err)
-		values, nextTime, err = GetValuesSince(GroupAllGPUs(), fieldsGroup, time.Time{})
+		values, nextTime, err = GetValuesSince(group, fieldsGroup, time.Time{})
 		require.NoError(t, err)
 		assert.Greater(t, nextTime, time.Time{})
 		assert.Len(t, values, expectedInjectedValuesCount)

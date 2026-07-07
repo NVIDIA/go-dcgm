@@ -39,7 +39,6 @@ func TestProcessInfo(t *testing.T) {
 	time.Sleep(3000 * time.Millisecond)
 
 	// Get current process ID as an example
-	//nolint:gosec // disable G115
 	currentPid := uint(os.Getpid())
 	t.Logf("Testing with current process PID: %d", currentPid)
 

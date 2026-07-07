@@ -20,8 +20,6 @@ package dcgm
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/binary"
 	"log"
 	"strings"
 	"testing"
@@ -31,59 +29,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// secureRandomUint returns a random uint in the range [1, max]
-func secureRandomUint(maxValue uint) (uint, error) {
-	var buf [8]byte
-	_, err := rand.Read(buf[:])
-	if err != nil {
-		return 0, err
-	}
-
-	// Convert to uint64 and reduce to our range
-	n := binary.BigEndian.Uint64(buf[:])
-	// Add 1 to shift range from [0, max-1] to [1, max]
-	return uint(n%uint64(maxValue)) + 1, nil
-}
-
 func TestPolicyErrors(t *testing.T) {
 	type testCase struct {
 		policy      []policyCondition
 		numErrors   int
-		injectError func() error
-		assert      func(cb PolicyViolation, en int)
+		injectError func(gpu uint) error
+		assert      func(cb PolicyViolation)
 	}
 
 	tests := []testCase{
-		{
-			policy:    []policyCondition{DbePolicy},
-			numErrors: 1,
-			injectError: func() error {
-				gpu, _ := secureRandomUint(8)
-				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_ECC_DBE_VOL_DEV", gpu)
-				return InjectFieldValue(gpu,
-					DCGM_FI_DEV_ECC_DBE_VOL_DEV,
-					DCGM_FT_INT64,
-					0,
-					time.Now().Add(60*time.Second).UnixMicro(),
-					int64(1),
-				)
-			},
-			assert: func(cb PolicyViolation, _ int) {
-				require.NotNil(t, cb)
-				assert.Equal(t, DbePolicy, cb.Condition)
-				require.IsType(t, DbePolicyCondition{}, cb.Data)
-				policyCondition := cb.Data.(DbePolicyCondition)
-				assert.Equal(t, uint(1), policyCondition.NumErrors)
-				assert.Equal(t, "Device", policyCondition.Location)
-			},
-		},
+		func() testCase {
+			var expectedGPU uint
+
+			return testCase{
+				policy:    []policyCondition{DbePolicy},
+				numErrors: 1,
+				injectError: func(gpu uint) error {
+					expectedGPU = gpu
+					t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_ECC_DBE_VOL_DEV", gpu)
+					return injectCounterIncrease(gpu, DCGM_FI_DEV_ECC_DBE_VOL_DEV)
+				},
+				assert: func(cb PolicyViolation) {
+					require.NotNil(t, cb)
+					assert.Equal(t, expectedGPU, cb.GPU)
+					assert.Equal(t, DbePolicy, cb.Condition)
+					require.IsType(t, DbePolicyCondition{}, cb.Data)
+					policyCondition := cb.Data.(DbePolicyCondition)
+					assert.Equal(t, uint(1), policyCondition.NumErrors)
+					assert.Equal(t, "Device", policyCondition.Location)
+				},
+			}
+		}(),
 		{
 			policy:    []policyCondition{PowerPolicy},
 			numErrors: 1,
-			injectError: func() error {
-				gpu, _ := secureRandomUint(8)
+			injectError: func(gpu uint) error {
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_POWER_USAGE", gpu)
-				return InjectFieldValue(gpu,
+				return InjectFieldValue(
+					gpu,
 					DCGM_FI_DEV_POWER_USAGE,
 					DCGM_FT_DOUBLE,
 					0,
@@ -91,7 +74,7 @@ func TestPolicyErrors(t *testing.T) {
 					float64(300.0),
 				)
 			},
-			assert: func(cb PolicyViolation, _ int) {
+			assert: func(cb PolicyViolation) {
 				require.NotNil(t, cb)
 				assert.Equal(t, PowerPolicy, cb.Condition)
 				require.IsType(t, PowerPolicyCondition{}, cb.Data)
@@ -102,18 +85,11 @@ func TestPolicyErrors(t *testing.T) {
 		{
 			policy:    []policyCondition{PCIePolicy},
 			numErrors: 1,
-			injectError: func() error {
-				gpu, _ := secureRandomUint(8)
-				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_POWER_USAGE", gpu)
-				return InjectFieldValue(gpu,
-					DCGM_FI_DEV_PCIE_REPLAY_COUNTER,
-					DCGM_FT_INT64,
-					0,
-					time.Now().Add(60*time.Second).UnixMicro(),
-					int64(1),
-				)
+			injectError: func(gpu uint) error {
+				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_PCIE_REPLAY_TOTAL", gpu)
+				return injectCounterIncrease(gpu, DCGM_FI_DEV_PCIE_REPLAY_TOTAL)
 			},
-			assert: func(cb PolicyViolation, _ int) {
+			assert: func(cb PolicyViolation) {
 				require.NotNil(t, cb)
 				assert.Equal(t, PCIePolicy, cb.Condition)
 				require.IsType(t, PciPolicyCondition{}, cb.Data)
@@ -124,10 +100,10 @@ func TestPolicyErrors(t *testing.T) {
 		{
 			policy:    []policyCondition{MaxRtPgPolicy},
 			numErrors: 1,
-			injectError: func() error {
-				gpu, _ := secureRandomUint(8)
+			injectError: func(gpu uint) error {
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_RETIRED_DBE", gpu)
-				err := InjectFieldValue(gpu,
+				err := InjectFieldValue(
+					gpu,
 					DCGM_FI_DEV_RETIRED_DBE,
 					DCGM_FT_INT64,
 					0,
@@ -137,7 +113,8 @@ func TestPolicyErrors(t *testing.T) {
 				if err == nil {
 					// inject a SBE too so that the health check code gets past its internal checks
 					t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_RETIRED_SBE", gpu)
-					err = InjectFieldValue(gpu,
+					err = InjectFieldValue(
+						gpu,
 						DCGM_FI_DEV_RETIRED_SBE,
 						DCGM_FT_INT64,
 						0,
@@ -147,7 +124,7 @@ func TestPolicyErrors(t *testing.T) {
 				}
 				return err
 			},
-			assert: func(cb PolicyViolation, _ int) {
+			assert: func(cb PolicyViolation) {
 				require.NotNil(t, cb)
 				assert.Equal(t, MaxRtPgPolicy, cb.Condition)
 				require.IsType(t, RetiredPagesPolicyCondition{}, cb.Data)
@@ -158,10 +135,10 @@ func TestPolicyErrors(t *testing.T) {
 		{
 			policy:    []policyCondition{ThermalPolicy},
 			numErrors: 1,
-			injectError: func() error {
-				gpu, _ := secureRandomUint(8)
+			injectError: func(gpu uint) error {
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_GPU_TEMP", gpu)
-				return InjectFieldValue(gpu,
+				return InjectFieldValue(
+					gpu,
 					DCGM_FI_DEV_GPU_TEMP,
 					DCGM_FT_INT64,
 					0,
@@ -169,7 +146,7 @@ func TestPolicyErrors(t *testing.T) {
 					int64(101),
 				)
 			},
-			assert: func(cb PolicyViolation, _ int) {
+			assert: func(cb PolicyViolation) {
 				require.NotNil(t, cb)
 				assert.Equal(t, ThermalPolicy, cb.Condition)
 				require.IsType(t, ThermalPolicyCondition{}, cb.Data)
@@ -180,18 +157,11 @@ func TestPolicyErrors(t *testing.T) {
 		{
 			policy:    []policyCondition{NvlinkPolicy},
 			numErrors: 1,
-			injectError: func() error {
-				gpu, _ := secureRandomUint(8)
-				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL", gpu)
-				return InjectFieldValue(gpu,
-					DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL,
-					DCGM_FT_INT64,
-					0,
-					time.Now().Add(60*time.Second).UnixMicro(),
-					int64(1),
-				)
+			injectError: func(gpu uint) error {
+				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_TOTAL", gpu)
+				return injectCounterIncrease(gpu, DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_TOTAL)
 			},
-			assert: func(cb PolicyViolation, _ int) {
+			assert: func(cb PolicyViolation) {
 				require.NotNil(t, cb)
 				assert.Equal(t, NvlinkPolicy, cb.Condition)
 				require.IsType(t, NvlinkPolicyCondition{}, cb.Data)
@@ -202,10 +172,10 @@ func TestPolicyErrors(t *testing.T) {
 		{
 			policy:    []policyCondition{XidPolicy},
 			numErrors: 1,
-			injectError: func() error {
-				gpu, _ := secureRandomUint(8)
+			injectError: func(gpu uint) error {
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_XID_ERRORS", gpu)
-				return InjectFieldValue(gpu,
+				return InjectFieldValue(
+					gpu,
 					DCGM_FI_DEV_XID_ERRORS,
 					DCGM_FT_INT64,
 					0,
@@ -213,7 +183,7 @@ func TestPolicyErrors(t *testing.T) {
 					int64(16),
 				)
 			},
-			assert: func(cb PolicyViolation, _ int) {
+			assert: func(cb PolicyViolation) {
 				require.NotNil(t, cb)
 				assert.Equal(t, XidPolicy, cb.Condition)
 				require.IsType(t, XidPolicyCondition{}, cb.Data)
@@ -225,24 +195,17 @@ func TestPolicyErrors(t *testing.T) {
 			// testcase: register multiple policy conditions
 			policy:    []policyCondition{NvlinkPolicy, XidPolicy},
 			numErrors: 2,
-			injectError: func() error {
-				gpu, _ := secureRandomUint(8)
+			injectError: func(gpu uint) error {
 				// Inject a DBE error; since it has not registered DBEPolicy it will not get this event.
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_ECC_DBE_VOL_DEV", gpu)
-				err := InjectFieldValue(gpu,
-					DCGM_FI_DEV_ECC_DBE_VOL_DEV,
-					DCGM_FT_INT64,
-					0,
-					time.Now().Add(60*time.Second).UnixMicro(),
-					int64(1),
-				)
+				err := injectCounterIncrease(gpu, DCGM_FI_DEV_ECC_DBE_VOL_DEV)
 				if err != nil {
 					return err
 				}
 
-				gpu, _ = secureRandomUint(8)
 				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_XID_ERRORS", gpu)
-				err = InjectFieldValue(gpu,
+				err = InjectFieldValue(
+					gpu,
 					DCGM_FI_DEV_XID_ERRORS,
 					DCGM_FT_INT64,
 					0,
@@ -253,17 +216,10 @@ func TestPolicyErrors(t *testing.T) {
 					return err
 				}
 
-				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL", gpu)
-				err = InjectFieldValue(gpu,
-					DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL,
-					DCGM_FT_INT64,
-					0,
-					time.Now().Add(60*time.Second).UnixMicro(),
-					int64(1),
-				)
-				return err
+				t.Logf("injecting %s for gpuId %d", "DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_TOTAL", gpu)
+				return injectCounterIncrease(gpu, DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_TOTAL)
 			},
-			assert: func(cb PolicyViolation, _ int) {
+			assert: func(cb PolicyViolation) {
 				require.NotNil(t, cb)
 
 				switch cb.Condition {
@@ -298,49 +254,42 @@ func TestPolicyErrors(t *testing.T) {
 				time.Sleep(100 * time.Millisecond)
 			}()
 
-			numGPUs, err := GetAllDeviceCount()
+			fakeGPUs, err := withInjectionGPUs(t, 1)
 			require.NoError(t, err)
-
-			if numGPUs+1 > MAX_NUM_DEVICES {
-				t.Skipf("Unable to add fake GPU with more than %d gpus", MAX_NUM_DEVICES)
-			}
-
-			entityList := []MigHierarchyInfo{
-				{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-				{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-				{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-				{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-				{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-				{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-				{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-				{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-			}
-
-			_, err = CreateFakeEntities(entityList)
-			require.NoError(t, err)
+			require.NotEmpty(t, fakeGPUs)
 
 			callback, err := ListenForPolicyViolations(ctx, tc.policy...)
 			require.NoError(t, err)
 
-			err = tc.injectError()
+			err = tc.injectError(fakeGPUs[0])
 			require.NoError(t, err)
 
-			numCb := 0
-			select {
-			case callbackData := <-callback:
-				require.NotNil(t, callbackData)
-
-				numCb++
-				tc.assert(callbackData, numCb)
-
-				if numCb == tc.numErrors {
-					break
+			for numCb := 1; numCb <= tc.numErrors; numCb++ {
+				select {
+				case callbackData := <-callback:
+					require.NotNil(t, callbackData)
+					tc.assert(callbackData)
+				case <-time.After(20 * time.Second):
+					require.FailNowf(
+						t,
+						"policy callback never happened",
+						"received %d of %d callbacks",
+						numCb-1,
+						tc.numErrors,
+					)
 				}
-			case <-time.After(20 * time.Second):
-				require.Fail(t, "policy callback never happened")
 			}
 		})
 	}
+}
+
+func injectCounterIncrease(gpu uint, fieldID Short) error {
+	timestamp := time.Now().Add(time.Minute)
+	if err := InjectFieldValue(gpu, fieldID, DCGM_FT_INT64, 0, timestamp.UnixMicro(), int64(0)); err != nil {
+		return err
+	}
+
+	return InjectFieldValue(gpu, fieldID, DCGM_FT_INT64, 0, timestamp.Add(time.Second).UnixMicro(), int64(1))
 }
 
 func joinPolicy(policy []policyCondition, sep string) string {
@@ -508,7 +457,8 @@ func TestSetAndGetMultiplePolicies(t *testing.T) {
 	powerThreshold := uint32(350)
 	maxRetiredPages := uint32(20)
 
-	err = SetPolicyForGroup(group,
+	err = SetPolicyForGroup(
+		group,
 		PolicyConfig{
 			Condition:      ThermalPolicy,
 			Action:         &action,
@@ -594,24 +544,11 @@ func TestSetPolicyAndWatchViolations(t *testing.T) {
 	defer cleanup()
 	t.Log("DCGM initialized successfully")
 
-	numGPUs, err := GetAllDeviceCount()
-	require.NoError(t, err)
-	t.Logf("Found %d GPU(s) in the system", numGPUs)
-
-	if numGPUs+1 > MAX_NUM_DEVICES {
-		t.Skipf("Unable to add fake GPU with more than %d gpus", MAX_NUM_DEVICES)
-	}
-
-	// Create fake GPUs for testing
 	t.Log("Creating fake GPU entities for testing...")
-	entityList := []MigHierarchyInfo{
-		{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-		{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-		{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-		{Entity: GroupEntityPair{EntityGroupId: FE_GPU}},
-	}
-	_, err = CreateFakeEntities(entityList)
+	fakeGPUs, err := withInjectionGPUs(t, 1)
 	require.NoError(t, err)
+	require.NotEmpty(t, fakeGPUs)
+	gpu := fakeGPUs[0]
 	t.Log("Fake GPU entities created")
 
 	group := GroupAllGPUs()
@@ -624,7 +561,8 @@ func TestSetPolicyAndWatchViolations(t *testing.T) {
 	powerThreshold := uint32(250)
 
 	t.Log("Setting thermal and power policies with SetPolicyForGroup...")
-	err = SetPolicyForGroup(group,
+	err = SetPolicyForGroup(
+		group,
 		PolicyConfig{
 			Condition:      ThermalPolicy,
 			Action:         &action,
@@ -649,10 +587,10 @@ func TestSetPolicyAndWatchViolations(t *testing.T) {
 
 	// Test 1: Inject thermal violation
 	t.Run("ThermalViolation", func(t *testing.T) {
-		gpu, _ := secureRandomUint(4)
 		t.Logf("Injecting thermal violation for GPU %d (threshold: %d°C)", gpu, thermalThreshold)
 
-		err := InjectFieldValue(gpu,
+		err := InjectFieldValue(
+			gpu,
 			DCGM_FI_DEV_GPU_TEMP,
 			DCGM_FT_INT64,
 			0,
@@ -677,10 +615,10 @@ func TestSetPolicyAndWatchViolations(t *testing.T) {
 
 	// Test 2: Inject power violation
 	t.Run("PowerViolation", func(t *testing.T) {
-		gpu, _ := secureRandomUint(4)
 		t.Logf("Injecting power violation for GPU %d (threshold: %dW)", gpu, powerThreshold)
 
-		err := InjectFieldValue(gpu,
+		err := InjectFieldValue(
+			gpu,
 			DCGM_FI_DEV_POWER_USAGE,
 			DCGM_FT_DOUBLE,
 			0,
@@ -729,7 +667,8 @@ func TestClearPolicyForGroup(t *testing.T) {
 	thermalThreshold := uint32(90)
 	powerThreshold := uint32(350)
 
-	err = SetPolicyForGroup(group,
+	err = SetPolicyForGroup(
+		group,
 		PolicyConfig{
 			Condition:      ThermalPolicy,
 			Action:         &action,

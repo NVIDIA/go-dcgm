@@ -7,14 +7,16 @@ This tool generates Go constants from the DCGM C header file `dcgm_fields.h`.
 The generator parses `dcgm_fields.h` and generates a Go file with:
 
 - Typed constants for each `#define DCGM_FI_X <int>` in the header.
+- Typed const aliases for deprecated header aliases, so old `DCGM_FI_*`
+  names remain source-compatible.
 - `dcgmFields`: maps canonical name to field ID.
 - `legacyDCGMFields`: maps backward-compatible names to the same IDs.
   Populated from two sources:
-    - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`)
-      listed in `pkg/dcgm/legacy_fields.csv`.
-    - Deprecated-alias `#define OLD NEW` lines in the header, either
-      inside an `#ifdef DCGM_DEPRECATED` block or preceded by a
-      `Deprecated:` comment.
+  - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`)
+    listed in `pkg/dcgm/legacy_fields.csv`.
+  - Deprecated-alias `#define OLD NEW` lines in the header, either
+    inside an `#ifdef DCGM_DEPRECATED` block or preceded by a
+    `Deprecated:` comment.
 - Helper functions: `GetFieldID`, `GetFieldIDOrPanic`, `IsLegacyField`,
   `IsCurrentField`.
 
@@ -42,6 +44,7 @@ go run cmd/gen-fields/main.go cmd/gen-fields/template.go \
 ```
 
 Arguments:
+
 1. Optional `--legacy-fields` CSV path for curated lowercase names; when omitted,
    the generator reads `legacy_fields.csv` from the output file's directory.
 2. Path to `dcgm_fields.h` (input)
@@ -57,8 +60,9 @@ Arguments:
      preceding comment contains `Deprecated:`. Other alias-style
      `#define`s (e.g. range sentinels) are silently skipped.
 2. **Resolve aliases**: each recorded alias is mapped to its target
-   field's canonical ID. If a target isn't a known field, generation
-   fails so header churn can't silently drop previously-exposed names.
+   field's canonical ID. The resolved alias feeds both Go const alias
+   generation and legacy string lookup. If a target isn't a known field,
+   generation fails so header churn can't silently drop previously-exposed names.
 3. **Read curated legacy names**: lowercase DCGM 1.x names are read from
    `legacy_fields.csv`. `DCGM_FI_*` entries are not listed there; they
    re-derive from step 2 every run.
@@ -71,14 +75,16 @@ The generated `const_fields.go` file contains:
 
 ```go
 const (
-    DCGM_FI_DEV_GPU_TEMP    Short = 150
-    DCGM_FI_DEV_POWER_USAGE Short = 155
+    DCGM_FI_DEV_GPU_TEMP_CELSIUS Short = 150
+
+    // Deprecated DCGM field aliases retained for source compatibility.
+    // DCGM_FI_DEV_GPU_TEMP is deprecated; use DCGM_FI_DEV_GPU_TEMP_CELSIUS.
+    DCGM_FI_DEV_GPU_TEMP Short = DCGM_FI_DEV_GPU_TEMP_CELSIUS
     // ... etc
 )
 
 var dcgmFields = map[string]Short{
-    "DCGM_FI_DEV_GPU_TEMP":    150,
-    "DCGM_FI_DEV_POWER_USAGE": 155,
+    "DCGM_FI_DEV_GPU_TEMP_CELSIUS": 150,
     // ... etc
 }
 
@@ -87,7 +93,7 @@ var legacyDCGMFields = map[string]Short{
     "dcgm_gpu_temp":   150,
     "dcgm_power_usage": 155,
     // Deprecated aliases resolved from dcgm_fields.h:
-    "DCGM_FI_DEV_CLOCK_THROTTLE_REASONS":  112,
+    "DCGM_FI_DEV_GPU_TEMP":               150,
     "DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL": 449,
     // ... etc
 }

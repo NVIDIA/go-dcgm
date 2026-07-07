@@ -148,7 +148,8 @@ func watchFieldsWithUpdater(update func() error, gpuID uint, fieldsGroup FieldHa
 		return groupId, fmt.Errorf("error watching fields: %s", err)
 	}
 
-	if err = update(); err != nil {
+	err = update()
+	if err != nil {
 		return groupId, err
 	}
 	return group, nil

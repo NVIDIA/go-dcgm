@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2025-2026, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -426,7 +426,7 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmResumeTelemetryForDiag(dcgmHandle_t pDcgmHandle
  *      - \ref DCGM_ST_* on error
  */
 dcgmReturn_t DCGM_PUBLIC_API dcgmNvswitchGetBackend(dcgmHandle_t pDcgmHandle,
-                                                    char *active,
+                                                    bool *active,
                                                     char *backendName,
                                                     unsigned int backendNameLength);
 

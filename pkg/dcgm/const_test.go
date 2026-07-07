@@ -24,6 +24,10 @@ func TestSelectedStatusCodeConstantsMatchCHeader(t *testing.T) {
 		{"DCGM_ST_INIT_ERROR", DCGM_ST_INIT_ERROR},
 		{"DCGM_ST_NVML_ERROR", DCGM_ST_NVML_ERROR},
 		{"DCGM_ST_NVML_NOT_LOADED", DCGM_ST_NVML_NOT_LOADED},
+		{"DCGM_ST_MNDIAG_CONNECTION_NOT_AVAILABLE", DCGM_ST_MNDIAG_CONNECTION_NOT_AVAILABLE},
+		{"DCGM_ST_MNDIAG_CONNECTION_UNAUTHORIZED", DCGM_ST_MNDIAG_CONNECTION_UNAUTHORIZED},
+		{"DCGM_ST_REMOTE_SSH_CONNECTION_FAILED", DCGM_ST_REMOTE_SSH_CONNECTION_FAILED},
+		{"DCGM_ST_GPUS_DETACHED", DCGM_ST_GPUS_DETACHED},
 	}
 
 	headerStatusCodes := dcgmStructsStatusCodes(t)
@@ -34,6 +38,39 @@ func TestSelectedStatusCodeConstantsMatchCHeader(t *testing.T) {
 				t.Fatalf("%s was not found in dcgm_structs.h", tt.name)
 			}
 			if tt.got != want {
+				t.Fatalf("%s = %d, want %d", tt.name, tt.got, want)
+			}
+		})
+	}
+}
+
+func TestDeprecatedStatusCodeAliases(t *testing.T) {
+	if DCGM_ST_NO_NVVS != DCGM_ST_MNDIAG_CONNECTION_UNAUTHORIZED {
+		t.Fatalf("DCGM_ST_NO_NVVS = %d, want %d", DCGM_ST_NO_NVVS, DCGM_ST_MNDIAG_CONNECTION_UNAUTHORIZED)
+	}
+	if DCGM_ST_NVVS_NOT_RUNNING != DCGM_ST_REMOTE_SSH_CONNECTION_FAILED {
+		t.Fatalf("DCGM_ST_NVVS_NOT_RUNNING = %d, want %d", DCGM_ST_NVVS_NOT_RUNNING, DCGM_ST_REMOTE_SSH_CONNECTION_FAILED)
+	}
+}
+
+func TestSelectedHealthErrorConstantsMatchCHeader(t *testing.T) {
+	tests := []struct {
+		name string
+		got  HealthCheckErrorCode
+	}{
+		{"DCGM_FR_CONTAINED_ERROR", DCGM_FR_CONTAINED_ERROR},
+		{"DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT", DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT},
+		{"DCGM_FR_ERROR_SENTINEL", DCGM_FR_ERROR_SENTINEL},
+	}
+
+	headerErrorCodes := dcgmHealthErrorCodes(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			want, ok := headerErrorCodes[tt.name]
+			if !ok {
+				t.Fatalf("%s was not found in dcgm_errors.h", tt.name)
+			}
+			if uint64(tt.got) != want {
 				t.Fatalf("%s = %d, want %d", tt.name, tt.got, want)
 			}
 		})
@@ -64,4 +101,30 @@ func dcgmStructsStatusCodes(t *testing.T) map[string]int {
 	}
 
 	return statusCodes
+}
+
+func dcgmHealthErrorCodes(t *testing.T) map[string]uint64 {
+	t.Helper()
+
+	content, err := os.ReadFile("dcgm_errors.h")
+	if err != nil {
+		t.Fatalf("read dcgm_errors.h: %v", err)
+	}
+
+	errorCodePattern := regexp.MustCompile(`(?s)(DCGM_FR_[A-Z0-9_]+)\s*=\s*(\d+)`)
+	matches := errorCodePattern.FindAllStringSubmatch(string(content), -1)
+	if len(matches) == 0 {
+		t.Fatal("no DCGM_FR_* error codes found in dcgm_errors.h")
+	}
+
+	errorCodes := make(map[string]uint64, len(matches))
+	for _, match := range matches {
+		value, err := strconv.ParseUint(match[2], 10, 64)
+		if err != nil {
+			t.Fatalf("parse %s value %q: %v", match[1], match[2], err)
+		}
+		errorCodes[match[1]] = value
+	}
+
+	return errorCodes
 }
