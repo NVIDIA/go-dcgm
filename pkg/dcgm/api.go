@@ -184,6 +184,13 @@ func GetHostengineVersionInfo() (VersionInfo, error) {
 	return hostengineVersionInfo()
 }
 
+// GetErrorMeta returns metadata for a DCGM health or diagnostic error code.
+// It returns nil when code is outside the range recognized by DCGM.
+// DCGM must be initialized before this function is called.
+func GetErrorMeta(code HealthCheckErrorCode) *ErrorMeta {
+	return getErrorMeta(code)
+}
+
 // GetSupportedMetricGroups returns all supported metric groups for the specified GPU
 func GetSupportedMetricGroups(gpuID uint) ([]MetricGroup, error) {
 	return getSupportedMetricGroups(gpuID)
