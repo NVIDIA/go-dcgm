@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	h "github.com/NVIDIA/go-dcgm/samples/restApi/handlers"
@@ -41,7 +42,22 @@ func newHttpServer(addr string) *httpServer {
 	return s
 }
 
+// authMiddleware enforces API key authentication when DCGM_API_KEY env var is set.
+// Requests must supply a matching value in the X-API-Key header.
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if apiKey := os.Getenv("DCGM_API_KEY"); apiKey != "" {
+			if r.Header.Get("X-API-Key") != apiKey {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *httpServer) handler() {
+	s.router.Use(authMiddleware)
 	deviceInfo := "/dcgm/device/info"
 	subrouter := s.router.PathPrefix(deviceInfo).Subrouter()
 	subrouter.HandleFunc("/id/{id}", h.DeviceInfo).Methods("GET")
