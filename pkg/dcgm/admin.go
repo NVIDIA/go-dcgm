@@ -58,14 +58,20 @@ var (
 
 func initDCGM(m mode, args ...string) (err error) {
 	const (
-		dcgmLib = "libdcgm.so.4"
+		dcgmLib         = "libdcgm.so.4"
+		dcgmLibFallback = "libdcgm.so"
 	)
 	lib := C.CString(dcgmLib)
 	defer freeCString(lib)
 
 	dcgmLibHandle = C.dlopen(lib, C.RTLD_LAZY|C.RTLD_GLOBAL)
 	if dcgmLibHandle == nil {
-		return fmt.Errorf("%s not found", dcgmLib)
+		fallbackLib := C.CString(dcgmLibFallback)
+		defer freeCString(fallbackLib)
+		dcgmLibHandle = C.dlopen(fallbackLib, C.RTLD_LAZY|C.RTLD_GLOBAL)
+		if dcgmLibHandle == nil {
+			return fmt.Errorf("%s or %s not found", dcgmLib, dcgmLibFallback)
+		}
 	}
 
 	// set the stopMode for shutdown()
