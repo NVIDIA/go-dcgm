@@ -171,7 +171,8 @@ typedef enum dcgmError_enum
     DCGM_FR_RETEST_REQUESTED               = 130, //!< 130 Retest requested before providing results
     DCGM_FR_CONTAINED_ERROR                = 131, //!< 131 GPU contained error
     DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT  = 132, //!< 132 Uncorrectable row remap threshold exceeded
-    DCGM_FR_ERROR_SENTINEL                 = 133, //!< 133 MUST BE THE LAST ERROR CODE
+    DCGM_FR_CPU_SDC_TEST_FAILED            = 133, //!< 133 SDC test failed
+    DCGM_FR_ERROR_SENTINEL                 = 134, //!< 134 MUST BE THE LAST ERROR CODE
 } dcgmError_t;
 
 typedef enum dcgmErrorSeverity_enum
@@ -204,6 +205,7 @@ typedef enum dcgmErrorCategory_enum
     DCGM_FR_EC_HARDWARE_POWER    = 14, //!< 14 Hardware Power
     DCGM_FR_EC_HARDWARE_OTHER    = 15, //!< 15 Hardware Other
     DCGM_FR_EC_INTERNAL_OTHER    = 16, //!< 16 Internal Other
+    DCGM_FR_EC_SOFTWARE_CPU_SDC  = 17, //!< 17 Software CPU SDC
 } dcgmErrorCategory_t;
 
 typedef struct
@@ -225,7 +227,7 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
     "thermal material interface, fans, and any other components."
 #define BUG_REPORT_MSG    "Please capture an nvidia-bug-report and send it to NVIDIA."
 #define SYSTEM_TRIAGE_MSG "Check DCGM and system logs for errors. Reset GPU. Restart DCGM. Rerun diagnostics."
-#define CONFIG_MSG        "Check DCGM and system configuration. This error may be eliminated with an updated configuration."
+#define CONFIG_MSG "Check DCGM and system configuration. This error may be eliminated with an updated configuration."
 
 /*
  * Messages for the error codes. All messages must be defined in the ERROR_CODE_MSG <msg> format
@@ -516,9 +518,10 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 // gpu id, recovery action value
 #define DCGM_FR_GPU_RECOVERY_DRAIN_RESET_MSG \
     "GPU %u operating at reduced capacity due to a fault. Recovery action: %ld (DRAIN_AND_RESET)."
-#define DCGM_FR_NCCL_ERROR_MSG       "Detected NCCL error: %s Recovery action: %ld (DRAIN_AND_RESET)."
-#define DCGM_FR_RETEST_REQUESTED_MSG "" /* See message inplace */
-#define DCGM_FR_ERROR_SENTINEL_MSG   "" /* See message inplace */
+#define DCGM_FR_NCCL_ERROR_MSG          "Detected NCCL error: %s Recovery action: %ld (DRAIN_AND_RESET)."
+#define DCGM_FR_RETEST_REQUESTED_MSG    "" /* See message inplace */
+#define DCGM_FR_CPU_SDC_TEST_FAILED_MSG "" /* See message inplace */
+#define DCGM_FR_ERROR_SENTINEL_MSG      "" /* See message inplace */
 
 /*
  * Suggestions for next steps for the corresponding error message
@@ -654,9 +657,9 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_UNCONTAINED_ERROR_NEXT DCGM_FR_VOLATILE_DBE_DETECTED_NEXT
 #define DCGM_FR_CONTAINED_ERROR_NEXT \
     "Restart the application that encountered the error. Other applications on the GPU can continue running. GPU reset can be deferred until a convenient time."
-#define DCGM_FR_DBE_PENDING_PAGE_RETIREMENTS_NEXT    "Drain the GPU and reset it or reboot the node to resolve this issue."
-#define DCGM_FR_EMPTY_GPU_LIST_NEXT                  CONFIG_MSG
-#define DCGM_FR_UNCORRECTABLE_ROW_REMAP_NEXT         ""
+#define DCGM_FR_DBE_PENDING_PAGE_RETIREMENTS_NEXT "Drain the GPU and reset it or reboot the node to resolve this issue."
+#define DCGM_FR_EMPTY_GPU_LIST_NEXT               CONFIG_MSG
+#define DCGM_FR_UNCORRECTABLE_ROW_REMAP_NEXT      ""
 #define DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT_NEXT   TRIAGE_RUN_FIELD_DIAG_MSG
 #define DCGM_FR_PENDING_ROW_REMAP_NEXT               SYSTEM_TRIAGE_MSG
 #define DCGM_FR_BROKEN_P2P_MEMORY_DEVICE_NEXT        BUG_REPORT_MSG
@@ -709,9 +712,10 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
     "Terminate GPU processes conducting peer-to-peer traffic and disable UVM persistence mode. Check GPU health status again after draining."
 #define DCGM_FR_GPU_RECOVERY_DRAIN_RESET_NEXT \
     "Do not schedule new work on this GPU. Reset the GPU after existing work has drained."
-#define DCGM_FR_NCCL_ERROR_NEXT       "Attempt to reset the GPUs and reboot the machines if that fails."
-#define DCGM_FR_RETEST_REQUESTED_NEXT "" /* See message inplace */
-#define DCGM_FR_ERROR_SENTINEL_NEXT   "" /* See message inplace */
+#define DCGM_FR_NCCL_ERROR_NEXT          "Attempt to reset the GPUs and reboot the machines if that fails."
+#define DCGM_FR_RETEST_REQUESTED_NEXT    "" /* See message inplace */
+#define DCGM_FR_CPU_SDC_TEST_FAILED_NEXT "" /* See message inplace */
+#define DCGM_FR_ERROR_SENTINEL_NEXT      "" /* See message inplace */
 
 #ifdef __cplusplus
 extern "C" {

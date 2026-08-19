@@ -68,6 +68,8 @@ const (
 	DCGM_FR_EC_HARDWARE_OTHER ErrorCategory = C.DCGM_FR_EC_HARDWARE_OTHER
 	// DCGM_FR_EC_INTERNAL_OTHER indicates an internal DCGM error.
 	DCGM_FR_EC_INTERNAL_OTHER ErrorCategory = C.DCGM_FR_EC_INTERNAL_OTHER
+	// DCGM_FR_EC_SOFTWARE_CPU_SDC indicates a software CPU SDC error.
+	DCGM_FR_EC_SOFTWARE_CPU_SDC ErrorCategory = C.DCGM_FR_EC_SOFTWARE_CPU_SDC
 )
 
 // ErrorMeta contains the metadata associated with a DCGM health or diagnostic error code.

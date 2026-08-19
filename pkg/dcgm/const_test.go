@@ -60,10 +60,11 @@ func TestSelectedHealthErrorConstantsMatchCHeader(t *testing.T) {
 	}{
 		{"DCGM_FR_CONTAINED_ERROR", DCGM_FR_CONTAINED_ERROR},
 		{"DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT", DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT},
+		{"DCGM_FR_CPU_SDC_TEST_FAILED", DCGM_FR_CPU_SDC_TEST_FAILED},
 		{"DCGM_FR_ERROR_SENTINEL", DCGM_FR_ERROR_SENTINEL},
 	}
 
-	headerErrorCodes := dcgmHealthErrorCodes(t)
+	headerErrorCodes := dcgmErrorConstants(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			want, ok := headerErrorCodes[tt.name]
@@ -74,6 +75,16 @@ func TestSelectedHealthErrorConstantsMatchCHeader(t *testing.T) {
 				t.Fatalf("%s = %d, want %d", tt.name, tt.got, want)
 			}
 		})
+	}
+}
+
+func TestSelectedErrorCategoryConstantsMatchCHeader(t *testing.T) {
+	want, ok := dcgmErrorConstants(t)["DCGM_FR_EC_SOFTWARE_CPU_SDC"]
+	if !ok {
+		t.Fatal("DCGM_FR_EC_SOFTWARE_CPU_SDC was not found in dcgm_errors.h")
+	}
+	if uint64(DCGM_FR_EC_SOFTWARE_CPU_SDC) != want {
+		t.Fatalf("DCGM_FR_EC_SOFTWARE_CPU_SDC = %d, want %d", DCGM_FR_EC_SOFTWARE_CPU_SDC, want)
 	}
 }
 
@@ -103,7 +114,7 @@ func dcgmStructsStatusCodes(t *testing.T) map[string]int {
 	return statusCodes
 }
 
-func dcgmHealthErrorCodes(t *testing.T) map[string]uint64 {
+func dcgmErrorConstants(t *testing.T) map[string]uint64 {
 	t.Helper()
 
 	content, err := os.ReadFile("dcgm_errors.h")

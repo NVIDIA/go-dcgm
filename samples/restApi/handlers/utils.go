@@ -210,7 +210,7 @@ func isJson(req *http.Request) bool {
 
 // print formats and writes templated text output to the response
 func printer(resp http.ResponseWriter, req *http.Request, stats any, t *template.Template) {
-	// #nosec G708 -- t is selected from package-owned templates parsed at initialization.
+	// #nosec G708 -- t is parsed from package-local templates at startup.
 	if err := t.Execute(resp, stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		logRequestError(req, err)
@@ -230,7 +230,7 @@ func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 // processPrint formats and writes process information to the response
 func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.ProcessInfo) {
 	for i := range pInfo {
-		// #nosec G708 -- processInfoTemplate is package-owned and parsed at initialization.
+		// #nosec G708 -- processInfoTemplate is parsed from a package-local template at startup.
 		if err := processInfoTemplate.Execute(resp, pInfo[i]); err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			logRequestError(req, err)

@@ -1900,6 +1900,33 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmGetGroupTopology(dcgmHandle_t pDcgmHandle,
                                                   dcgmGpuGrp_t groupId,
                                                   dcgmGroupTopology_v2 *pDcgmGroupTopology);
 
+/*************************************************************************/
+/**
+ * Get the best group of gpus from the specified bitmask according to topological proximity: cpuAffinity, NUMA
+ * node, and NVLink.
+ *
+ * @param pDcgmHandle        IN: DCGM Handle
+ * @param inputGpuIds        IN: a bitmask of which GPUs DCGM should consider. If some of the GPUs on the system are
+ *                               already in use, they shouldn't be included in the bitmask. 0 means that all of the GPUs
+ *                               in the system should be considered.
+ * @param numGpus            IN: the number of GPUs that are desired from inputGpuIds. If this number is greater than
+ *                               the number of healthy GPUs in inputGpuIds, then less than numGpus gpus will be
+ *                               specified in outputGpuIds.
+ * @param outputGpuIds      OUT: a bitmask of numGpus or fewer GPUs from inputGpuIds that represent the best placement
+ *                               available from inputGpuIds.
+ * @param hintFlags          IN: a bitmask of DCGM_TOPO_HINT_F_ #defines of hints that should be taken into account when
+ *                               assigning outputGpuIds.
+ *
+ * @return
+ *        - \ref DCGM_ST_OK                   if the call was successful
+ *
+ */
+dcgmReturn_t DCGM_PUBLIC_API dcgmSelectGpusByTopology(dcgmHandle_t pDcgmHandle,
+                                                      uint64_t inputGpuIds,
+                                                      uint32_t numGpus,
+                                                      uint64_t *outputGpuIds,
+                                                      uint64_t hintFlags);
+
 /** @} */ // Closing for DCGMAPI_Topo
 
 /***************************************************************************************************/
@@ -1952,42 +1979,6 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmIntrospectGetHostengineCpuUtilization(dcgmHandl
                                                                        int waitIfNoData);
 
 /** @} */ // Closing for DCGMAPI_METADATA
-
-/***************************************************************************************************/
-/** @defgroup DCGMAPI_TOPOLOGY Topology
- * @{
- *  This chapter describes the methods that query for DCGM topology information.
- */
-/***************************************************************************************************/
-
-/*************************************************************************/
-/**
- * Get the best group of gpus from the specified bitmask according to topological proximity: cpuAffinity, NUMA
- * node, and NVLink.
- *
- * @param pDcgmHandle        IN: DCGM Handle
- * @param inputGpuIds        IN: a bitmask of which GPUs DCGM should consider. If some of the GPUs on the system are
- *                               already in use, they shouldn't be included in the bitmask. 0 means that all of the GPUs
- *                               in the system should be considered.
- * @param numGpus            IN: the number of GPUs that are desired from inputGpuIds. If this number is greater than
- *                               the number of healthy GPUs in inputGpuIds, then less than numGpus gpus will be
- *                               specified in outputGpuIds.
- * @param outputGpuIds      OUT: a bitmask of numGpus or fewer GPUs from inputGpuIds that represent the best placement
- *                               available from inputGpuIds.
- * @param hintFlags          IN: a bitmask of DCGM_TOPO_HINT_F_ #defines of hints that should be taken into account when
- *                               assigning outputGpuIds.
- *
- * @return
- *        - \ref DCGM_ST_OK                   if the call was successful
- *
- */
-dcgmReturn_t DCGM_PUBLIC_API dcgmSelectGpusByTopology(dcgmHandle_t pDcgmHandle,
-                                                      uint64_t inputGpuIds,
-                                                      uint32_t numGpus,
-                                                      uint64_t *outputGpuIds,
-                                                      uint64_t hintFlags);
-
-/** @} */ // Closing for DCGMAPI_TOPOLOGY
 
 /***************************************************************************************************/
 /** @defgroup DCGMAPI_MODULES Modules
@@ -2142,8 +2133,8 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmAddFakeInstances(dcgmHandle_t pDcgmHandle, dcgm
  * Run a multi-node diagnostic test
  *
  * @param pDcgmHandle        IN: DCGM Handle
- * @param drmnd             IN: Multi-node diagnostic parameters. See dcgmRunMnDiag_v1
- * @param response         OUT: Result of running the multi-node diagnostic. See dcgmMnDiagResponse_v1
+ * @param drmnd             IN: Multi-node diagnostic parameters. See dcgmRunMnDiag_v2
+ * @param response         OUT: Result of running the multi-node diagnostic. See dcgmMnDiagResponse_v2
  *
  * @return
  *        - \ref DCGM_ST_OK                   if the call was successful
@@ -2154,8 +2145,8 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmAddFakeInstances(dcgmHandle_t pDcgmHandle, dcgm
  *        - \ref DCGM_ST_VER_MISMATCH         if version mismatch between drmnd and response
  */
 dcgmReturn_t DCGM_PUBLIC_API dcgmRunMnDiagnostic(dcgmHandle_t pDcgmHandle,
-                                                 dcgmRunMnDiag_v1 const *drmnd,
-                                                 dcgmMnDiagResponse_v1 *response);
+                                                 dcgmRunMnDiag_v2 const *drmnd,
+                                                 dcgmMnDiagResponse_v2 *response);
 
 
 /**

@@ -16,25 +16,27 @@ type Field_Entity_Group uint
 
 const (
 	// FE_NONE represents no entity type
-	FE_NONE Field_Entity_Group = iota
+	FE_NONE Field_Entity_Group = C.DCGM_FE_NONE
 	// FE_GPU represents a GPU device entity
-	FE_GPU
+	FE_GPU Field_Entity_Group = C.DCGM_FE_GPU
 	// FE_VGPU represents a virtual GPU entity
-	FE_VGPU
+	FE_VGPU Field_Entity_Group = C.DCGM_FE_VGPU
 	// FE_SWITCH represents an NVSwitch entity
-	FE_SWITCH
+	FE_SWITCH Field_Entity_Group = C.DCGM_FE_SWITCH
 	// FE_GPU_I represents a GPU instance entity
-	FE_GPU_I
+	FE_GPU_I Field_Entity_Group = C.DCGM_FE_GPU_I
 	// FE_GPU_CI represents a GPU compute instance entity
-	FE_GPU_CI
+	FE_GPU_CI Field_Entity_Group = C.DCGM_FE_GPU_CI
 	// FE_LINK represents an NVLink entity
-	FE_LINK
+	FE_LINK Field_Entity_Group = C.DCGM_FE_LINK
 	// FE_CPU represents a CPU entity
-	FE_CPU
+	FE_CPU Field_Entity_Group = C.DCGM_FE_CPU
 	// FE_CPU_CORE represents a CPU core entity
-	FE_CPU_CORE
+	FE_CPU_CORE Field_Entity_Group = C.DCGM_FE_CPU_CORE
+	// FE_CONNECTX represents a ConnectX card entity
+	FE_CONNECTX Field_Entity_Group = C.DCGM_FE_CONNECTX
 	// FE_COUNT represents the total number of entity types
-	FE_COUNT
+	FE_COUNT Field_Entity_Group = C.DCGM_FE_COUNT
 )
 
 // String returns a string representation of the Field_Entity_Group
@@ -56,6 +58,8 @@ func (e Field_Entity_Group) String() string {
 		return "CPU"
 	case FE_CPU_CORE:
 		return "CPU Core"
+	case FE_CONNECTX:
+		return "ConnectX"
 	}
 	return "unknown"
 }

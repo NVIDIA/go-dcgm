@@ -31,7 +31,9 @@ package dcgm
 //   go test -v -run TestOptimizationProof ./pkg/dcgm
 
 import (
+	"runtime"
 	"testing"
+	"unsafe"
 )
 
 // simulateCallbackAccumulation simulates realistic multi-entity callback scenarios
@@ -69,7 +71,7 @@ func BenchmarkAppendConvertedValues(b *testing.B) {
 
 		b.Run("Optimized_"+scenario.name, func(b *testing.B) {
 			b.ReportAllocs()
-			b.SetBytes(int64(scenario.fields * 32)) // Approximate bytes per FieldValue_v2
+			b.SetBytes(int64(scenario.fields) * int64(unsafe.Sizeof(FieldValue_v2{})))
 			for i := 0; i < b.N; i++ {
 				dst := make([]FieldValue_v2, 0, initialCallbackCapacity)
 				dst = appendConvertedValues(dst, FE_GPU, 0, cfields)
@@ -79,7 +81,7 @@ func BenchmarkAppendConvertedValues(b *testing.B) {
 
 		b.Run("OldApproach_"+scenario.name, func(b *testing.B) {
 			b.ReportAllocs()
-			b.SetBytes(int64(scenario.fields * 32))
+			b.SetBytes(int64(scenario.fields) * int64(unsafe.Sizeof(FieldValue_v2{})))
 			for i := 0; i < b.N; i++ {
 				dst := make([]FieldValue_v2, 0, initialCallbackCapacity)
 				dst = oldAppendApproach(dst, FE_GPU, 0, cfields)
@@ -115,7 +117,7 @@ func BenchmarkCallbackAccumulation(b *testing.B) {
 
 		b.Run("Optimized_"+scenario.name, func(b *testing.B) {
 			b.ReportAllocs()
-			b.SetBytes(int64(totalValues * 32))
+			b.SetBytes(int64(totalValues) * int64(unsafe.Sizeof(FieldValue_v2{})))
 			for i := 0; i < b.N; i++ {
 				result := simulateCallbackAccumulation(scenario.entities, scenario.fieldsPerEntity, true)
 				_ = result
@@ -124,7 +126,7 @@ func BenchmarkCallbackAccumulation(b *testing.B) {
 
 		b.Run("OldApproach_"+scenario.name, func(b *testing.B) {
 			b.ReportAllocs()
-			b.SetBytes(int64(totalValues * 32))
+			b.SetBytes(int64(totalValues) * int64(unsafe.Sizeof(FieldValue_v2{})))
 			for i := 0; i < b.N; i++ {
 				result := simulateCallbackAccumulation(scenario.entities, scenario.fieldsPerEntity, false)
 				_ = result
@@ -286,4 +288,55 @@ func TestOptimizationProof(t *testing.T) {
 			t.Logf("✓ Optimization reduces allocations by %.1f%% (%.0f fewer allocations)", reduction, savings)
 		}
 	})
+}
+
+// BenchmarkFieldValueConversion measures the owned native-to-Go conversion cost
+// for representative field-value batches.
+func BenchmarkFieldValueConversion(b *testing.B) {
+	tests := []struct {
+		name            string
+		entities        int
+		fieldsPerEntity int
+		v2              bool
+		spec            testFieldValueSpec
+	}{
+		{name: "v1/int64/1", entities: 1, fieldsPerEntity: 1, spec: testFieldValueSpec{fieldType: DCGM_FT_INT64, payload: int64Bytes(42)}},
+		{name: "v1/numeric-blank/8", entities: 1, fieldsPerEntity: 8, spec: testFieldValueSpec{fieldType: DCGM_FT_INT64, payload: int64Bytes(DCGM_FT_INT64_BLANK)}},
+		{name: "v1/profiling-double/32", entities: 1, fieldsPerEntity: 32, spec: testFieldValueSpec{fieldID: DCGM_FI_PROF_GR_ENGINE_ACTIVE, fieldType: DCGM_FT_DOUBLE, payload: float64Bytes(0.5)}},
+		{name: "v1/string/8", entities: 1, fieldsPerEntity: 8, spec: testFieldValueSpec{fieldType: DCGM_FT_STRING, payload: append([]byte("GPU-test"), 0)}},
+		{name: "v1/string-error/8", entities: 1, fieldsPerEntity: 8, spec: testFieldValueSpec{fieldType: DCGM_FT_STRING, payload: append([]byte("<<<NOT_SUPPORTED>>>"), 0)}},
+		{name: "v2/binary/128", entities: 1, fieldsPerEntity: 128, v2: true, spec: testFieldValueSpec{fieldType: DCGM_FT_BINARY, payload: []byte{0xde, 0xad, 0xbe, 0xef}}},
+		{name: "v2/int64/8x8", entities: 8, fieldsPerEntity: 8, v2: true, spec: testFieldValueSpec{fieldType: DCGM_FT_INT64, payload: int64Bytes(7)}},
+	}
+
+	for _, tt := range tests {
+		b.Run(tt.name, func(b *testing.B) {
+			totalValues := tt.entities * tt.fieldsPerEntity
+			b.ReportAllocs()
+
+			if tt.v2 {
+				cfields := makeTestCFieldsV2FromSpec(tt.entities, tt.fieldsPerEntity, tt.spec)
+				b.ResetTimer()
+				b.ReportMetric(float64(totalValues), "values/op")
+				for range b.N {
+					values := toFieldValue_v2(cfields)
+					runtime.KeepAlive(values)
+				}
+				return
+			}
+
+			cfields := makeTestCFieldsFromSpec(totalValues, tt.spec)
+			b.ResetTimer()
+			b.ReportMetric(float64(totalValues), "values/op")
+			for range b.N {
+				values := toFieldValue(cfields)
+				if tt.spec.fieldType == DCGM_FT_STRING {
+					for i := range values {
+						runtime.KeepAlive(values[i].String())
+					}
+				}
+				runtime.KeepAlive(values)
+			}
+		})
+	}
 }

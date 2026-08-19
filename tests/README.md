@@ -137,7 +137,7 @@ go test ./tests/... -v -run "TestDevice.*"
 - NVIDIA GPU(s) with DCGM support
 - NVIDIA drivers installed
 - DCGM libraries available
-- Go 1.19+ for testing framework features
+- Go 1.26+ for testing framework features
 
 ### Dependencies
 

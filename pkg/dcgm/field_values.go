@@ -30,6 +30,7 @@ import "C"
 
 import (
 	"fmt"
+	"runtime/cgo"
 	"sync"
 	"time"
 	"unsafe"
@@ -45,7 +46,7 @@ const (
 	// multiple samples (via maxKeepSamples), we use:
 	// 1024 entities × 128 fields × max reasonable samples = 131,072 field values
 	//
-	// Note: Each FieldValue_v2 is ~32 bytes (not 4KB - C structs aren't kept in Go).
+	// Each FieldValue_v2 owns a 4096-byte payload plus metadata.
 	maxCallbackValues = C.DCGM_GROUP_MAX_ENTITIES_V2 * 128
 
 	// initialCallbackCapacity is the initial capacity for callback value slices.
@@ -126,16 +127,32 @@ func go_dcgmFieldValueEntityEnumeration(
 	numValues C.int,
 	userData unsafe.Pointer,
 ) C.int {
-	ptrValues := unsafe.Pointer(values)
-	if ptrValues != nil {
-		valuesSlice := (*[1 << 30]C.dcgmFieldValue_v1)(ptrValues)[0:numValues]
-
-		if userData != nil {
-			processor := (*callback)(userData)
-			processor.processValues(Field_Entity_Group(entityGroup), uint(entityID), valuesSlice)
-		}
+	if values == nil || numValues <= 0 {
+		return 0
 	}
+
+	valuesSlice := unsafe.Slice(values, int(numValues))
+	if processor, ok := callbackFromUserData(userData); ok {
+		processor.processValues(Field_Entity_Group(entityGroup), uint(entityID), valuesSlice)
+	}
+
 	return 0
+}
+
+// callbackFromUserData expects userData to point to a live cgo.Handle.
+// GetValuesSince deletes the handle only after the synchronous C call returns.
+func callbackFromUserData(userData unsafe.Pointer) (*callback, bool) {
+	if userData == nil {
+		return nil, false
+	}
+
+	callbackHandle := *(*cgo.Handle)(userData)
+	if callbackHandle == 0 {
+		return nil, false
+	}
+
+	processor, ok := callbackHandle.Value().(*callback)
+	return processor, ok
 }
 
 // GetValuesSince reads and returns field values for a specified group of entities, such as GPUs,
@@ -157,15 +174,20 @@ func go_dcgmFieldValueEntityEnumeration(
 func GetValuesSince(gpuGroup GroupHandle, fieldGroup FieldHandle, sinceTime time.Time) ([]FieldValue_v2, time.Time, error) {
 	var nextSinceTimestamp C.longlong
 	// Start with a nil slice - it will be allocated on first append in the callback.
-	// We cannot pre-allocate here due to CGO restrictions on passing Go pointers to C.
 	cbResult := &callback{}
+	// dcgmGetValuesSince_v2 invokes the callback synchronously and does not retain userData.
+	// Pass the address of the opaque handle, not the Go callback state it represents.
+	callbackHandle := cgo.NewHandle(cbResult)
+	defer callbackHandle.Delete()
+	callbackUserData := unsafe.Pointer(&callbackHandle)
+
 	result := C.dcgmGetValuesSince_v2(handle.handle,
 		gpuGroup.handle,
 		fieldGroup.handle,
 		C.longlong(sinceTime.UnixMicro()),
 		&nextSinceTimestamp,
 		C.dcgmFieldValueEnumeration_f(C.fieldValueEntityCallback),
-		unsafe.Pointer(cbResult))
+		callbackUserData)
 	if result != C.DCGM_ST_OK {
 		return nil, time.Time{}, fmt.Errorf("dcgmGetValuesSince_v2 failed with error code %d", int(result))
 	}

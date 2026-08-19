@@ -1,0 +1,58 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "description": "User-facing go-dcgm overview, development flow, generated field instructions, and contribution links."
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "description": "Contributor expectations, generated field workflow, and repository development guidance.",
+      "scope": ["README.md", "CONTRIBUTING.md", "Makefile", "cmd/gen-fields/**", "pkg/dcgm/**"]
+    },
+    {
+      "path": "go.mod",
+      "description": "Go module dependencies and module path.",
+      "scope": ["go.mod", "go.sum", "**/*.go"]
+    },
+    {
+      "path": "Makefile",
+      "description": "Primary local build, test, format, lint, and generated-code targets.",
+      "scope": ["Makefile", ".gitlab-ci.yml", ".github/workflows/**", "cmd/**", "pkg/**", "samples/**", "tests/**"]
+    },
+    {
+      "path": ".gitlab-ci.yml",
+      "description": "GitLab build, GPU test, format, lint, and Docker build-matrix pipeline.",
+      "scope": [".gitlab-ci.yml", "Dockerfile", "docker-bake.hcl", "Makefile", "scripts/**"]
+    },
+    {
+      "path": "Dockerfile",
+      "description": "CUDA/DCGM build image and sample binary build environment.",
+      "scope": ["Dockerfile", "docker-bake.hcl", ".gitlab-ci.yml", "Makefile", "samples/**"]
+    },
+    {
+      "path": "pkg/dcgm/api.go",
+      "description": "Public go-dcgm API surface and Init/Shutdown-facing behavior.",
+      "scope": ["pkg/dcgm/**", "tests/**", "samples/**"]
+    },
+    {
+      "path": "pkg/dcgm/admin.go",
+      "description": "DCGM initialization, embedded/standalone connection, dynamic symbol, and shutdown lifecycle code.",
+      "scope": ["pkg/dcgm/**", "tests/**"]
+    },
+    {
+      "path": "pkg/dcgm/dcgm_fields.h",
+      "description": "Upstream DCGM field declarations consumed by generated Go constants.",
+      "scope": ["pkg/dcgm/dcgm_fields.h", "pkg/dcgm/legacy_fields.csv", "pkg/dcgm/const_fields.go", "cmd/gen-fields/**"]
+    },
+    {
+      "path": "pkg/dcgm/legacy_fields.csv",
+      "description": "Curated lowercase compatibility aliases for generated DCGM field constants.",
+      "scope": ["pkg/dcgm/legacy_fields.csv", "pkg/dcgm/const_fields.go", "cmd/gen-fields/**", "cmd/gen-fields/README.md"]
+    },
+    {
+      "path": "samples/restApi/README.md",
+      "description": "REST sample behavior, endpoints, and usage contract.",
+      "scope": ["samples/restApi/**", "tests/restapi_test.go"]
+    }
+  ]
+}
