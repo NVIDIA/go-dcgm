@@ -10,14 +10,49 @@ package dcgm
 import "C"
 import "unsafe"
 
+type testFieldValueSpec struct {
+	fieldID   Short
+	fieldType uint
+	status    int
+	timestamp int64
+	payload   []byte
+}
+
 // makeTestCFields creates test C field values for benchmarking purposes only.
 func makeTestCFields(count int) []C.dcgmFieldValue_v1 {
+	return makeTestCFieldsFromSpec(count, testFieldValueSpec{
+		fieldType: DCGM_FT_INT64,
+		timestamp: 1000000,
+	})
+}
+
+func makeTestCFieldsFromSpec(count int, spec testFieldValueSpec) []C.dcgmFieldValue_v1 {
 	cfields := make([]C.dcgmFieldValue_v1, count)
 	for i := range cfields {
-		cfields[i].fieldId = C.ushort(i)
-		cfields[i].fieldType = C.ushort(DCGM_FT_INT64)
-		cfields[i].status = C.int(0)
-		cfields[i].ts = C.int64_t(1000000 + int64(i))
+		cfields[i].version = C.dcgmFieldValue_version1
+		cfields[i].fieldId = C.ushort(spec.fieldID + Short(i))
+		cfields[i].fieldType = C.ushort(spec.fieldType)
+		cfields[i].status = C.int(spec.status)
+		cfields[i].ts = C.int64_t(spec.timestamp + int64(i))
+		copy(cfields[i].value[:], spec.payload)
+	}
+	return cfields
+}
+
+func makeTestCFieldsV2FromSpec(entities, fieldsPerEntity int, spec testFieldValueSpec) []C.dcgmFieldValue_v2 {
+	cfields := make([]C.dcgmFieldValue_v2, entities*fieldsPerEntity)
+	for entityID := range entities {
+		for field := range fieldsPerEntity {
+			i := entityID*fieldsPerEntity + field
+			cfields[i].version = C.dcgmFieldValue_version2
+			cfields[i].entityGroupId = C.dcgm_field_entity_group_t(FE_GPU)
+			cfields[i].entityId = C.dcgm_field_eid_t(entityID)
+			cfields[i].fieldId = C.ushort(spec.fieldID + Short(field))
+			cfields[i].fieldType = C.ushort(spec.fieldType)
+			cfields[i].status = C.int(spec.status)
+			cfields[i].ts = C.int64_t(spec.timestamp + int64(entityID))
+			copy(cfields[i].value[:], spec.payload)
+		}
 	}
 	return cfields
 }

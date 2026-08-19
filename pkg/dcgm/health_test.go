@@ -31,6 +31,111 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestIMEXHealthWatchConstant(t *testing.T) {
+	const want HealthSystem = 0x2000
+
+	require.Equal(t, want, DCGM_HEALTH_WATCH_IMEX)
+	require.Equal(t, want, DCGM_HEALTH_WATCH_ALL&want)
+}
+
+func TestSystemWatchIMEX(t *testing.T) {
+	require.Equal(t, "IMEX watches", systemWatch(DCGM_HEALTH_WATCH_IMEX))
+}
+
+func TestIMEXHealthWatchIntegration(t *testing.T) {
+	teardownTest := setupTest(t)
+	defer teardownTest(t)
+	runOnlyWithLiveGPUs(t)
+
+	links, err := GetNvLinkLinkStatus()
+	require.NoError(t, err)
+
+	var gpuID uint
+	foundNVLinkGPU := false
+	for _, link := range links {
+		if link.ParentType == FE_GPU && link.State != LS_NOT_SUPPORTED {
+			gpuID = link.ParentId
+			foundNVLinkGPU = true
+			break
+		}
+	}
+	if !foundNVLinkGPU {
+		t.Skip("standalone IMEX health integration requires a GPU with supported NVLink")
+	}
+
+	groupID, err := CreateGroup(fmt.Sprintf("imex-health-%d", time.Now().UnixNano()))
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, DestroyGroup(groupID))
+	}()
+
+	require.NoError(t, AddEntityToGroup(groupID, FE_GPU, gpuID))
+	require.NoError(t, HealthSet(groupID, DCGM_HEALTH_WATCH_IMEX))
+
+	systems, err := HealthGet(groupID)
+	require.NoError(t, err)
+	require.Equal(t, DCGM_HEALTH_WATCH_IMEX, systems&DCGM_HEALTH_WATCH_IMEX)
+
+	require.NoError(t, UpdateAllFields())
+	imexValues, err := EntityGetLatestValues(
+		FE_NONE,
+		0,
+		[]Short{DCGM_FI_IMEX_DOMAIN_STATUS, DCGM_FI_IMEX_DAEMON_STATUS},
+	)
+	require.NoError(t, err)
+
+	hasIMEXData := false
+	for _, value := range imexValues {
+		if value.Status != DCGM_ST_OK {
+			continue
+		}
+
+		switch value.FieldID {
+		case DCGM_FI_IMEX_DOMAIN_STATUS:
+			switch value.String() {
+			case "", DCGM_FT_STR_BLANK, DCGM_FT_STR_NOT_FOUND, DCGM_FT_STR_NOT_SUPPORTED, DCGM_FT_STR_NOT_PERMISSIONED:
+			default:
+				hasIMEXData = true
+			}
+		case DCGM_FI_IMEX_DAEMON_STATUS:
+			if !IsInt64Blank(value.Int64()) {
+				hasIMEXData = true
+			}
+		}
+	}
+	if !hasIMEXData {
+		t.Skip("standalone IMEX health integration requires usable global IMEX domain or daemon data")
+	}
+
+	_, err = HealthCheck(groupID)
+	require.NoError(t, err)
+	response, err := HealthCheck(groupID)
+	require.NoError(t, err)
+
+	for _, incident := range response.Incidents {
+		if incident.System != DCGM_HEALTH_WATCH_IMEX {
+			t.Skipf(
+				"standalone IMEX health integration requires a host without unrelated health incidents; found system=%#x entity=%d:%d code=%d message=%q",
+				incident.System,
+				incident.EntityInfo.EntityGroupId,
+				incident.EntityInfo.EntityId,
+				incident.Error.Code,
+				incident.Error.Message,
+			)
+		}
+
+		require.Equal(t, DCGM_HEALTH_RESULT_FAIL, incident.Health)
+		require.Equal(t, FE_NONE, incident.EntityInfo.EntityGroupId)
+		require.Zero(t, incident.EntityInfo.EntityId)
+		require.Equal(t, DCGM_FR_IMEX_UNHEALTHY, incident.Error.Code)
+	}
+	if len(response.Incidents) == 0 {
+		require.Equal(t, DCGM_HEALTH_RESULT_PASS, response.OverallHealth)
+	} else {
+		require.Equal(t, DCGM_HEALTH_RESULT_FAIL, response.OverallHealth)
+	}
+}
+
 func TestHealthWhenInvalidGroupID(t *testing.T) {
 	teardownTest := setupTest(t)
 	defer teardownTest(t)

@@ -109,33 +109,33 @@ const (
 	DCGM_FI_DEV_MEMORY_AFFINITY_2 Short = 88
 	// DCGM_FI_DEV_MEMORY_AFFINITY_3 represents Device Memory node affinity, 192-255
 	DCGM_FI_DEV_MEMORY_AFFINITY_3 Short = 89
-	// DCGM_FI_DEV_BAR1_TOTAL represents Total BAR1 of the GPU in MB
+	// DCGM_FI_DEV_BAR1_TOTAL represents Deprecated: Use DCGM_FI_DEV_BAR1_CAPACITY_BYTES instead.
 	DCGM_FI_DEV_BAR1_TOTAL Short = 90
 	// DCGM_FI_SYSTEM_GPU_SYNC_BOOST represents Deprecated - Sync boost settings on the node
 	DCGM_FI_SYSTEM_GPU_SYNC_BOOST Short = 91
-	// DCGM_FI_DEV_BAR1_USED represents Used BAR1 of the GPU in MB
+	// DCGM_FI_DEV_BAR1_USED represents Deprecated: Use DCGM_FI_DEV_BAR1_USED_BYTES instead.
 	DCGM_FI_DEV_BAR1_USED Short = 92
-	// DCGM_FI_DEV_BAR1_FREE represents Free BAR1 of the GPU in MB
+	// DCGM_FI_DEV_BAR1_FREE represents Deprecated: Use DCGM_FI_DEV_BAR1_FREE_BYTES instead.
 	DCGM_FI_DEV_BAR1_FREE Short = 93
 	// DCGM_FI_DEV_GPM_SUPPORT represents * GPM support for the device
 	DCGM_FI_DEV_GPM_SUPPORT Short = 94
-	// DCGM_FI_DEV_SM_CLOCK represents SM clock for the device
+	// DCGM_FI_DEV_SM_CLOCK represents Deprecated: Use DCGM_FI_DEV_SM_CLOCK_HERTZ instead.
 	DCGM_FI_DEV_SM_CLOCK Short = 100
-	// DCGM_FI_DEV_MEM_CLOCK represents Memory clock for the device
+	// DCGM_FI_DEV_MEM_CLOCK represents Deprecated: Use DCGM_FI_DEV_MEMORY_CLOCK_HERTZ instead.
 	DCGM_FI_DEV_MEM_CLOCK Short = 101
-	// DCGM_FI_DEV_VIDEO_CLOCK represents Video encoder/decoder clock for the device
+	// DCGM_FI_DEV_VIDEO_CLOCK represents Deprecated: Use DCGM_FI_DEV_VIDEO_CLOCK_HERTZ instead.
 	DCGM_FI_DEV_VIDEO_CLOCK Short = 102
-	// DCGM_FI_DEV_APP_SM_CLOCK represents SM Application clocks
+	// DCGM_FI_DEV_APP_SM_CLOCK represents Deprecated: Use DCGM_FI_DEV_SM_APP_CLOCK_HERTZ instead.
 	DCGM_FI_DEV_APP_SM_CLOCK Short = 110
-	// DCGM_FI_DEV_APP_MEM_CLOCK represents Memory Application clocks
+	// DCGM_FI_DEV_APP_MEM_CLOCK represents Deprecated: Use DCGM_FI_DEV_MEMORY_APP_CLOCK_HERTZ instead.
 	DCGM_FI_DEV_APP_MEM_CLOCK Short = 111
 	// DCGM_FI_DEV_CLOCKS_EVENT_REASONS represents Current clock event reasons (bitmask of DCGM_CLOCKS_EVENT_REASON_*)
 	DCGM_FI_DEV_CLOCKS_EVENT_REASONS Short = 112
-	// DCGM_FI_DEV_MAX_SM_CLOCK represents Maximum supported SM clock for the device
+	// DCGM_FI_DEV_MAX_SM_CLOCK represents Deprecated: Use DCGM_FI_DEV_SM_MAX_CLOCK_HERTZ instead.
 	DCGM_FI_DEV_MAX_SM_CLOCK Short = 113
-	// DCGM_FI_DEV_MAX_MEM_CLOCK represents Maximum supported Memory clock for the device
+	// DCGM_FI_DEV_MAX_MEM_CLOCK represents Deprecated: Use DCGM_FI_DEV_MEMORY_MAX_CLOCK_HERTZ instead.
 	DCGM_FI_DEV_MAX_MEM_CLOCK Short = 114
-	// DCGM_FI_DEV_MAX_VIDEO_CLOCK represents Maximum supported Video encoder/decoder clock for the device
+	// DCGM_FI_DEV_MAX_VIDEO_CLOCK represents Deprecated: Use DCGM_FI_DEV_VIDEO_MAX_CLOCK_HERTZ instead.
 	DCGM_FI_DEV_MAX_VIDEO_CLOCK Short = 115
 	// DCGM_FI_DEV_CLOCKS_AUTOBOOST_MODE represents Auto-boost for the device (1 = enabled. 0 = disabled)
 	DCGM_FI_DEV_CLOCKS_AUTOBOOST_MODE Short = 120
@@ -153,7 +153,7 @@ const (
 	DCGM_FI_DEV_GPU_TEMP_MARGIN_CELSIUS Short = 153
 	// DCGM_FI_DEV_BOARD_POWER_WATTS represents Power usage for the device in Watts
 	DCGM_FI_DEV_BOARD_POWER_WATTS Short = 155
-	// DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION represents Total energy consumption for the GPU in mJ since the driver was last reloaded
+	// DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION represents Deprecated: Use DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL instead.
 	DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION Short = 156
 	// DCGM_FI_DEV_BOARD_POWER_RAW_WATTS represents Current instantaneous power usage of the device in Watts
 	DCGM_FI_DEV_BOARD_POWER_RAW_WATTS Short = 157
@@ -191,7 +191,7 @@ const (
 	DCGM_FI_DEV_FABRIC_HEALTH_SUMMARY Short = 175
 	// DCGM_FI_DEV_GPU_PSTATE represents Performance state (P-State) 0-15. 0=highest
 	DCGM_FI_DEV_GPU_PSTATE Short = 190
-	// DCGM_FI_DEV_FAN_SPEED represents Fan speed for the device in percent 0-100
+	// DCGM_FI_DEV_FAN_SPEED represents Deprecated: Use DCGM_FI_DEV_FAN_SPEED_RATIO instead.
 	DCGM_FI_DEV_FAN_SPEED Short = 191
 	// DCGM_FI_DEV_PCIE_TX_THROUGHPUT represents Deprecated: Use DCGM_FI_PROF_PCIE_TX_BYTES instead.
 	DCGM_FI_DEV_PCIE_TX_THROUGHPUT Short = 200
@@ -607,10 +607,10 @@ const (
 	DCGM_FI_DEV_VGPU_TYPE_CLASS Short = 512
 	// DCGM_FI_DEV_VGPU_TYPE_LICENSE represents Includes the license info for a vGPU type supported on a device
 	DCGM_FI_DEV_VGPU_TYPE_LICENSE Short = 513
-	// DCGM_FI_DEV_VGPU_VM_ID represents VM ID of the vGPU instance
-	DCGM_FI_DEV_VGPU_VM_ID Short = 520
 	// DCGM_FI_FIRST_VGPU_FIELD_ID represents Starting field ID of the vGPU instance
 	DCGM_FI_FIRST_VGPU_FIELD_ID Short = 520
+	// DCGM_FI_DEV_VGPU_VM_ID represents VM ID of the vGPU instance
+	DCGM_FI_DEV_VGPU_VM_ID Short = 520
 	// DCGM_FI_DEV_VGPU_VM_NAME represents VM name of the vGPU instance
 	DCGM_FI_DEV_VGPU_VM_NAME Short = 521
 	// DCGM_FI_DEV_VGPU_TYPE represents vGPU type of the vGPU instance
@@ -1097,16 +1097,16 @@ const (
 	DCGM_FI_PROF_FP32_CYCLES_ACTIVE_TOTAL Short = 1095
 	// DCGM_FI_PROF_FP16_CYCLES_ACTIVE_TOTAL represents Raw monotonic counter of GPU SM FP16 pipe cycles active.
 	DCGM_FI_PROF_FP16_CYCLES_ACTIVE_TOTAL Short = 1096
-	// DCGM_FI_DEV_CPU_UTIL_TOTAL represents CPU Utilization, total
-	DCGM_FI_DEV_CPU_UTIL_TOTAL Short = 1100
-	// DCGM_FI_DEV_CPU_UTIL_USER represents CPU Utilization, user
-	DCGM_FI_DEV_CPU_UTIL_USER Short = 1101
-	// DCGM_FI_DEV_CPU_UTIL_NICE represents CPU Utilization, nice
-	DCGM_FI_DEV_CPU_UTIL_NICE Short = 1102
-	// DCGM_FI_DEV_CPU_UTIL_SYS represents CPU Utilization, system time
-	DCGM_FI_DEV_CPU_UTIL_SYS Short = 1103
-	// DCGM_FI_DEV_CPU_UTIL_IRQ represents CPU Utilization, interrupt servicing
-	DCGM_FI_DEV_CPU_UTIL_IRQ Short = 1104
+	// DCGM_FI_DEV_CPU_UTIL_RATIO represents CPU Utilization, total
+	DCGM_FI_DEV_CPU_UTIL_RATIO Short = 1100
+	// DCGM_FI_DEV_CPU_UTIL_USER_RATIO represents CPU Utilization, user
+	DCGM_FI_DEV_CPU_UTIL_USER_RATIO Short = 1101
+	// DCGM_FI_DEV_CPU_UTIL_NICE_RATIO represents CPU Utilization, nice
+	DCGM_FI_DEV_CPU_UTIL_NICE_RATIO Short = 1102
+	// DCGM_FI_DEV_CPU_UTIL_SYS_RATIO represents CPU Utilization, system time
+	DCGM_FI_DEV_CPU_UTIL_SYS_RATIO Short = 1103
+	// DCGM_FI_DEV_CPU_UTIL_IRQ_RATIO represents CPU Utilization, interrupt servicing
+	DCGM_FI_DEV_CPU_UTIL_IRQ_RATIO Short = 1104
 	// DCGM_FI_DEV_CPU_TEMP_CELSIUS represents CPU temperature
 	DCGM_FI_DEV_CPU_TEMP_CELSIUS Short = 1110
 	// DCGM_FI_DEV_CPU_TEMP_WARNING_CELSIUS represents CPU Warning Temperature
@@ -1115,14 +1115,14 @@ const (
 	DCGM_FI_DEV_CPU_TEMP_CRITICAL_CELSIUS Short = 1112
 	// DCGM_FI_DEV_CPU_CLOCK_CURRENT represents CPU instantaneous clock speed
 	DCGM_FI_DEV_CPU_CLOCK_CURRENT Short = 1120
-	// DCGM_FI_DEV_CPU_POWER_WATTS represents CPU power utilization
+	// DCGM_FI_DEV_CPU_POWER_WATTS represents CPU current power usage
 	DCGM_FI_DEV_CPU_POWER_WATTS Short = 1130
 	// DCGM_FI_DEV_CPU_POWER_LIMIT_WATTS represents CPU power limit
 	DCGM_FI_DEV_CPU_POWER_LIMIT_WATTS Short = 1131
-	// DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT represents SoC power utilization
-	DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT Short = 1132
-	// DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT represents Module power utilization
-	DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT Short = 1133
+	// DCGM_FI_DEV_SYSIO_POWER_WATTS represents SoC current power usage
+	DCGM_FI_DEV_SYSIO_POWER_WATTS Short = 1132
+	// DCGM_FI_DEV_MODULE_POWER_WATTS represents Module current power usage
+	DCGM_FI_DEV_MODULE_POWER_WATTS Short = 1133
 	// DCGM_FI_DEV_CPU_VENDOR represents CPU vendor name
 	DCGM_FI_DEV_CPU_VENDOR Short = 1140
 	// DCGM_FI_DEV_CPU_MODEL represents CPU model name
@@ -1147,8 +1147,8 @@ const (
 	DCGM_FI_DEV_NVLINK_RX_GENERAL_ERROR_TOTAL Short = 1208
 	// DCGM_FI_DEV_NVLINK_INTEGRITY_ERROR_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
 	DCGM_FI_DEV_NVLINK_INTEGRITY_ERROR_TOTAL Short = 1209
-	// DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS Short = 1210
+	// DCGM_FI_DEV_NVLINK_TX_DISCARD_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_TX_DISCARD_TOTAL Short = 1210
 	// DCGM_FI_DEV_NVLINK_RECOVERY_SUCCESSFUL_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
 	DCGM_FI_DEV_NVLINK_RECOVERY_SUCCESSFUL_TOTAL Short = 1211
 	// DCGM_FI_DEV_NVLINK_RECOVERY_FAILED_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
@@ -1181,60 +1181,60 @@ const (
 	DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_WIDTH Short = 1303
 	// DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_SPEED represents Expect PCIe link speed
 	DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_SPEED Short = 1304
-	// DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS represents Correctable error status
-	DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS Short = 1305
-	// DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK represents Correctable error mask
-	DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK Short = 1306
+	// DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_STATUS represents Correctable error status
+	DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_STATUS Short = 1305
+	// DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_MASK represents Correctable error mask
+	DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_MASK Short = 1306
 	// DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_STATUS represents Uncorrectable error status
 	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_STATUS Short = 1307
 	// DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_MASK represents Uncorrectable error mask
 	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_MASK Short = 1308
 	// DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_SEVERITY represents Uncorrectable error severity
 	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_SEVERITY Short = 1309
-	// DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE represents Device temperature
-	DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE Short = 1310
+	// DCGM_FI_DEV_CONNECTX_TEMP_CELSIUS represents Device temperature
+	DCGM_FI_DEV_CONNECTX_TEMP_CELSIUS Short = 1310
 	// DCGM_FI_DEV_LAST_CONNECTX_FIELD_ID represents The last field id of ConnectX
 	DCGM_FI_DEV_LAST_CONNECTX_FIELD_ID Short = 1399
-	// DCGM_FI_DEV_C2C_LINK_ERROR_INTR represents C2C Link CRC Error Counter
-	DCGM_FI_DEV_C2C_LINK_ERROR_INTR Short = 1400
-	// DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY represents C2C Link Replay Error Counter
-	DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY Short = 1401
-	// DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B represents C2C Link Back to Back Replay Error Counter
-	DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B Short = 1402
-	// DCGM_FI_DEV_C2C_LINK_POWER_STATE represents C2C Link Power state. See NVML_C2C_POWER_STATE_*
-	DCGM_FI_DEV_C2C_LINK_POWER_STATE Short = 1403
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0 Short = 1404
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1 Short = 1405
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2 Short = 1406
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3 Short = 1407
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4 Short = 1408
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5 Short = 1409
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6 Short = 1410
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7 Short = 1411
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8 Short = 1412
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9 Short = 1413
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10 Short = 1414
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11 Short = 1415
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12 Short = 1416
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13 Short = 1417
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14 Short = 1418
-	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15 represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
-	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15 Short = 1419
+	// DCGM_FI_DEV_C2C_LINK_ERROR_TOTAL represents C2C Link CRC Error Counter
+	DCGM_FI_DEV_C2C_LINK_ERROR_TOTAL Short = 1400
+	// DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_TOTAL represents C2C Link Replay Error Counter
+	DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_TOTAL Short = 1401
+	// DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_B2B_TOTAL represents C2C Link Back to Back Replay Error Counter
+	DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_B2B_TOTAL Short = 1402
+	// DCGM_FI_DEV_C2C_LINK_POWER_STATUS represents C2C Link Power state. See NVML_C2C_POWER_STATE_*
+	DCGM_FI_DEV_C2C_LINK_POWER_STATUS Short = 1403
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_0_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_0_TOTAL Short = 1404
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_1_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_1_TOTAL Short = 1405
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_2_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_2_TOTAL Short = 1406
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_3_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_3_TOTAL Short = 1407
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_4_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_4_TOTAL Short = 1408
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_5_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_5_TOTAL Short = 1409
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_6_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_6_TOTAL Short = 1410
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_7_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_7_TOTAL Short = 1411
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_8_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_8_TOTAL Short = 1412
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_9_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_9_TOTAL Short = 1413
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_10_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_10_TOTAL Short = 1414
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_11_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_11_TOTAL Short = 1415
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_12_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_12_TOTAL Short = 1416
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_13_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_13_TOTAL Short = 1417
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_14_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_14_TOTAL Short = 1418
+	// DCGM_FI_DEV_NVLINK_FEC_HISTORY_15_TOTAL represents Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
+	DCGM_FI_DEV_NVLINK_FEC_HISTORY_15_TOTAL Short = 1419
 	// DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_POWER_CAP_NS represents Throttling to not exceed currently set power limits in ns
 	DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_POWER_CAP_NS Short = 1420
 	// DCGM_FI_DEV_CLOCKS_EVENT_REASON_SYNC_BOOST_NS represents Boost Group in ns
@@ -1251,18 +1251,18 @@ const (
 	DCGM_FI_DEV_PWR_SMOOTHING_PRIV_LVL Short = 1426
 	// DCGM_FI_DEV_PWR_SMOOTHING_IMM_RAMP_DOWN_ENABLED represents either level 1 or level 2 (e.g. via Redfish API)
 	DCGM_FI_DEV_PWR_SMOOTHING_IMM_RAMP_DOWN_ENABLED Short = 1427
-	// DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL represents either level 1 or level 2 (e.g. via Redfish API)
-	DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL Short = 1428
-	// DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR represents either level 1 or level 2 (e.g. via Redfish API)
-	DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR Short = 1429
+	// DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL_WATTS represents either level 1 or level 2 (e.g. via Redfish API)
+	DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL_WATTS Short = 1428
+	// DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR_WATTS represents either level 1 or level 2 (e.g. via Redfish API)
+	DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR_WATTS Short = 1429
 	// DCGM_FI_DEV_PWR_SMOOTHING_MAX_PERCENT_TMP_FLOOR_SETTING represents either level 1 or level 2 (e.g. via Redfish API)
 	DCGM_FI_DEV_PWR_SMOOTHING_MAX_PERCENT_TMP_FLOOR_SETTING Short = 1430
 	// DCGM_FI_DEV_PWR_SMOOTHING_MIN_PERCENT_TMP_FLOOR_SETTING represents either level 1 or level 2 (e.g. via Redfish API)
 	DCGM_FI_DEV_PWR_SMOOTHING_MIN_PERCENT_TMP_FLOOR_SETTING Short = 1431
 	// DCGM_FI_DEV_PWR_SMOOTHING_HW_CIRCUITRY_PERCENT_LIFETIME_REMAINING represents either level 1 or level 2 (e.g. via Redfish API)
 	DCGM_FI_DEV_PWR_SMOOTHING_HW_CIRCUITRY_PERCENT_LIFETIME_REMAINING Short = 1432
-	// DCGM_FI_DEV_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES represents either level 1 or level 2 (e.g. via Redfish API)
-	DCGM_FI_DEV_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES Short = 1433
+	// DCGM_FI_DEV_PWR_SMOOTHING_MAX_PRESET_PROFILES represents either level 1 or level 2 (e.g. via Redfish API)
+	DCGM_FI_DEV_PWR_SMOOTHING_MAX_PRESET_PROFILES Short = 1433
 	// DCGM_FI_DEV_PWR_SMOOTHING_PROFILE_PERCENT_TMP_FLOOR represents either level 1 or level 2 (e.g. via Redfish API)
 	DCGM_FI_DEV_PWR_SMOOTHING_PROFILE_PERCENT_TMP_FLOOR Short = 1434
 	// DCGM_FI_DEV_PWR_SMOOTHING_PROFILE_RAMP_UP_RATE represents either level 1 or level 2 (e.g. via Redfish API)
@@ -1289,10 +1289,10 @@ const (
 	DCGM_FI_IMEX_DAEMON_STATUS Short = 1503
 	// DCGM_FI_DEV_MEMORY_UNREPAIRABLE represents 1=yes, 0=no
 	DCGM_FI_DEV_MEMORY_UNREPAIRABLE Short = 1507
-	// DCGM_FI_DEV_NVLINK_GET_STATE represents Use DCGM_FE_LINK entity group when accessing this field.
-	DCGM_FI_DEV_NVLINK_GET_STATE Short = 1508
-	// DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT represents Use DCGM_FE_LINK entity group when accessing this field.
-	DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT Short = 1509
+	// DCGM_FI_DEV_NVLINK_LINK_STATUS represents Use DCGM_FE_LINK entity group when accessing this field.
+	DCGM_FI_DEV_NVLINK_LINK_STATUS Short = 1508
+	// DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL represents Use DCGM_FE_LINK entity group when accessing this field.
+	DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL Short = 1509
 	// DCGM_FI_DEV_GPU_RECOVERY_ACTION represents GPU Recovery Action (see nvmlDeviceGpuRecoveryAction_t for return values)
 	DCGM_FI_DEV_GPU_RECOVERY_ACTION Short = 1523
 	// DCGM_FI_DEV_NVSWITCH_FIRMWARE_VERSION represents NVSwitch firmware version string
@@ -1315,6 +1315,32 @@ const (
 	DCGM_FI_PROF_NVLINK_TX_BYTES_PER_LINK Short = 1532
 	// DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK
 	DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK Short = 1533
+	// DCGM_FI_DEV_BAR1_CAPACITY_BYTES represents Total BAR1 capacity of the GPU in bytes
+	DCGM_FI_DEV_BAR1_CAPACITY_BYTES Short = 1600
+	// DCGM_FI_DEV_BAR1_USED_BYTES represents Used BAR1 of the GPU in bytes
+	DCGM_FI_DEV_BAR1_USED_BYTES Short = 1601
+	// DCGM_FI_DEV_BAR1_FREE_BYTES represents Free BAR1 of the GPU in bytes
+	DCGM_FI_DEV_BAR1_FREE_BYTES Short = 1602
+	// DCGM_FI_DEV_SM_CLOCK_HERTZ represents SM clock for the device in hertz
+	DCGM_FI_DEV_SM_CLOCK_HERTZ Short = 1603
+	// DCGM_FI_DEV_MEMORY_CLOCK_HERTZ represents Memory clock for the device in hertz
+	DCGM_FI_DEV_MEMORY_CLOCK_HERTZ Short = 1604
+	// DCGM_FI_DEV_VIDEO_CLOCK_HERTZ represents Video encoder/decoder clock for the device in hertz
+	DCGM_FI_DEV_VIDEO_CLOCK_HERTZ Short = 1605
+	// DCGM_FI_DEV_SM_APP_CLOCK_HERTZ represents SM application clock target for the device in hertz
+	DCGM_FI_DEV_SM_APP_CLOCK_HERTZ Short = 1606
+	// DCGM_FI_DEV_MEMORY_APP_CLOCK_HERTZ represents Memory application clock target for the device in hertz
+	DCGM_FI_DEV_MEMORY_APP_CLOCK_HERTZ Short = 1607
+	// DCGM_FI_DEV_SM_MAX_CLOCK_HERTZ represents Maximum supported SM clock for the device in hertz
+	DCGM_FI_DEV_SM_MAX_CLOCK_HERTZ Short = 1608
+	// DCGM_FI_DEV_MEMORY_MAX_CLOCK_HERTZ represents Maximum supported memory clock for the device in hertz
+	DCGM_FI_DEV_MEMORY_MAX_CLOCK_HERTZ Short = 1609
+	// DCGM_FI_DEV_VIDEO_MAX_CLOCK_HERTZ represents Maximum supported video encoder/decoder clock for the device in hertz
+	DCGM_FI_DEV_VIDEO_MAX_CLOCK_HERTZ Short = 1610
+	// DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL represents Total GPU energy consumption in joules since the driver was last reloaded
+	DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL Short = 1611
+	// DCGM_FI_DEV_FAN_SPEED_RATIO represents Fan speed for the device as a ratio of maximum noise-tolerance fan speed (0.0-1.0+)
+	DCGM_FI_DEV_FAN_SPEED_RATIO Short = 1612
 
 	// Deprecated DCGM field aliases retained for source compatibility.
 	// DCGM_FI_UNKNOWN is deprecated; use DCGM_FI_SYSTEM_FIELD_UNKNOWN.
@@ -1907,6 +1933,16 @@ const (
 	DCGM_FI_PROF_NVOFA0_ACTIVE Short = DCGM_FI_PROF_NVOFA_UTIL_0_RATIO
 	// DCGM_FI_PROF_NVOFA1_ACTIVE is deprecated; use DCGM_FI_PROF_NVOFA_UTIL_1_RATIO.
 	DCGM_FI_PROF_NVOFA1_ACTIVE Short = DCGM_FI_PROF_NVOFA_UTIL_1_RATIO
+	// DCGM_FI_DEV_CPU_UTIL_TOTAL is deprecated; use DCGM_FI_DEV_CPU_UTIL_RATIO.
+	DCGM_FI_DEV_CPU_UTIL_TOTAL Short = DCGM_FI_DEV_CPU_UTIL_RATIO
+	// DCGM_FI_DEV_CPU_UTIL_USER is deprecated; use DCGM_FI_DEV_CPU_UTIL_USER_RATIO.
+	DCGM_FI_DEV_CPU_UTIL_USER Short = DCGM_FI_DEV_CPU_UTIL_USER_RATIO
+	// DCGM_FI_DEV_CPU_UTIL_NICE is deprecated; use DCGM_FI_DEV_CPU_UTIL_NICE_RATIO.
+	DCGM_FI_DEV_CPU_UTIL_NICE Short = DCGM_FI_DEV_CPU_UTIL_NICE_RATIO
+	// DCGM_FI_DEV_CPU_UTIL_SYS is deprecated; use DCGM_FI_DEV_CPU_UTIL_SYS_RATIO.
+	DCGM_FI_DEV_CPU_UTIL_SYS Short = DCGM_FI_DEV_CPU_UTIL_SYS_RATIO
+	// DCGM_FI_DEV_CPU_UTIL_IRQ is deprecated; use DCGM_FI_DEV_CPU_UTIL_IRQ_RATIO.
+	DCGM_FI_DEV_CPU_UTIL_IRQ Short = DCGM_FI_DEV_CPU_UTIL_IRQ_RATIO
 	// DCGM_FI_DEV_CPU_TEMP_CURRENT is deprecated; use DCGM_FI_DEV_CPU_TEMP_CELSIUS.
 	DCGM_FI_DEV_CPU_TEMP_CURRENT Short = DCGM_FI_DEV_CPU_TEMP_CELSIUS
 	// DCGM_FI_DEV_CPU_TEMP_WARNING is deprecated; use DCGM_FI_DEV_CPU_TEMP_WARNING_CELSIUS.
@@ -1917,6 +1953,10 @@ const (
 	DCGM_FI_DEV_CPU_POWER_UTIL_CURRENT Short = DCGM_FI_DEV_CPU_POWER_WATTS
 	// DCGM_FI_DEV_CPU_POWER_LIMIT is deprecated; use DCGM_FI_DEV_CPU_POWER_LIMIT_WATTS.
 	DCGM_FI_DEV_CPU_POWER_LIMIT Short = DCGM_FI_DEV_CPU_POWER_LIMIT_WATTS
+	// DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT is deprecated; use DCGM_FI_DEV_SYSIO_POWER_WATTS.
+	DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT Short = DCGM_FI_DEV_SYSIO_POWER_WATTS
+	// DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT is deprecated; use DCGM_FI_DEV_MODULE_POWER_WATTS.
+	DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT Short = DCGM_FI_DEV_MODULE_POWER_WATTS
 	// DCGM_FI_DEV_NVLINK_COUNT_TX_PACKETS is deprecated; use DCGM_FI_DEV_NVLINK_TX_PACKET_TOTAL.
 	DCGM_FI_DEV_NVLINK_COUNT_TX_PACKETS Short = DCGM_FI_DEV_NVLINK_TX_PACKET_TOTAL
 	// DCGM_FI_DEV_NVLINK_COUNT_TX_BYTES is deprecated; use DCGM_FI_DEV_NVLINK_TX_BYTES_TOTAL.
@@ -1937,6 +1977,8 @@ const (
 	DCGM_FI_DEV_NVLINK_COUNT_RX_GENERAL_ERRORS Short = DCGM_FI_DEV_NVLINK_RX_GENERAL_ERROR_TOTAL
 	// DCGM_FI_DEV_NVLINK_COUNT_LOCAL_LINK_INTEGRITY_ERRORS is deprecated; use DCGM_FI_DEV_NVLINK_INTEGRITY_ERROR_TOTAL.
 	DCGM_FI_DEV_NVLINK_COUNT_LOCAL_LINK_INTEGRITY_ERRORS Short = DCGM_FI_DEV_NVLINK_INTEGRITY_ERROR_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS is deprecated; use DCGM_FI_DEV_NVLINK_TX_DISCARD_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS Short = DCGM_FI_DEV_NVLINK_TX_DISCARD_TOTAL
 	// DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_SUCCESSFUL_EVENTS is deprecated; use DCGM_FI_DEV_NVLINK_RECOVERY_SUCCESSFUL_TOTAL.
 	DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_SUCCESSFUL_EVENTS Short = DCGM_FI_DEV_NVLINK_RECOVERY_SUCCESSFUL_TOTAL
 	// DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_FAILED_EVENTS is deprecated; use DCGM_FI_DEV_NVLINK_RECOVERY_FAILED_TOTAL.
@@ -1957,16 +1999,72 @@ const (
 	DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS Short = DCGM_FI_DEV_NVLINK_EFFECTIVE_ERROR_TOTAL
 	// DCGM_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_TOTAL is deprecated; use DCGM_FI_DEV_NVLINK_ECC_ERROR_TOTAL.
 	DCGM_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_TOTAL Short = DCGM_FI_DEV_NVLINK_ECC_ERROR_TOTAL
+	// DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS is deprecated; use DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_STATUS.
+	DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS Short = DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_STATUS
+	// DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK is deprecated; use DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_MASK.
+	DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK Short = DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_MASK
 	// DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_STATUS is deprecated; use DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_STATUS.
 	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_STATUS Short = DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_STATUS
 	// DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_MASK is deprecated; use DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_MASK.
 	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_MASK Short = DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_MASK
 	// DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_SEVERITY is deprecated; use DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_SEVERITY.
 	DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_SEVERITY Short = DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_SEVERITY
+	// DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE is deprecated; use DCGM_FI_DEV_CONNECTX_TEMP_CELSIUS.
+	DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE Short = DCGM_FI_DEV_CONNECTX_TEMP_CELSIUS
+	// DCGM_FI_DEV_C2C_LINK_ERROR_INTR is deprecated; use DCGM_FI_DEV_C2C_LINK_ERROR_TOTAL.
+	DCGM_FI_DEV_C2C_LINK_ERROR_INTR Short = DCGM_FI_DEV_C2C_LINK_ERROR_TOTAL
+	// DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY is deprecated; use DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_TOTAL.
+	DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY Short = DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_TOTAL
+	// DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B is deprecated; use DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_B2B_TOTAL.
+	DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B Short = DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_B2B_TOTAL
+	// DCGM_FI_DEV_C2C_LINK_POWER_STATE is deprecated; use DCGM_FI_DEV_C2C_LINK_POWER_STATUS.
+	DCGM_FI_DEV_C2C_LINK_POWER_STATE Short = DCGM_FI_DEV_C2C_LINK_POWER_STATUS
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_0_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_0_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_1_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_1_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_2_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_2_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_3_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_3_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_4_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_4_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_5_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_5_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_6_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_6_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_7_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_7_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_8_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_8_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_9_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_9_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_10_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_10_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_11_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_11_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_12_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_12_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_13_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_13_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_14_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_14_TOTAL
+	// DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15 is deprecated; use DCGM_FI_DEV_NVLINK_FEC_HISTORY_15_TOTAL.
+	DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15 Short = DCGM_FI_DEV_NVLINK_FEC_HISTORY_15_TOTAL
+	// DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL is deprecated; use DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL_WATTS.
+	DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL Short = DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL_WATTS
+	// DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR is deprecated; use DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR_WATTS.
+	DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR Short = DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR_WATTS
+	// DCGM_FI_DEV_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES is deprecated; use DCGM_FI_DEV_PWR_SMOOTHING_MAX_PRESET_PROFILES.
+	DCGM_FI_DEV_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES Short = DCGM_FI_DEV_PWR_SMOOTHING_MAX_PRESET_PROFILES
 	// DCGM_FI_DEV_PCIE_COUNT_CORRECTABLE_ERRORS is deprecated; use DCGM_FI_DEV_PCIE_CORRECTABLE_ERROR_TOTAL.
 	DCGM_FI_DEV_PCIE_COUNT_CORRECTABLE_ERRORS Short = DCGM_FI_DEV_PCIE_CORRECTABLE_ERROR_TOTAL
 	// DCGM_FI_DEV_MEMORY_UNREPAIRABLE_FLAG is deprecated; use DCGM_FI_DEV_MEMORY_UNREPAIRABLE.
 	DCGM_FI_DEV_MEMORY_UNREPAIRABLE_FLAG Short = DCGM_FI_DEV_MEMORY_UNREPAIRABLE
+	// DCGM_FI_DEV_NVLINK_GET_STATE is deprecated; use DCGM_FI_DEV_NVLINK_LINK_STATUS.
+	DCGM_FI_DEV_NVLINK_GET_STATE Short = DCGM_FI_DEV_NVLINK_LINK_STATUS
+	// DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT is deprecated; use DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL.
+	DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT Short = DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL
 	// DCGM_FI_DEV_GET_GPU_RECOVERY_ACTION is deprecated; use DCGM_FI_DEV_GPU_RECOVERY_ACTION.
 	DCGM_FI_DEV_GET_GPU_RECOVERY_ACTION Short = DCGM_FI_DEV_GPU_RECOVERY_ACTION
 )
@@ -2267,8 +2365,8 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_VGPU_TYPE_NAME":                                        511,
 	"DCGM_FI_DEV_VGPU_TYPE_CLASS":                                       512,
 	"DCGM_FI_DEV_VGPU_TYPE_LICENSE":                                     513,
-	"DCGM_FI_DEV_VGPU_VM_ID":                                            520,
 	"DCGM_FI_FIRST_VGPU_FIELD_ID":                                       520,
+	"DCGM_FI_DEV_VGPU_VM_ID":                                            520,
 	"DCGM_FI_DEV_VGPU_VM_NAME":                                          521,
 	"DCGM_FI_DEV_VGPU_TYPE":                                             522,
 	"DCGM_FI_DEV_VGPU_UUID":                                             523,
@@ -2512,19 +2610,19 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_PROF_FP64_CYCLES_ACTIVE_TOTAL":                             1094,
 	"DCGM_FI_PROF_FP32_CYCLES_ACTIVE_TOTAL":                             1095,
 	"DCGM_FI_PROF_FP16_CYCLES_ACTIVE_TOTAL":                             1096,
-	"DCGM_FI_DEV_CPU_UTIL_TOTAL":                                        1100,
-	"DCGM_FI_DEV_CPU_UTIL_USER":                                         1101,
-	"DCGM_FI_DEV_CPU_UTIL_NICE":                                         1102,
-	"DCGM_FI_DEV_CPU_UTIL_SYS":                                          1103,
-	"DCGM_FI_DEV_CPU_UTIL_IRQ":                                          1104,
+	"DCGM_FI_DEV_CPU_UTIL_RATIO":                                        1100,
+	"DCGM_FI_DEV_CPU_UTIL_USER_RATIO":                                   1101,
+	"DCGM_FI_DEV_CPU_UTIL_NICE_RATIO":                                   1102,
+	"DCGM_FI_DEV_CPU_UTIL_SYS_RATIO":                                    1103,
+	"DCGM_FI_DEV_CPU_UTIL_IRQ_RATIO":                                    1104,
 	"DCGM_FI_DEV_CPU_TEMP_CELSIUS":                                      1110,
 	"DCGM_FI_DEV_CPU_TEMP_WARNING_CELSIUS":                              1111,
 	"DCGM_FI_DEV_CPU_TEMP_CRITICAL_CELSIUS":                             1112,
 	"DCGM_FI_DEV_CPU_CLOCK_CURRENT":                                     1120,
 	"DCGM_FI_DEV_CPU_POWER_WATTS":                                       1130,
 	"DCGM_FI_DEV_CPU_POWER_LIMIT_WATTS":                                 1131,
-	"DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT":                              1132,
-	"DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT":                             1133,
+	"DCGM_FI_DEV_SYSIO_POWER_WATTS":                                     1132,
+	"DCGM_FI_DEV_MODULE_POWER_WATTS":                                    1133,
 	"DCGM_FI_DEV_CPU_VENDOR":                                            1140,
 	"DCGM_FI_DEV_CPU_MODEL":                                             1141,
 	"DCGM_FI_DEV_NVLINK_TX_PACKET_TOTAL":                                1200,
@@ -2537,7 +2635,7 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_NVLINK_RX_REMOTE_ERROR_TOTAL":                          1207,
 	"DCGM_FI_DEV_NVLINK_RX_GENERAL_ERROR_TOTAL":                         1208,
 	"DCGM_FI_DEV_NVLINK_INTEGRITY_ERROR_TOTAL":                          1209,
-	"DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS":                              1210,
+	"DCGM_FI_DEV_NVLINK_TX_DISCARD_TOTAL":                               1210,
 	"DCGM_FI_DEV_NVLINK_RECOVERY_SUCCESSFUL_TOTAL":                      1211,
 	"DCGM_FI_DEV_NVLINK_RECOVERY_FAILED_TOTAL":                          1212,
 	"DCGM_FI_DEV_NVLINK_RECOVERY_EVENT_TOTAL":                           1213,
@@ -2554,33 +2652,33 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_CONNECTX_ACTIVE_PCIE_LINK_SPEED":                       1302,
 	"DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_WIDTH":                       1303,
 	"DCGM_FI_DEV_CONNECTX_EXPECT_PCIE_LINK_SPEED":                       1304,
-	"DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS":                       1305,
-	"DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK":                         1306,
+	"DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_STATUS":                     1305,
+	"DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_MASK":                       1306,
 	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_STATUS":                   1307,
 	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_MASK":                     1308,
 	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_SEVERITY":                 1309,
-	"DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE":                           1310,
+	"DCGM_FI_DEV_CONNECTX_TEMP_CELSIUS":                                 1310,
 	"DCGM_FI_DEV_LAST_CONNECTX_FIELD_ID":                                1399,
-	"DCGM_FI_DEV_C2C_LINK_ERROR_INTR":                                   1400,
-	"DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY":                                 1401,
-	"DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B":                             1402,
-	"DCGM_FI_DEV_C2C_LINK_POWER_STATE":                                  1403,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0":                            1404,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1":                            1405,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2":                            1406,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3":                            1407,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4":                            1408,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5":                            1409,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6":                            1410,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7":                            1411,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8":                            1412,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9":                            1413,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10":                           1414,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11":                           1415,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12":                           1416,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13":                           1417,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14":                           1418,
-	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15":                           1419,
+	"DCGM_FI_DEV_C2C_LINK_ERROR_TOTAL":                                  1400,
+	"DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_TOTAL":                           1401,
+	"DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_B2B_TOTAL":                       1402,
+	"DCGM_FI_DEV_C2C_LINK_POWER_STATUS":                                 1403,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_0_TOTAL":                            1404,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_1_TOTAL":                            1405,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_2_TOTAL":                            1406,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_3_TOTAL":                            1407,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_4_TOTAL":                            1408,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_5_TOTAL":                            1409,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_6_TOTAL":                            1410,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_7_TOTAL":                            1411,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_8_TOTAL":                            1412,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_9_TOTAL":                            1413,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_10_TOTAL":                           1414,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_11_TOTAL":                           1415,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_12_TOTAL":                           1416,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_13_TOTAL":                           1417,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_14_TOTAL":                           1418,
+	"DCGM_FI_DEV_NVLINK_FEC_HISTORY_15_TOTAL":                           1419,
 	"DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_POWER_CAP_NS":                   1420,
 	"DCGM_FI_DEV_CLOCKS_EVENT_REASON_SYNC_BOOST_NS":                     1421,
 	"DCGM_FI_DEV_CLOCKS_EVENT_REASON_SW_THERM_SLOWDOWN_NS":              1422,
@@ -2589,12 +2687,12 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_PWR_SMOOTHING_ENABLED":                                 1425,
 	"DCGM_FI_DEV_PWR_SMOOTHING_PRIV_LVL":                                1426,
 	"DCGM_FI_DEV_PWR_SMOOTHING_IMM_RAMP_DOWN_ENABLED":                   1427,
-	"DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL":                        1428,
-	"DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR":                       1429,
+	"DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL_WATTS":                  1428,
+	"DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR_WATTS":                 1429,
 	"DCGM_FI_DEV_PWR_SMOOTHING_MAX_PERCENT_TMP_FLOOR_SETTING":           1430,
 	"DCGM_FI_DEV_PWR_SMOOTHING_MIN_PERCENT_TMP_FLOOR_SETTING":           1431,
 	"DCGM_FI_DEV_PWR_SMOOTHING_HW_CIRCUITRY_PERCENT_LIFETIME_REMAINING": 1432,
-	"DCGM_FI_DEV_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES":                 1433,
+	"DCGM_FI_DEV_PWR_SMOOTHING_MAX_PRESET_PROFILES":                     1433,
 	"DCGM_FI_DEV_PWR_SMOOTHING_PROFILE_PERCENT_TMP_FLOOR":               1434,
 	"DCGM_FI_DEV_PWR_SMOOTHING_PROFILE_RAMP_UP_RATE":                    1435,
 	"DCGM_FI_DEV_PWR_SMOOTHING_PROFILE_RAMP_DOWN_RATE":                  1436,
@@ -2608,8 +2706,8 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_IMEX_DOMAIN_STATUS":                                        1502,
 	"DCGM_FI_IMEX_DAEMON_STATUS":                                        1503,
 	"DCGM_FI_DEV_MEMORY_UNREPAIRABLE":                                   1507,
-	"DCGM_FI_DEV_NVLINK_GET_STATE":                                      1508,
-	"DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT":                      1509,
+	"DCGM_FI_DEV_NVLINK_LINK_STATUS":                                    1508,
+	"DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL":                       1509,
 	"DCGM_FI_DEV_GPU_RECOVERY_ACTION":                                   1523,
 	"DCGM_FI_DEV_NVSWITCH_FIRMWARE_VERSION":                             1524,
 	"DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_PER_LINK_TOTAL":                  1525,
@@ -2621,6 +2719,19 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_PER_LINK":                         1531,
 	"DCGM_FI_PROF_NVLINK_TX_BYTES_PER_LINK":                             1532,
 	"DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK":                             1533,
+	"DCGM_FI_DEV_BAR1_CAPACITY_BYTES":                                   1600,
+	"DCGM_FI_DEV_BAR1_USED_BYTES":                                       1601,
+	"DCGM_FI_DEV_BAR1_FREE_BYTES":                                       1602,
+	"DCGM_FI_DEV_SM_CLOCK_HERTZ":                                        1603,
+	"DCGM_FI_DEV_MEMORY_CLOCK_HERTZ":                                    1604,
+	"DCGM_FI_DEV_VIDEO_CLOCK_HERTZ":                                     1605,
+	"DCGM_FI_DEV_SM_APP_CLOCK_HERTZ":                                    1606,
+	"DCGM_FI_DEV_MEMORY_APP_CLOCK_HERTZ":                                1607,
+	"DCGM_FI_DEV_SM_MAX_CLOCK_HERTZ":                                    1608,
+	"DCGM_FI_DEV_MEMORY_MAX_CLOCK_HERTZ":                                1609,
+	"DCGM_FI_DEV_VIDEO_MAX_CLOCK_HERTZ":                                 1610,
+	"DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL":                               1611,
+	"DCGM_FI_DEV_FAN_SPEED_RATIO":                                       1612,
 }
 
 // legacyDCGMFields maps legacy field names to their IDs
@@ -2635,8 +2746,15 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_BANKS_REMAP_ROWS_AVAIL_PARTIAL":                   387,
 	"DCGM_FI_DEV_BRAND":                                            51,
 	"DCGM_FI_DEV_C2C_LINK_COUNT":                                   285,
+	"DCGM_FI_DEV_C2C_LINK_ERROR_INTR":                              1400,
+	"DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY":                            1401,
+	"DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B":                        1402,
+	"DCGM_FI_DEV_C2C_LINK_POWER_STATE":                             1403,
 	"DCGM_FI_DEV_CLOCK_THROTTLE_REASONS":                           112,
 	"DCGM_FI_DEV_COMPUTE_MODE":                                     65,
+	"DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK":                    1306,
+	"DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS":                  1305,
+	"DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE":                      1310,
 	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_MASK":                  1308,
 	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_SEVERITY":              1309,
 	"DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_STATUS":                1307,
@@ -2647,6 +2765,11 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_CPU_TEMP_CRITICAL":                                1112,
 	"DCGM_FI_DEV_CPU_TEMP_CURRENT":                                 1110,
 	"DCGM_FI_DEV_CPU_TEMP_WARNING":                                 1111,
+	"DCGM_FI_DEV_CPU_UTIL_IRQ":                                     1104,
+	"DCGM_FI_DEV_CPU_UTIL_NICE":                                    1102,
+	"DCGM_FI_DEV_CPU_UTIL_SYS":                                     1103,
+	"DCGM_FI_DEV_CPU_UTIL_TOTAL":                                   1100,
+	"DCGM_FI_DEV_CPU_UTIL_USER":                                    1101,
 	"DCGM_FI_DEV_CREATABLE_VGPU_TYPE_IDS":                          502,
 	"DCGM_FI_DEV_CUDA_COMPUTE_CAPABILITY":                          63,
 	"DCGM_FI_DEV_CUDA_VISIBLE_DEVICES_STR":                         68,
@@ -2673,6 +2796,7 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_MEM_AFFINITY_3":                                   89,
 	"DCGM_FI_DEV_MEM_MAX_OP_TEMP":                                  151,
 	"DCGM_FI_DEV_MINOR_NUMBER":                                     55,
+	"DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT":                        1133,
 	"DCGM_FI_DEV_NAME":                                             50,
 	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L0":                              440,
 	"DCGM_FI_DEV_NVLINK_BANDWIDTH_L1":                              441,
@@ -2696,6 +2820,22 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER":                       1217,
 	"DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER_FLOAT":                 1218,
 	"DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS":                    1219,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0":                       1404,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1":                       1405,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10":                      1414,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11":                      1415,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12":                      1416,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13":                      1417,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14":                      1418,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15":                      1419,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2":                       1406,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3":                       1407,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4":                       1408,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5":                       1409,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6":                       1410,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7":                       1411,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8":                       1412,
+	"DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9":                       1413,
 	"DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_EVENTS":                1213,
 	"DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_FAILED_EVENTS":         1212,
 	"DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_SUCCESSFUL_EVENTS":     1211,
@@ -2711,6 +2851,7 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER":                          1215,
 	"DCGM_FI_DEV_NVLINK_COUNT_SYMBOL_BER_FLOAT":                    1216,
 	"DCGM_FI_DEV_NVLINK_COUNT_TX_BYTES":                            1201,
+	"DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS":                         1210,
 	"DCGM_FI_DEV_NVLINK_COUNT_TX_PACKETS":                          1200,
 	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L0":                   410,
 	"DCGM_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L1":                   411,
@@ -2754,6 +2895,8 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_NVLINK_ERROR_DL_CRC":                              497,
 	"DCGM_FI_DEV_NVLINK_ERROR_DL_RECOVERY":                         498,
 	"DCGM_FI_DEV_NVLINK_ERROR_DL_REPLAY":                           499,
+	"DCGM_FI_DEV_NVLINK_GET_STATE":                                 1508,
+	"DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT":                 1509,
 	"DCGM_FI_DEV_NVLINK_PPCNT_PHYSICAL_LINK_DOWN_COUNTER":          585,
 	"DCGM_FI_DEV_NVLINK_PPCNT_PHYSICAL_SUCCESSFUL_RECOVERY_EVENTS": 584,
 	"DCGM_FI_DEV_NVLINK_PPCNT_PLR_RCV_CODES":                       586,
@@ -2891,6 +3034,9 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_POWER_USAGE":                                      155,
 	"DCGM_FI_DEV_POWER_USAGE_INSTANT":                              157,
 	"DCGM_FI_DEV_PSTATE":                                           190,
+	"DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL":                   1428,
+	"DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR":                  1429,
+	"DCGM_FI_DEV_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES":            1433,
 	"DCGM_FI_DEV_REQUESTED_POWER_PROFILE_MASK":                     165,
 	"DCGM_FI_DEV_RETIRED_DBE":                                      391,
 	"DCGM_FI_DEV_RETIRED_PENDING":                                  392,
@@ -2902,6 +3048,7 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_SUPPORTED_CLOCKS":                                 130,
 	"DCGM_FI_DEV_SUPPORTED_TYPE_INFO":                              501,
 	"DCGM_FI_DEV_SUPPORTED_VGPU_TYPE_IDS":                          509,
+	"DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT":                         1132,
 	"DCGM_FI_DEV_THRESHOLD_SRM":                                    346,
 	"DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS":                      393,
 	"DCGM_FI_DEV_UUID":                                             54,

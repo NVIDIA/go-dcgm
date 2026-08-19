@@ -226,6 +226,8 @@ func systemWatch(watch HealthSystem) string {
 		return "NVSwitch fatal watches"
 	case DCGM_HEALTH_WATCH_CONNECTX:
 		return "ConnectX watches"
+	case DCGM_HEALTH_WATCH_IMEX:
+		return "IMEX watches"
 	}
 	return "N/A"
 }

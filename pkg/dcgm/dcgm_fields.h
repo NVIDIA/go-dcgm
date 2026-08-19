@@ -525,6 +525,7 @@ typedef unsigned int dcgm_field_eid_t;
 
 /**
  * Total BAR1 of the GPU in MB
+ * Deprecated: Use DCGM_FI_DEV_BAR1_CAPACITY_BYTES instead.
  */
 #define DCGM_FI_DEV_BAR1_TOTAL 90
 
@@ -535,11 +536,13 @@ typedef unsigned int dcgm_field_eid_t;
 
 /**
  * Used BAR1 of the GPU in MB
+ * Deprecated: Use DCGM_FI_DEV_BAR1_USED_BYTES instead.
  */
 #define DCGM_FI_DEV_BAR1_USED 92
 
 /**
  * Free BAR1 of the GPU in MB
+ * Deprecated: Use DCGM_FI_DEV_BAR1_FREE_BYTES instead.
  */
 #define DCGM_FI_DEV_BAR1_FREE 93
 
@@ -550,26 +553,31 @@ typedef unsigned int dcgm_field_eid_t;
 
 /**
  * SM clock for the device
+ * Deprecated: Use DCGM_FI_DEV_SM_CLOCK_HERTZ instead.
  */
 #define DCGM_FI_DEV_SM_CLOCK 100
 
 /**
  * Memory clock for the device
+ * Deprecated: Use DCGM_FI_DEV_MEMORY_CLOCK_HERTZ instead.
  */
 #define DCGM_FI_DEV_MEM_CLOCK 101
 
 /**
  * Video encoder/decoder clock for the device
+ * Deprecated: Use DCGM_FI_DEV_VIDEO_CLOCK_HERTZ instead.
  */
 #define DCGM_FI_DEV_VIDEO_CLOCK 102
 
 /**
  * SM Application clocks
+ * Deprecated: Use DCGM_FI_DEV_SM_APP_CLOCK_HERTZ instead.
  */
 #define DCGM_FI_DEV_APP_SM_CLOCK 110
 
 /**
  * Memory Application clocks
+ * Deprecated: Use DCGM_FI_DEV_MEMORY_APP_CLOCK_HERTZ instead.
  */
 #define DCGM_FI_DEV_APP_MEM_CLOCK 111
 
@@ -585,16 +593,19 @@ typedef unsigned int dcgm_field_eid_t;
 
 /**
  * Maximum supported SM clock for the device
+ * Deprecated: Use DCGM_FI_DEV_SM_MAX_CLOCK_HERTZ instead.
  */
 #define DCGM_FI_DEV_MAX_SM_CLOCK 113
 
 /**
  * Maximum supported Memory clock for the device
+ * Deprecated: Use DCGM_FI_DEV_MEMORY_MAX_CLOCK_HERTZ instead.
  */
 #define DCGM_FI_DEV_MAX_MEM_CLOCK 114
 
 /**
  * Maximum supported Video encoder/decoder clock for the device
+ * Deprecated: Use DCGM_FI_DEV_VIDEO_MAX_CLOCK_HERTZ instead.
  */
 #define DCGM_FI_DEV_MAX_VIDEO_CLOCK 115
 
@@ -640,6 +651,7 @@ typedef unsigned int dcgm_field_eid_t;
 
 /**
  * Total energy consumption for the GPU in mJ since the driver was last reloaded
+ * Deprecated: Use DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL instead.
  */
 #define DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION 156
 
@@ -746,7 +758,8 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_GPU_PSTATE 190
 
 /**
- * Fan speed for the device in percent 0-100
+ * Fan speed for the device in percent 0-100 (may exceed 100)
+ * Deprecated: Use DCGM_FI_DEV_FAN_SPEED_RATIO instead.
  */
 #define DCGM_FI_DEV_FAN_SPEED 191
 
@@ -2840,27 +2853,27 @@ typedef unsigned int dcgm_field_eid_t;
 /**
  * CPU Utilization, total
  */
-#define DCGM_FI_DEV_CPU_UTIL_TOTAL 1100
+#define DCGM_FI_DEV_CPU_UTIL_RATIO 1100
 
 /**
  * CPU Utilization, user
  */
-#define DCGM_FI_DEV_CPU_UTIL_USER 1101
+#define DCGM_FI_DEV_CPU_UTIL_USER_RATIO 1101
 
 /**
  * CPU Utilization, nice
  */
-#define DCGM_FI_DEV_CPU_UTIL_NICE 1102
+#define DCGM_FI_DEV_CPU_UTIL_NICE_RATIO 1102
 
 /**
  * CPU Utilization, system time
  */
-#define DCGM_FI_DEV_CPU_UTIL_SYS 1103
+#define DCGM_FI_DEV_CPU_UTIL_SYS_RATIO 1103
 
 /**
  * CPU Utilization, interrupt servicing
  */
-#define DCGM_FI_DEV_CPU_UTIL_IRQ 1104
+#define DCGM_FI_DEV_CPU_UTIL_IRQ_RATIO 1104
 
 /**
  * CPU temperature
@@ -2883,7 +2896,7 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_CPU_CLOCK_CURRENT 1120
 
 /**
- * CPU power utilization
+ * CPU current power usage
  */
 #define DCGM_FI_DEV_CPU_POWER_WATTS 1130
 
@@ -2893,14 +2906,14 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_CPU_POWER_LIMIT_WATTS 1131
 
 /**
- * SoC power utilization
+ * SoC current power usage
  */
-#define DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT 1132
+#define DCGM_FI_DEV_SYSIO_POWER_WATTS 1132
 
 /**
- * Module power utilization
+ * Module current power usage
  */
-#define DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT 1133
+#define DCGM_FI_DEV_MODULE_POWER_WATTS 1133
 
 /**
  * CPU vendor name
@@ -2976,7 +2989,7 @@ typedef unsigned int dcgm_field_eid_t;
  * Total number of tx error packets that were discarded
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
-#define DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS 1210
+#define DCGM_FI_DEV_NVLINK_TX_DISCARD_TOTAL 1210
 
 /**
  * Number of times link went from Up to recovery, succeeded and link came back up
@@ -3070,12 +3083,12 @@ typedef unsigned int dcgm_field_eid_t;
 /**
  * Correctable error status
  */
-#define DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS 1305
+#define DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_STATUS 1305
 
 /**
  * Correctable error mask
  */
-#define DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK 1306
+#define DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_MASK 1306
 
 /**
  * Uncorrectable error status
@@ -3095,7 +3108,7 @@ typedef unsigned int dcgm_field_eid_t;
 /**
  * Device temperature
  */
-#define DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE 1310
+#define DCGM_FI_DEV_CONNECTX_TEMP_CELSIUS 1310
 
 /**
  * The last field id of ConnectX
@@ -3106,25 +3119,25 @@ typedef unsigned int dcgm_field_eid_t;
  * C2C Link CRC Error Counter
  */
 
-#define DCGM_FI_DEV_C2C_LINK_ERROR_INTR 1400
+#define DCGM_FI_DEV_C2C_LINK_ERROR_TOTAL 1400
 
 /**
  * C2C Link Replay Error Counter
  */
 
-#define DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY 1401
+#define DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_TOTAL 1401
 
 /**
  * C2C Link Back to Back Replay Error Counter
  */
 
-#define DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B 1402
+#define DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_B2B_TOTAL 1402
 
 /**
  * C2C Link Power state. See NVML_C2C_POWER_STATE_*
  */
 
-#define DCGM_FI_DEV_C2C_LINK_POWER_STATE 1403
+#define DCGM_FI_DEV_C2C_LINK_POWER_STATUS 1403
 
 /**
  * Count of symbol errors that are corrected in each bin.
@@ -3135,111 +3148,111 @@ typedef unsigned int dcgm_field_eid_t;
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0 1404
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_0_TOTAL 1404
 
 /**
  * Count of symbol errors that are corrected - bin 1
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1 1405
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_1_TOTAL 1405
 
 /**
  * Count of symbol errors that are corrected - bin 2
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2 1406
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_2_TOTAL 1406
 
 /**
  * Count of symbol errors that are corrected - bin 3
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3 1407
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_3_TOTAL 1407
 
 /**
  * Count of symbol errors that are corrected - bin 4
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4 1408
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_4_TOTAL 1408
 
 /**
  * Count of symbol errors that are corrected - bin 5
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5 1409
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_5_TOTAL 1409
 
 /**
  * Count of symbol errors that are corrected - bin 6
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6 1410
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_6_TOTAL 1410
 
 /**
  * Count of symbol errors that are corrected - bin 7
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7 1411
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_7_TOTAL 1411
 
 /**
  * Count of symbol errors that are corrected - bin 8
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8 1412
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_8_TOTAL 1412
 
 /**
  * Count of symbol errors that are corrected - bin 9
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9 1413
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_9_TOTAL 1413
 
 /**
  * Count of symbol errors that are corrected - bin 10
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10 1414
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_10_TOTAL 1414
 
 /**
  * Count of symbol errors that are corrected - bin 11
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11 1415
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_11_TOTAL 1415
 
 /**
  * Count of symbol errors that are corrected - bin 12
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12 1416
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_12_TOTAL 1416
 /**
  * Count of symbol errors that are corrected - bin 13
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13 1417
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_13_TOTAL 1417
 
 /**
  * Count of symbol errors that are corrected - bin 14
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14 1418
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_14_TOTAL 1418
 
 /**
  * Count of symbol errors that are corrected - bin 15
  * Note: NVLink5+ only. Returns aggregate value across all links. Not supported on NVLink4 and earlier.
  */
 
-#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15 1419
+#define DCGM_FI_DEV_NVLINK_FEC_HISTORY_15_TOTAL 1419
 
 /**
  * Count, in nanoseconds, of slowdown or shutdown in sampling
@@ -3314,7 +3327,7 @@ typedef unsigned int dcgm_field_eid_t;
  * @note DCGM_FI_DEV_PWR_SMOOTHING_* fields requires that power smoothing in-band access privileges have been set to
  * either level 1 or level 2 (e.g. via Redfish API)
  */
-#define DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL 1428
+#define DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL_WATTS 1428
 
 /**
  * Applied TMP floor value in Watts
@@ -3322,7 +3335,7 @@ typedef unsigned int dcgm_field_eid_t;
  * @note DCGM_FI_DEV_PWR_SMOOTHING_* fields requires that power smoothing in-band access privileges have been set to
  * either level 1 or level 2 (e.g. via Redfish API)
  */
-#define DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR 1429
+#define DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR_WATTS 1429
 
 /**
  * Max % TMP Floor value
@@ -3354,7 +3367,7 @@ typedef unsigned int dcgm_field_eid_t;
  * @note DCGM_FI_DEV_PWR_SMOOTHING_* fields requires that power smoothing in-band access privileges have been set to
  * either level 1 or level 2 (e.g. via Redfish API)
  */
-#define DCGM_FI_DEV_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES 1433
+#define DCGM_FI_DEV_PWR_SMOOTHING_MAX_PRESET_PROFILES 1433
 
 /**
  * % TMP floor for a given profile
@@ -3466,7 +3479,7 @@ typedef unsigned int dcgm_field_eid_t;
  * This field expects a dcgm_link_t entity to specify the GPU and link index.
  * Use DCGM_FE_LINK entity group when accessing this field.
  */
-#define DCGM_FI_DEV_NVLINK_GET_STATE 1508
+#define DCGM_FI_DEV_NVLINK_LINK_STATUS 1508
 
 /**
  * InfiniBand Port Counter: Port Transmit Wait
@@ -3474,7 +3487,7 @@ typedef unsigned int dcgm_field_eid_t;
  * This field expects a dcgm_link_t entity to specify the GPU and link index.
  * Use DCGM_FE_LINK entity group when accessing this field.
  */
-#define DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT 1509
+#define DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL 1509
 
 /* Values from 1510-1522 reserved for future use */
 
@@ -3515,10 +3528,86 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK 1533
 
 /**
+ * Base unit field IDs (1600-1799).
+ *
+ * Fields in this range replace legacy fields defined above that do not conform
+ * to the DCGM field naming and measurement standard (see dcgm_field_naming.py).
+ * Specifically, each entry replaces a legacy field that uses a non-base unit.
+ * Those legacy fields are retained for backward compatibility.
+ *
+ * Fields in this range are in the same order as their legacy counterparts.
+ */
+
+/**
+ * Total BAR1 capacity of the GPU in bytes
+ */
+#define DCGM_FI_DEV_BAR1_CAPACITY_BYTES 1600
+
+/**
+ * Used BAR1 of the GPU in bytes
+ */
+#define DCGM_FI_DEV_BAR1_USED_BYTES 1601
+
+/**
+ * Free BAR1 of the GPU in bytes
+ */
+#define DCGM_FI_DEV_BAR1_FREE_BYTES 1602
+
+/**
+ * SM clock for the device in hertz
+ */
+#define DCGM_FI_DEV_SM_CLOCK_HERTZ 1603
+
+/**
+ * Memory clock for the device in hertz
+ */
+#define DCGM_FI_DEV_MEMORY_CLOCK_HERTZ 1604
+
+/**
+ * Video encoder/decoder clock for the device in hertz
+ */
+#define DCGM_FI_DEV_VIDEO_CLOCK_HERTZ 1605
+
+/**
+ * SM application clock target for the device in hertz
+ */
+#define DCGM_FI_DEV_SM_APP_CLOCK_HERTZ 1606
+
+/**
+ * Memory application clock target for the device in hertz
+ */
+#define DCGM_FI_DEV_MEMORY_APP_CLOCK_HERTZ 1607
+
+/**
+ * Maximum supported SM clock for the device in hertz
+ */
+#define DCGM_FI_DEV_SM_MAX_CLOCK_HERTZ 1608
+
+/**
+ * Maximum supported memory clock for the device in hertz
+ */
+#define DCGM_FI_DEV_MEMORY_MAX_CLOCK_HERTZ 1609
+
+/**
+ * Maximum supported video encoder/decoder clock for the device in hertz
+ */
+#define DCGM_FI_DEV_VIDEO_MAX_CLOCK_HERTZ 1610
+
+/**
+ * Total GPU energy consumption in joules since the driver was last reloaded
+ */
+#define DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL 1611
+
+/**
+ * Fan speed for the device as a ratio of maximum noise-tolerance fan speed (0.0-1.0+)
+ */
+#define DCGM_FI_DEV_FAN_SPEED_RATIO 1612
+
+/**
  * 1 greater than maximum fields above. This is the 1 greater
  * than the maximum field id that could be allocated.
  */
-#define DCGM_FI_MAX_FIELDS (DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK + 1)
+#define DCGM_FI_MAX_FIELDS (DCGM_FI_DEV_FAN_SPEED_RATIO + 1)
 
 /** @} */
 
@@ -3534,7 +3623,7 @@ typedef unsigned int dcgm_field_eid_t;
 #endif
 
 /* If this symbol is non-zero the following deprecated symbols will be defined
-   for backward compatibility. Not defining it lets us test that Nvidia DCGM
+   for backward compatibility. Define DCGM_DEPRECATED=0 to test that NVIDIA DCGM
    code does not depend on deprecated symbols.
 */
 
@@ -3848,11 +3937,18 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_PROF_NVJPG7_ACTIVE                                   DCGM_FI_PROF_NVJPG_UTIL_7_RATIO                             // 1032
 #define DCGM_FI_PROF_NVOFA0_ACTIVE                                   DCGM_FI_PROF_NVOFA_UTIL_0_RATIO                             // 1033
 #define DCGM_FI_PROF_NVOFA1_ACTIVE                                   DCGM_FI_PROF_NVOFA_UTIL_1_RATIO                             // 1034
+#define DCGM_FI_DEV_CPU_UTIL_TOTAL                                   DCGM_FI_DEV_CPU_UTIL_RATIO                                  // 1100
+#define DCGM_FI_DEV_CPU_UTIL_USER                                    DCGM_FI_DEV_CPU_UTIL_USER_RATIO                             // 1101
+#define DCGM_FI_DEV_CPU_UTIL_NICE                                    DCGM_FI_DEV_CPU_UTIL_NICE_RATIO                             // 1102
+#define DCGM_FI_DEV_CPU_UTIL_SYS                                     DCGM_FI_DEV_CPU_UTIL_SYS_RATIO                              // 1103
+#define DCGM_FI_DEV_CPU_UTIL_IRQ                                     DCGM_FI_DEV_CPU_UTIL_IRQ_RATIO                              // 1104
 #define DCGM_FI_DEV_CPU_TEMP_CURRENT                                 DCGM_FI_DEV_CPU_TEMP_CELSIUS                                // 1110
 #define DCGM_FI_DEV_CPU_TEMP_WARNING                                 DCGM_FI_DEV_CPU_TEMP_WARNING_CELSIUS                        // 1111
 #define DCGM_FI_DEV_CPU_TEMP_CRITICAL                                DCGM_FI_DEV_CPU_TEMP_CRITICAL_CELSIUS                       // 1112
 #define DCGM_FI_DEV_CPU_POWER_UTIL_CURRENT                           DCGM_FI_DEV_CPU_POWER_WATTS                                 // 1130
 #define DCGM_FI_DEV_CPU_POWER_LIMIT                                  DCGM_FI_DEV_CPU_POWER_LIMIT_WATTS                           // 1131
+#define DCGM_FI_DEV_SYSIO_POWER_UTIL_CURRENT                         DCGM_FI_DEV_SYSIO_POWER_WATTS                               // 1132
+#define DCGM_FI_DEV_MODULE_POWER_UTIL_CURRENT                        DCGM_FI_DEV_MODULE_POWER_WATTS                              // 1133
 #define DCGM_FI_DEV_NVLINK_COUNT_TX_PACKETS                          DCGM_FI_DEV_NVLINK_TX_PACKET_TOTAL                          // 1200
 #define DCGM_FI_DEV_NVLINK_COUNT_TX_BYTES                            DCGM_FI_DEV_NVLINK_TX_BYTES_TOTAL                           // 1201
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_PACKETS                          DCGM_FI_DEV_NVLINK_RX_PACKET_TOTAL                          // 1202
@@ -3863,6 +3959,7 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_REMOTE_ERRORS                    DCGM_FI_DEV_NVLINK_RX_REMOTE_ERROR_TOTAL                    // 1207
 #define DCGM_FI_DEV_NVLINK_COUNT_RX_GENERAL_ERRORS                   DCGM_FI_DEV_NVLINK_RX_GENERAL_ERROR_TOTAL                   // 1208
 #define DCGM_FI_DEV_NVLINK_COUNT_LOCAL_LINK_INTEGRITY_ERRORS         DCGM_FI_DEV_NVLINK_INTEGRITY_ERROR_TOTAL                    // 1209
+#define DCGM_FI_DEV_NVLINK_COUNT_TX_DISCARDS                         DCGM_FI_DEV_NVLINK_TX_DISCARD_TOTAL                         // 1210
 #define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_SUCCESSFUL_EVENTS     DCGM_FI_DEV_NVLINK_RECOVERY_SUCCESSFUL_TOTAL                // 1211
 #define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_FAILED_EVENTS         DCGM_FI_DEV_NVLINK_RECOVERY_FAILED_TOTAL                    // 1212
 #define DCGM_FI_DEV_NVLINK_COUNT_LINK_RECOVERY_EVENTS                DCGM_FI_DEV_NVLINK_RECOVERY_EVENT_TOTAL                     // 1213
@@ -3873,11 +3970,39 @@ typedef unsigned int dcgm_field_eid_t;
 #define DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_BER_FLOAT                 DCGM_FI_DEV_NVLINK_EFFECTIVE_BER_RATIO                      // 1218
 #define DCGM_FI_DEV_NVLINK_COUNT_EFFECTIVE_ERRORS                    DCGM_FI_DEV_NVLINK_EFFECTIVE_ERROR_TOTAL                    // 1219
 #define DCGM_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_TOTAL                DCGM_FI_DEV_NVLINK_ECC_ERROR_TOTAL                          // 1220
+#define DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_STATUS                  DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_STATUS               // 1305
+#define DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERR_MASK                    DCGM_FI_DEV_CONNECTX_CORRECTABLE_ERROR_MASK                 // 1306
 #define DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_STATUS                DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_STATUS             // 1307
 #define DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_MASK                  DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_MASK               // 1308
 #define DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERR_SEVERITY              DCGM_FI_DEV_CONNECTX_UNCORRECTABLE_ERROR_SEVERITY           // 1309
+#define DCGM_FI_DEV_CONNECTX_DEVICE_TEMPERATURE                      DCGM_FI_DEV_CONNECTX_TEMP_CELSIUS                           // 1310
+#define DCGM_FI_DEV_C2C_LINK_ERROR_INTR                              DCGM_FI_DEV_C2C_LINK_ERROR_TOTAL                            // 1400
+#define DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY                            DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_TOTAL                     // 1401
+#define DCGM_FI_DEV_C2C_LINK_ERROR_REPLAY_B2B                        DCGM_FI_DEV_C2C_LINK_REPLAY_ERROR_B2B_TOTAL                 // 1402
+#define DCGM_FI_DEV_C2C_LINK_POWER_STATE                             DCGM_FI_DEV_C2C_LINK_POWER_STATUS                           // 1403
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_0                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_0_TOTAL                      // 1404
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_1                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_1_TOTAL                      // 1405
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_2                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_2_TOTAL                      // 1406
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_3                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_3_TOTAL                      // 1407
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_4                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_4_TOTAL                      // 1408
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_5                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_5_TOTAL                      // 1409
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_6                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_6_TOTAL                      // 1410
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_7                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_7_TOTAL                      // 1411
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_8                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_8_TOTAL                      // 1412
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_9                       DCGM_FI_DEV_NVLINK_FEC_HISTORY_9_TOTAL                      // 1413
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_10                      DCGM_FI_DEV_NVLINK_FEC_HISTORY_10_TOTAL                     // 1414
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_11                      DCGM_FI_DEV_NVLINK_FEC_HISTORY_11_TOTAL                     // 1415
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_12                      DCGM_FI_DEV_NVLINK_FEC_HISTORY_12_TOTAL                     // 1416
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_13                      DCGM_FI_DEV_NVLINK_FEC_HISTORY_13_TOTAL                     // 1417
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_14                      DCGM_FI_DEV_NVLINK_FEC_HISTORY_14_TOTAL                     // 1418
+#define DCGM_FI_DEV_NVLINK_COUNT_FEC_HISTORY_15                      DCGM_FI_DEV_NVLINK_FEC_HISTORY_15_TOTAL                     // 1419
+#define DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL                   DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_CEIL_WATTS            // 1428
+#define DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR                  DCGM_FI_DEV_PWR_SMOOTHING_APPLIED_TMP_FLOOR_WATTS           // 1429
+#define DCGM_FI_DEV_PWR_SMOOTHING_MAX_NUM_PRESET_PROFILES            DCGM_FI_DEV_PWR_SMOOTHING_MAX_PRESET_PROFILES               // 1433
 #define DCGM_FI_DEV_PCIE_COUNT_CORRECTABLE_ERRORS                    DCGM_FI_DEV_PCIE_CORRECTABLE_ERROR_TOTAL                    // 1501
 #define DCGM_FI_DEV_MEMORY_UNREPAIRABLE_FLAG                         DCGM_FI_DEV_MEMORY_UNREPAIRABLE                             // 1507
+#define DCGM_FI_DEV_NVLINK_GET_STATE                                 DCGM_FI_DEV_NVLINK_LINK_STATUS                              // 1508
+#define DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT                 DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL                 // 1509
 #define DCGM_FI_DEV_GET_GPU_RECOVERY_ACTION                          DCGM_FI_DEV_GPU_RECOVERY_ACTION                             // 1523
 // clang-format on
 

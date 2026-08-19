@@ -11,10 +11,10 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
   # Build arguments for the Dockerfile
-  CUDA_VERSION: "12.5.1"
+  CUDA_VERSION: "13.3.1"
   DISTRO_FLAVOR: "ubuntu24.04"
-  GO_VERSION: "1.24.4"
-  DCGM_VERSION: "4.5.0-1"
+  GO_VERSION: "1.26.7"
+  DCGM_VERSION: "4.6.1-1"
   # Image names
   BUILD_IMAGE: "$CI_REGISTRY_IMAGE/build:$CI_COMMIT_SHA"
   TEST_IMAGE: "$CI_REGISTRY_IMAGE/test:$CI_COMMIT_SHA"

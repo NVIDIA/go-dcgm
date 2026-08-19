@@ -1,20 +1,20 @@
 ---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-added-large-files
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.37.1
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: [--strict, -c=.yamllint.yaml]
         entry: yamllint
         files: \.ya?ml$
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.45.0
+    rev: v0.49.1
     hooks:
       - id: markdownlint
         name: markdownlint
@@ -24,7 +24,7 @@ repos:
         types: [markdown]
         minimum_pre_commit_version: 0.15.0
   - repo: https://github.com/hadolint/hadolint
-    rev: v2.13.1-beta
+    rev: v2.15.1
     hooks:
       - id: hadolint
         name: Lint Dockerfiles
@@ -32,7 +32,7 @@ repos:
         description: Runs hadolint to lint Dockerfiles
         language: docker_image
         types: ["dockerfile"]
-        entry: hadolint/hadolint:v2.12.0-alpine
+        entry: hadolint/hadolint:v2.15.1-alpine
   - repo: local
     hooks:
       - id: goimports-nvidia
@@ -49,7 +49,7 @@ repos:
         language: 'script'
         description: "Runs `go mod tidy -v`, requires golang"
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.1.6
+    rev: v2.12.2
     hooks:
       - id: golangci-lint-config-verify
         name: golangci-lint-config-verify

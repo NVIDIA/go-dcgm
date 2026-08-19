@@ -1,0 +1,71 @@
+{
+  "strictness": 2,
+  "commentTypes": ["logic", "syntax", "style", "info"],
+  "disabledLabels": ["no_ai_review", "renovate"],
+  "ignorePatterns": "vendor/**\n**/generated/**\n**/dist/**\n**/node_modules/**\ncoverage.xml\ntest_results.json\ntests.cov\ntest-reports/**",
+  "triggerOnUpdates": true,
+  "triggerOnDrafts": true,
+  "statusCommentsEnabled": true,
+  "updateExistingSummaryComment": true,
+  "fixWithAI": true,
+  "summarySection": {
+    "included": true,
+    "collapsible": true,
+    "defaultOpen": true
+  },
+  "issuesTableSection": {
+    "included": true,
+    "collapsible": true,
+    "defaultOpen": true
+  },
+  "confidenceScoreSection": {
+    "included": true,
+    "collapsible": false,
+    "defaultOpen": true
+  },
+  "sequenceDiagramSection": {
+    "included": true,
+    "collapsible": true,
+    "defaultOpen": false
+  },
+  "instructions": "Review go-dcgm as production Go/cgo bindings for NVIDIA DCGM plus sample applications. Prioritize API compatibility, cgo resource safety, field ID correctness, GPU/DCGM integration behavior, and CI/container hygiene over style-only feedback.",
+  "rules": [
+    {
+      "id": "public-api-compatibility",
+      "rule": "Exported functions, types, constants, field IDs, error codes, and legacy lowercase field names are compatibility-sensitive. Flag removals, renames, signature changes, semantic changes, or changed defaults unless the MR updates tests and clearly documents the compatibility impact.",
+      "scope": ["pkg/dcgm/**", "README.md", "CONTRIBUTING.md", "tests/**"],
+      "severity": "high"
+    },
+    {
+      "id": "cgo-resource-safety",
+      "rule": "DCGM handle, field group, GPU group, callback, C allocation, unsafe pointer, and goroutine changes must clean up on every success and error path. Flag leaks, double frees, unsafe Go pointer passing, blocked callbacks, and global Init/Shutdown reference-count regressions.",
+      "scope": ["pkg/dcgm/**"],
+      "severity": "high"
+    },
+    {
+      "id": "field-generator-contract",
+      "rule": "DCGM field generation must remain deterministic. Flag parser changes that can drop fields, duplicate legacy names, silently change aliases, or update pkg/dcgm/const_fields.go without matching generator/header/legacy CSV changes and tests.",
+      "scope": ["cmd/gen-fields/**", "pkg/dcgm/dcgm_fields.h", "pkg/dcgm/legacy_fields.csv", "pkg/dcgm/const_fields.go"],
+      "severity": "high"
+    },
+    {
+      "id": "sample-and-rest-safety",
+      "rule": "Sample app changes should stay simple, runnable, and explicit about cleanup. Treat REST handler, HTTP listener, input parsing, and DCGM operation changes as security-sensitive demo code; flag missing validation, weak error handling, or stale sample documentation.",
+      "scope": ["samples/**", "tests/restapi_test.go"],
+      "severity": "medium"
+    },
+    {
+      "id": "ci-container-secret-hygiene",
+      "rule": "CI, Docker, build, and script changes must not expose tokens, registry credentials, or unsigned/unpinned image inputs. Verify artifact paths, generated-code checks, lint jobs, and Docker build arguments still match their producers and consumers.",
+      "scope": [".gitlab-ci.yml", ".github/workflows/**", "Dockerfile", "docker-bake.hcl", "Makefile", "scripts/**"],
+      "severity": "high"
+    },
+    {
+      "id": "tests-for-behavior",
+      "rule": "Behavior changes in production Go code should include focused unit or integration tests. Flag untested parser, DCGM API, cgo lifecycle, callback, policy, diagnostic, topology, REST sample, and CI behavior unless the MR explains the hardware/DCGM constraint.",
+      "scope": ["cmd/**", "pkg/**", "samples/**", "tests/**"],
+      "severity": "medium"
+    }
+  ],
+  "disabledRules": []
+}

@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -8,9 +9,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func skipIfDiagnosticsDisabled(t *testing.T) {
+	t.Helper()
+	if os.Getenv("DCGM_SKIP_DIAGNOSTICS") == "1" {
+		t.Skip("diagnostics disabled by DCGM_SKIP_DIAGNOSTICS")
+	}
+}
+
 // TestDiagnostics demonstrates running DCGM diagnostics
 // This is equivalent to the diag sample
 func TestDiagnostics(t *testing.T) {
+	skipIfDiagnosticsDisabled(t)
+
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	if err != nil {
 		t.Fatalf("Failed to initialize DCGM: %v", err)
@@ -52,6 +62,8 @@ func TestDiagnostics(t *testing.T) {
 
 // TestDiagnosticsLong demonstrates running longer diagnostics
 func TestDiagnosticsLong(t *testing.T) {
+	skipIfDiagnosticsDisabled(t)
+
 	if testing.Short() {
 		t.Skip("Skipping long diagnostics test in short mode")
 	}
@@ -105,6 +117,8 @@ func TestDiagnosticsLong(t *testing.T) {
 // TestDiagTestNameFormat validates that TestName field contains category names,
 // not detailed test descriptions (issue #97)
 func TestDiagTestNameFormat(t *testing.T) {
+	skipIfDiagnosticsDisabled(t)
+
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	if err != nil {
 		t.Fatalf("Failed to initialize DCGM: %v", err)

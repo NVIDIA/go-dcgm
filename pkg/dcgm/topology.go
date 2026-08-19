@@ -137,15 +137,34 @@ func nvLinkCountFromPath(path uint64) (uint, bool) {
 	return count, true
 }
 
-func getBusID(gpuID uint) (string, error) {
-	var device C.dcgmDeviceAttributes_v3
-	device.version = makeVersion3(unsafe.Sizeof(device))
-
-	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), &device)
-	if err := errorString(result); err != nil {
-		return "", fmt.Errorf("error getting device busid: %s", err)
+func peerEntities(links []P2PLink) []GroupEntityPair {
+	entities := make([]GroupEntityPair, len(links))
+	for i := range links {
+		entities[i] = GroupEntityPair{EntityGroupId: FE_GPU, EntityId: links[i].GPU}
 	}
-	return *stringPtr(&device.identifiers.pciBusId[0]), nil
+	return entities
+}
+
+func populatePeerBusIDs(links []P2PLink, values []FieldValue_v2) error {
+	busIDs := make(map[uint]string, len(values))
+	for _, value := range values {
+		if value.EntityGroupId != FE_GPU || value.FieldID != DCGM_FI_DEV_PCI_BUS_ID {
+			continue
+		}
+		if value.Status != DCGM_ST_OK {
+			return fmt.Errorf("get bus ID for peer GPU %d: field status %d", value.EntityID, value.Status)
+		}
+		busIDs[value.EntityID] = value.String()
+	}
+
+	for i := range links {
+		busID, ok := busIDs[links[i].GPU]
+		if !ok {
+			return fmt.Errorf("get bus ID for peer GPU %d: not returned by DCGM", links[i].GPU)
+		}
+		links[i].BusID = busID
+	}
+	return nil
 }
 
 func getDeviceTopology(gpuID uint) (links []P2PLink, err error) {
@@ -160,15 +179,25 @@ func getDeviceTopology(gpuID uint) (links []P2PLink, err error) {
 		return links, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
-	busid, err := getBusID(gpuID)
-	if err != nil {
-		return
-	}
 	links = make([]P2PLink, topology.numGpus)
 	for i := uint(0); i < uint(topology.numGpus); i++ {
 		links[i].GPU = uint(topology.gpuPaths[i].gpuId)
-		links[i].BusID = busid
 		links[i].Link = getP2PLink(uint64(topology.gpuPaths[i].path))
+	}
+	if len(links) == 0 {
+		return
+	}
+
+	values, err := EntitiesGetLatestValues(
+		peerEntities(links),
+		[]Short{DCGM_FI_DEV_PCI_BUS_ID},
+		DCGM_FV_FLAG_LIVE_DATA,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get peer GPU bus IDs: %w", err)
+	}
+	if err := populatePeerBusIDs(links, values); err != nil {
+		return nil, err
 	}
 	return
 }

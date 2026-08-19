@@ -251,6 +251,10 @@ const (
 	DCGM_HEALTH_WATCH_NVSWITCH_FATAL HealthSystem = 0x800
 	// DCGM_HEALTH_WATCH_CONNECTX ConnectX device health
 	DCGM_HEALTH_WATCH_CONNECTX HealthSystem = 0x1000
+	// DCGM_HEALTH_WATCH_IMEX independently monitors IMEX daemon and domain health.
+	// Older DCGM releases monitor IMEX as part of DCGM_HEALTH_WATCH_NVLINK.
+	// Standalone support requires a DCGM release containing this independent watch.
+	DCGM_HEALTH_WATCH_IMEX HealthSystem = 0x2000
 	// DCGM_HEALTH_WATCH_ALL All health checks
 	DCGM_HEALTH_WATCH_ALL HealthSystem = 0xFFFFFFFF
 )
@@ -541,8 +545,10 @@ const (
 	DCGM_FR_CONTAINED_ERROR HealthCheckErrorCode = 131
 	// DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT Uncorrectable row remap threshold exceeded
 	DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT HealthCheckErrorCode = 132
+	// DCGM_FR_CPU_SDC_TEST_FAILED SDC test failed
+	DCGM_FR_CPU_SDC_TEST_FAILED HealthCheckErrorCode = 133
 	// DCGM_FR_ERROR_SENTINEL MUST BE THE LAST ERROR CODE
-	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 133
+	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 134
 )
 
 // BindUnbindEventState represents the state of GPU bind/unbind events

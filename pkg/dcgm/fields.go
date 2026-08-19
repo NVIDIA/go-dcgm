@@ -10,7 +10,9 @@ import "C"
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 	"unicode"
 	"unsafe"
@@ -25,16 +27,6 @@ const (
 
 	// defaultMaxKeepSamples specifies the default number of samples to keep
 	defaultMaxKeepSamples = 1
-
-	// fieldValuesSliceSize is the initial capacity for pooled field value slices.
-	// This is kept small to avoid wasting memory when only a few fields are needed.
-	// Note: Each C.dcgmFieldValue_v1 struct is ~4KB (due to 4096-byte value array),
-	// so even small allocations are significant:
-	//   - 2 fields = ~8 KB
-	//   - 32 fields = ~128 KB
-	//   - 128 fields (max) = ~512 KB
-	// This is a fundamental limitation of DCGM's C API which requires pre-allocated arrays.
-	fieldValuesSliceSize = 32
 
 	// poolCapacityThreshold defines the threshold above which we don't use the pool.
 	// For very large requests, it's better to allocate directly rather than grow pool slices.
@@ -72,7 +64,7 @@ func (f *FieldHandle) GetHandle() uintptr {
 
 // FieldGroupCreate creates a new field group with the specified fields.
 // fieldsGroupName is the name for the new group.
-// fields is a slice of field IDs to include in the group.
+// fields is a non-empty slice of field IDs to include in the group.
 // Returns the field group handle and any error encountered.
 //
 // Important: Field groups must be destroyed using FieldGroupDestroy when no longer
@@ -88,6 +80,10 @@ func (f *FieldHandle) GetHandle() uintptr {
 //
 //	// Use the field group...
 func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHandle, err error) {
+	if len(fields) == 0 {
+		return fieldsId, errors.New("at least one field must be provided")
+	}
+
 	var fieldsGroup C.dcgmFieldGrp_t
 	cfields := make([]C.ushort, len(fields))
 	for i, f := range fields {
@@ -198,132 +194,95 @@ func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
 	return nil
 }
 
-var fieldValuePool = sync.Pool{
-	New: func() any {
-		slice := make([]C.dcgmFieldValue_v1, 0, fieldValuesSliceSize)
-		return &slice
-	},
+var (
+	fieldValuePool   sync.Pool
+	fieldValueV2Pool sync.Pool
+)
+
+func reusableSliceCapacity(size, capacity int) bool {
+	return size <= poolCapacityThreshold && capacity <= poolCapacityThreshold &&
+		capacity >= size && capacity <= size*4
 }
 
-var fieldValueV2Pool = sync.Pool{
-	New: func() any {
-		slice := make([]C.dcgmFieldValue_v2, 0, fieldValuesSliceSize)
-		return &slice
-	},
+type pooledSlice[T any] struct {
+	values []T
+	holder *[]T
 }
 
-func acquireSlice[T any](pool *sync.Pool, size int) []T {
-	if v := pool.Get(); v != nil {
-		if slice, ok := v.(*[]T); ok && cap(*slice) >= size {
-			s := *slice
-			return s[:size]
-		}
-		// Return mismatched type back to pool to avoid polluting it
-		pool.Put(v)
-	}
-	return make([]T, size)
-}
-
-func releaseSlice[T any](pool *sync.Pool, slice []T) {
-	// Clear the slice to release references to elements
-	clear(slice)
-	slice = slice[:0]
-	pool.Put(&slice)
-}
-
-func acquireFieldValueSlice(size int) []C.dcgmFieldValue_v1 {
-	// For very large requests, don't use the pool to avoid keeping huge slices around.
-	// Note: Each dcgmFieldValue_v1 is ~4KB, so 256 elements = ~1MB.
-	// Beyond this threshold, we allocate directly and let GC handle cleanup.
+func acquirePooledSlice[T any](pool *sync.Pool, size int) pooledSlice[T] {
 	if size > poolCapacityThreshold {
-		return make([]C.dcgmFieldValue_v1, size)
+		return pooledSlice[T]{values: make([]T, size)}
 	}
-
-	if v := fieldValuePool.Get(); v != nil {
-		if slice, ok := v.(*[]C.dcgmFieldValue_v1); ok {
-			s := *slice
-			// If the pooled slice is much larger than needed, don't use it
-			// to avoid keeping oversized slices in memory.
-			// We allow up to 4x the requested size to avoid excessive allocation churn,
-			// but beyond that we prefer a fresh allocation to avoid memory bloat.
-			if cap(s) >= size && cap(s) <= size*4 {
-				return s[:size]
-			}
-			// Return oversized slice back to pool for potential later reuse
-			fieldValuePool.Put(v)
-		} else {
-			fieldValuePool.Put(v)
+	if value := pool.Get(); value != nil {
+		if holder, ok := value.(*[]T); ok && reusableSliceCapacity(size, cap(*holder)) {
+			return pooledSlice[T]{values: (*holder)[:size], holder: holder}
 		}
+		// Keep rejected entries available for a later compatible request.
+		pool.Put(value)
 	}
-	return make([]C.dcgmFieldValue_v1, size)
+	values := make([]T, size)
+	return pooledSlice[T]{values: values, holder: &values}
 }
 
-func releaseFieldValueSlice(slice []C.dcgmFieldValue_v1) {
-	// Don't return very large slices to the pool
-	if cap(slice) > poolCapacityThreshold {
+func releasePooledSlice[T any](pool *sync.Pool, pooled pooledSlice[T]) {
+	if pooled.holder == nil {
 		return
 	}
-	clear(slice)
-	slice = slice[:0]
-	fieldValuePool.Put(&slice)
+	clear(pooled.values)
+	*pooled.holder = pooled.values[:0]
+	pool.Put(pooled.holder)
 }
 
-func acquireFieldValueV2Slice(size int) []C.dcgmFieldValue_v2 {
-	// For very large requests, don't use the pool to avoid keeping huge slices around.
-	// Note: Each dcgmFieldValue_v2 is also ~4KB+ due to the value array.
-	// Beyond poolCapacityThreshold, we allocate directly and let GC handle cleanup.
-	if size > poolCapacityThreshold {
-		return make([]C.dcgmFieldValue_v2, size)
-	}
-
-	if v := fieldValueV2Pool.Get(); v != nil {
-		if slice, ok := v.(*[]C.dcgmFieldValue_v2); ok {
-			s := *slice
-			// If the pooled slice is much larger than needed, don't use it
-			// to avoid keeping oversized slices in memory.
-			// We allow up to 4x the requested size to balance memory usage vs allocation overhead.
-			if cap(s) >= size && cap(s) <= size*4 {
-				return s[:size]
-			}
-			// Return oversized slice back to pool for potential later reuse
-			fieldValueV2Pool.Put(v)
-		} else {
-			fieldValueV2Pool.Put(v)
-		}
-	}
-	return make([]C.dcgmFieldValue_v2, size)
+func acquireFieldValueSlice(size int) pooledSlice[C.dcgmFieldValue_v1] {
+	return acquirePooledSlice[C.dcgmFieldValue_v1](&fieldValuePool, size)
 }
 
-func releaseFieldValueV2Slice(slice []C.dcgmFieldValue_v2) {
-	// Don't return very large slices to the pool
-	if cap(slice) > poolCapacityThreshold {
-		return
+func releaseFieldValueSlice(pooled pooledSlice[C.dcgmFieldValue_v1]) {
+	releasePooledSlice(&fieldValuePool, pooled)
+}
+
+func acquireFieldValueV2Slice(size int) pooledSlice[C.dcgmFieldValue_v2] {
+	return acquirePooledSlice[C.dcgmFieldValue_v2](&fieldValueV2Pool, size)
+}
+
+func releaseFieldValueV2Slice(pooled pooledSlice[C.dcgmFieldValue_v2]) {
+	releasePooledSlice(&fieldValueV2Pool, pooled)
+}
+
+func fieldIDPointer(fields []Short) *C.ushort {
+	return (*C.ushort)(unsafe.Pointer(&fields[0]))
+}
+
+func newBadParameterError() *Error {
+	return &Error{
+		msg:  "Bad parameter passed to function",
+		Code: C.DCGM_ST_BADPARAM,
 	}
-	clear(slice)
-	slice = slice[:0]
-	fieldValueV2Pool.Put(&slice)
 }
 
 // GetLatestValuesForFields retrieves the most recent values for the specified fields.
 // gpu is the ID of the GPU to query.
 // fields is a slice of field IDs to retrieve.
+// An empty fields slice is rejected before querying DCGM.
 // Returns a slice of field values and any error encountered.
 func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error) {
+	if len(fields) == 0 {
+		return nil, newBadParameterError()
+	}
+
 	values := acquireFieldValueSlice(len(fields))
 	defer releaseFieldValueSlice(values)
 
-	cfields := make([]C.ushort, len(fields))
-	for i, f := range fields {
-		cfields[i] = C.ushort(f)
-	}
-
-	result := C.dcgmGetLatestValuesForFields(handle.handle, C.int(gpu), &cfields[0], C.uint(len(fields)), &values[0])
+	result := C.dcgmGetLatestValuesForFields(
+		handle.handle, C.int(gpu), fieldIDPointer(fields), C.uint(len(fields)), &values.values[0],
+	)
+	runtime.KeepAlive(fields)
 	if err := errorString(result); err != nil {
 		return nil, fmt.Errorf("error watching fields: %s", err)
 	}
 
 	// Convert to our return type before returning
-	return toFieldValue(values), nil
+	return toFieldValue(values.values), nil
 }
 
 // LinkGetLatestValues retrieves the latest values for specified fields of a link entity.
@@ -344,38 +303,40 @@ func LinkGetLatestValues(index uint, parentType Field_Entity_Group, parentId uin
 // entityGroup specifies the type of entity to query.
 // entityId is the ID of the entity.
 // fields is a slice of field IDs to retrieve.
+// An empty fields slice is rejected before querying DCGM.
 // Returns a slice of field values and any error encountered.
 func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields []Short) ([]FieldValue_v1, error) {
+	if len(fields) == 0 {
+		return nil, newBadParameterError()
+	}
+
 	values := acquireFieldValueSlice(len(fields))
 	defer releaseFieldValueSlice(values)
 
-	cfields := make([]C.ushort, len(fields))
-	for i, f := range fields {
-		cfields[i] = C.ushort(f)
-	}
-
 	result := C.dcgmEntityGetLatestValues(handle.handle, C.dcgm_field_entity_group_t(entityGroup), C.int(entityId),
-		&cfields[0], C.uint(len(fields)), &values[0])
+		fieldIDPointer(fields), C.uint(len(fields)), &values.values[0])
+	runtime.KeepAlive(fields)
 	if result != C.DCGM_ST_OK {
 		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
-	return toFieldValue(values), nil
+	return toFieldValue(values.values), nil
 }
 
 // EntitiesGetLatestValues retrieves the latest values for specified fields across multiple entities.
 // entities is a slice of entity pairs to query.
 // fields is a slice of field IDs to retrieve.
 // flags specify additional options for the query.
+// An empty entities or fields slice is rejected before querying DCGM.
 // Returns a slice of field values and any error encountered.
 func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags uint) ([]FieldValue_v2, error) {
+	if len(fields) == 0 || len(entities) == 0 {
+		return nil, newBadParameterError()
+	}
+
 	values := acquireFieldValueV2Slice(len(fields) * len(entities))
 	defer releaseFieldValueV2Slice(values)
 
-	cfields := make([]C.ushort, len(fields))
-	for i, f := range fields {
-		cfields[i] = C.ushort(f)
-	}
 	cEntities := make([]C.dcgmGroupEntityPair_t, len(entities))
 	cPtrEntities := *(*[]C.dcgmGroupEntityPair_t)(unsafe.Pointer(&cEntities))
 	for i, entity := range entities {
@@ -385,13 +346,14 @@ func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags u
 		}
 	}
 
-	result := C.dcgmEntitiesGetLatestValues(handle.handle, &cPtrEntities[0], C.uint(len(entities)), &cfields[0],
-		C.uint(len(fields)), C.uint(flags), &values[0])
+	result := C.dcgmEntitiesGetLatestValues(handle.handle, &cPtrEntities[0], C.uint(len(entities)),
+		fieldIDPointer(fields), C.uint(len(fields)), C.uint(flags), &values.values[0])
+	runtime.KeepAlive(fields)
 	if err := errorString(result); err != nil {
 		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
-	return toFieldValue_v2(values), nil
+	return toFieldValue_v2(values.values), nil
 }
 
 // UpdateAllFields forces an update of all field values.

@@ -12,11 +12,11 @@ The generator parses `dcgm_fields.h` and generates a Go file with:
 - `dcgmFields`: maps canonical name to field ID.
 - `legacyDCGMFields`: maps backward-compatible names to the same IDs.
   Populated from two sources:
-  - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`)
-    listed in `pkg/dcgm/legacy_fields.csv`.
-  - Deprecated-alias `#define OLD NEW` lines in the header, either
-    inside an `#ifdef DCGM_DEPRECATED` block or preceded by a
-    `Deprecated:` comment.
+    - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`)
+      listed in `pkg/dcgm/legacy_fields.csv`.
+    - Deprecated-alias `#define OLD NEW` lines in the header, either
+      inside an `#ifdef DCGM_DEPRECATED` block or preceded by a
+      `Deprecated:` comment.
 - Helper functions: `GetFieldID`, `GetFieldIDOrPanic`, `IsLegacyField`,
   `IsCurrentField`.
 
@@ -44,7 +44,6 @@ go run cmd/gen-fields/main.go cmd/gen-fields/template.go \
 ```
 
 Arguments:
-
 1. Optional `--legacy-fields` CSV path for curated lowercase names; when omitted,
    the generator reads `legacy_fields.csv` from the output file's directory.
 2. Path to `dcgm_fields.h` (input)
