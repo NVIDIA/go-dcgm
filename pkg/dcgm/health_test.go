@@ -148,6 +148,10 @@ func TestHealthWhenInvalidGroupID(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Setting not configured")
 
+	err = HealthSetWithParams(gh, DCGM_HEALTH_WATCH_PCIE, time.Second, time.Minute)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Setting not configured")
+
 	_, err = HealthGet(gh)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Setting not configured")
@@ -155,6 +159,34 @@ func TestHealthWhenInvalidGroupID(t *testing.T) {
 	_, err = HealthGet(gh)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Setting not configured")
+}
+
+func TestHealthSetWithParams(t *testing.T) {
+	teardownTest := setupTest(t)
+	defer teardownTest(t)
+	runOnlyWithLiveGPUs(t)
+
+	gpus, err := getSupportedDevices()
+	require.NoError(t, err)
+	require.NotEmpty(t, gpus)
+
+	groupID, err := CreateGroup(fmt.Sprintf("health-params-%d", time.Now().UnixNano()))
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, DestroyGroup(groupID))
+	}()
+
+	require.NoError(t, AddToGroup(groupID, gpus[0]))
+	require.NoError(t, HealthSetWithParams(
+		groupID,
+		DCGM_HEALTH_WATCH_PCIE,
+		time.Second,
+		time.Minute,
+	))
+
+	systems, err := HealthGet(groupID)
+	require.NoError(t, err)
+	require.Equal(t, DCGM_HEALTH_WATCH_PCIE, systems)
 }
 
 func TestHealthCheckPCIE(t *testing.T) {

@@ -25,6 +25,7 @@ import "C"
 import (
 	"fmt"
 	"math/rand"
+	"time"
 	"unsafe"
 )
 
@@ -55,6 +56,32 @@ func HealthSet(groupID GroupHandle, systems HealthSystem) (err error) {
 	if err := errorString(result); err != nil {
 		return fmt.Errorf("error setting health watches: %w", err)
 	}
+	return nil
+}
+
+// HealthSetWithParams enables the given health watch systems with custom
+// sampling and retention settings. updateInterval should match how often
+// HealthCheck is called; maxKeepAge should cover the longest interval between
+// calls.
+func HealthSetWithParams(
+	groupID GroupHandle,
+	systems HealthSystem,
+	updateInterval time.Duration,
+	maxKeepAge time.Duration,
+) error {
+	params := C.dcgmHealthSetParams_v2{
+		version:        makeVersion2(unsafe.Sizeof(C.dcgmHealthSetParams_v2{})),
+		groupId:        groupID.handle,
+		systems:        C.dcgmHealthSystems_t(systems),
+		updateInterval: C.longlong(updateInterval.Microseconds()),
+		maxKeepAge:     C.double(maxKeepAge.Seconds()),
+	}
+
+	result := C.dcgmHealthSet_v2(handle.handle, &params)
+	if err := errorString(result); err != nil {
+		return fmt.Errorf("error setting health watches: %w", err)
+	}
+
 	return nil
 }
 
