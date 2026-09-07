@@ -118,7 +118,7 @@ func WatchPidFields() (GroupHandle, error) {
 }
 
 // WatchPidFieldsForGroup configures DCGM to start recording stats for GPU processes
-// using a pre-created group. The group must already exist and contain the desired GPUs.
+// using a pre-created group. The group must already exist.
 // Must be called before GetProcessInfo.
 //
 // Important: The group must be cleaned up by calling DestroyGroup
@@ -148,8 +148,8 @@ func WatchPidFieldsForGroup(group GroupHandle) error {
 }
 
 // WatchPidFieldsForGroupEx configures DCGM to start recording stats for GPU processes
-// using a pre-created group with custom parameters. The group must already exist
-// and contain the desired GPUs. Must be called before GetProcessInfo.
+// using a pre-created group with custom parameters. The group must already exist.
+// Must be called before GetProcessInfo.
 //
 // Important: The group must be cleaned up by calling DestroyGroup
 // when monitoring is no longer needed to prevent resource leaks.
