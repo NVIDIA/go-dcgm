@@ -138,8 +138,23 @@ func TestWatchPidFieldsForGroup(t *testing.T) {
 		t.Fatalf("Failed to create group: %v", err)
 	}
 	defer func() {
-		_ = dcgm.DestroyGroup(group)
+		if err := dcgm.DestroyGroup(group); err != nil {
+			t.Logf("Warning: failed to destroy group: %v", err)
+		}
 	}()
+
+	// Add at least one supported GPU to the group
+	gpus, err := dcgm.GetSupportedDevices()
+	if err != nil {
+		t.Fatalf("Failed to get supported devices: %v", err)
+	}
+	if len(gpus) == 0 {
+		t.Skip("No supported GPUs found")
+	}
+	err = dcgm.AddToGroup(group, gpus[0])
+	if err != nil {
+		t.Fatalf("Failed to add GPU to group: %v", err)
+	}
 
 	// Test WatchPidFieldsForGroup function
 	err = dcgm.WatchPidFieldsForGroup(group)
@@ -169,8 +184,23 @@ func TestWatchPidFieldsForGroupEx(t *testing.T) {
 		t.Fatalf("Failed to create group: %v", err)
 	}
 	defer func() {
-		_ = dcgm.DestroyGroup(group)
+		if err := dcgm.DestroyGroup(group); err != nil {
+			t.Logf("Warning: failed to destroy group: %v", err)
+		}
 	}()
+
+	// Add at least one supported GPU to the group
+	gpus, err := dcgm.GetSupportedDevices()
+	if err != nil {
+		t.Fatalf("Failed to get supported devices: %v", err)
+	}
+	if len(gpus) == 0 {
+		t.Skip("No supported GPUs found")
+	}
+	err = dcgm.AddToGroup(group, gpus[0])
+	if err != nil {
+		t.Fatalf("Failed to add GPU to group: %v", err)
+	}
 
 	// Test WatchPidFieldsForGroupEx function with custom parameters
 	err = dcgm.WatchPidFieldsForGroupEx(group, time.Microsecond*1000000, time.Second*60, 5)
