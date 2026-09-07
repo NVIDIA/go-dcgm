@@ -123,3 +123,65 @@ func TestWatchPidFields(t *testing.T) {
 	time.Sleep(1000 * time.Millisecond)
 	t.Log("PID field watches enabled successfully")
 }
+
+// TestWatchPidFieldsForGroup demonstrates the WatchPidFieldsForGroup functionality
+func TestWatchPidFieldsForGroup(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	defer cleanup()
+
+	// Create a group first
+	group, err := dcgm.CreateGroup("test-group")
+	if err != nil {
+		t.Fatalf("Failed to create group: %v", err)
+	}
+	defer func() {
+		_ = dcgm.DestroyGroup(group)
+	}()
+
+	// Test WatchPidFieldsForGroup function
+	err = dcgm.WatchPidFieldsForGroup(group)
+	if err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
+		t.Fatalf("Failed to watch PID fields for group: %v", err)
+	}
+
+	t.Logf("Successfully created PID field watcher for group: %v", group)
+
+	// Wait a bit to ensure watches are properly set up
+	time.Sleep(1000 * time.Millisecond)
+	t.Log("PID field watches enabled successfully")
+}
+
+// TestWatchPidFieldsForGroupEx demonstrates the WatchPidFieldsForGroupEx functionality
+func TestWatchPidFieldsForGroupEx(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	defer cleanup()
+
+	// Create a group first
+	group, err := dcgm.CreateGroup("test-group-ex")
+	if err != nil {
+		t.Fatalf("Failed to create group: %v", err)
+	}
+	defer func() {
+		_ = dcgm.DestroyGroup(group)
+	}()
+
+	// Test WatchPidFieldsForGroupEx function with custom parameters
+	err = dcgm.WatchPidFieldsForGroupEx(group, time.Microsecond*1000000, time.Second*60, 5)
+	if err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
+		t.Fatalf("Failed to watch PID fields for group with custom params: %v", err)
+	}
+
+	t.Logf("Successfully created PID field watcher for group with custom params: %v", group)
+
+	// Wait a bit to ensure watches are properly set up
+	time.Sleep(1000 * time.Millisecond)
+	t.Log("PID field watches enabled successfully with custom params")
+}
