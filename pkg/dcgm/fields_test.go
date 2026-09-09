@@ -27,6 +27,83 @@ func TestFieldHandle(t *testing.T) {
 	}
 }
 
+func TestFieldValueWatchRejectsInvalidArguments(t *testing.T) {
+	tests := []struct {
+		name            string
+		updateFrequency time.Duration
+		maxKeepAge      time.Duration
+		maxKeepSamples  int
+	}{
+		{name: "zero update frequency", maxKeepSamples: 1},
+		{name: "sub-microsecond update frequency", updateFrequency: time.Nanosecond, maxKeepSamples: 1},
+		{name: "no retention bound", updateFrequency: time.Second},
+		{name: "negative retention age", updateFrequency: time.Second, maxKeepAge: -time.Second, maxKeepSamples: 1},
+		{name: "negative retention sample count", updateFrequency: time.Second, maxKeepAge: time.Second, maxKeepSamples: -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := WatchFieldValue(0, DCGM_FI_SYSTEM_GPU_BIND_EVENT,
+				tt.updateFrequency, tt.maxKeepAge, tt.maxKeepSamples)
+			var dcgmErr *Error
+			require.ErrorAs(t, err, &dcgmErr)
+			assert.Equal(t, DCGM_ST_BADPARAM, int(dcgmErr.Code))
+		})
+	}
+
+	if strconv.IntSize > 32 {
+		t.Run("retention sample count exceeds C int", func(t *testing.T) {
+			err := WatchFieldValue(
+				0, DCGM_FI_SYSTEM_GPU_BIND_EVENT, time.Second, 0, maxWatchFieldValueSamples+1,
+			)
+			var dcgmErr *Error
+			require.ErrorAs(t, err, &dcgmErr)
+			assert.Equal(t, DCGM_ST_BADPARAM, int(dcgmErr.Code))
+		})
+	}
+
+	for _, maxSamples := range []int{0, maxFieldValueHistorySamples + 1} {
+		_, err := GetMultipleValuesForField(0, DCGM_FI_SYSTEM_GPU_BIND_EVENT, maxSamples, time.Time{}, time.Time{})
+		var dcgmErr *Error
+		require.ErrorAs(t, err, &dcgmErr)
+		assert.Equal(t, DCGM_ST_BADPARAM, int(dcgmErr.Code))
+	}
+}
+
+func TestGlobalFieldWatchDoesNotRequireGPUs(t *testing.T) {
+	teardownTest := setupTest(t)
+	defer teardownTest(t)
+
+	gpus, err := GetSupportedDevices()
+	require.NoError(t, err)
+	if len(gpus) != 0 {
+		t.Skipf("requires a DCGM instance without physical GPUs; found %d", len(gpus))
+	}
+	require.Empty(t, gpus, "test requires a DCGM instance without physical GPUs")
+
+	require.NoError(t, WatchFieldValue(
+		0,
+		DCGM_FI_SYSTEM_GPU_BIND_EVENT,
+		time.Second,
+		0,
+		2,
+	))
+	defer func() {
+		assert.NoError(t, UnwatchFieldValue(0, DCGM_FI_SYSTEM_GPU_BIND_EVENT, true))
+	}()
+
+	values, err := EntityGetLatestValues(FE_NONE, 0, []Short{DCGM_FI_SYSTEM_GPU_BIND_EVENT})
+	require.NoError(t, err)
+	require.Len(t, values, 1)
+	assert.Equal(t, DCGM_FI_SYSTEM_GPU_BIND_EVENT, values[0].FieldID)
+
+	history, err := GetMultipleValuesForField(
+		0, DCGM_FI_SYSTEM_GPU_BIND_EVENT, 2, time.Time{}, time.Time{},
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, history)
+	assert.Equal(t, DCGM_FI_SYSTEM_GPU_BIND_EVENT, history[0].FieldID)
+}
+
 func int64Bytes(value int64) []byte {
 	payload := *(*[8]byte)(unsafe.Pointer(&value))
 	return payload[:]
