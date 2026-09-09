@@ -3,8 +3,10 @@ package dcgm
 //go:generate go run ../../cmd/gen-fields/main.go ../../cmd/gen-fields/template.go --legacy-fields legacy_fields.csv dcgm_fields.h const_fields.go
 
 /*
+#include <stdbool.h>
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
+#include "dcgm_test_apis.h"
 */
 import "C"
 
@@ -12,8 +14,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"sync"
+	"time"
 	"unicode"
 	"unsafe"
 )
@@ -27,6 +31,14 @@ const (
 
 	// defaultMaxKeepSamples specifies the default number of samples to keep
 	defaultMaxKeepSamples = 1
+
+	// maxFieldValueHistorySamples bounds the memory used by one direct
+	// field-history request.
+	maxFieldValueHistorySamples = 1024
+
+	// maxWatchFieldValueSamples is the largest sample count that can be passed
+	// to DCGM's 32-bit C API without changing its value.
+	maxWatchFieldValueSamples = math.MaxInt32
 
 	// poolCapacityThreshold defines the threshold above which we don't use the pool.
 	// For very large requests, it's better to allocate directly rather than grow pool slices.
@@ -192,6 +204,100 @@ func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
 		return fmt.Errorf("error unwatching fields: %w", err)
 	}
 	return nil
+}
+
+// WatchFieldValue starts monitoring one field on a GPU or, for a global field,
+// on the system. DCGM resolves global fields to its system entity, so gpuID is
+// ignored for fields whose metadata scope is global.
+//
+// updateFreq controls how often DCGM updates the field. DCGM retains samples
+// for maxKeepAge or maxKeepSamples, whichever bound is reached first. At least
+// one retention bound must be positive. maxKeepSamples must fit in DCGM's
+// 32-bit C API count argument.
+func WatchFieldValue(
+	gpuID uint, fieldID Short, updateFreq, maxKeepAge time.Duration, maxKeepSamples int,
+) error {
+	if updateFreq < time.Microsecond || maxKeepAge < 0 || maxKeepSamples < 0 ||
+		maxKeepSamples > maxWatchFieldValueSamples || (maxKeepAge == 0 && maxKeepSamples == 0) {
+		return newBadParameterError()
+	}
+
+	result := C.dcgmWatchFieldValue(
+		handle.handle,
+		C.int(gpuID),
+		C.ushort(fieldID),
+		C.longlong(updateFreq.Microseconds()),
+		C.double(maxKeepAge.Seconds()),
+		C.int(maxKeepSamples),
+	)
+	if err := errorString(result); err != nil {
+		return fmt.Errorf("error watching field value: %w", err)
+	}
+
+	return nil
+}
+
+// UnwatchFieldValue stops monitoring a field previously started with
+// WatchFieldValue. When clearCache is true, DCGM also removes the retained
+// samples for the field. For a global field, gpuID is ignored.
+func UnwatchFieldValue(gpuID uint, fieldID Short, clearCache bool) error {
+	clearCacheValue := C.int(0)
+	if clearCache {
+		clearCacheValue = 1
+	}
+
+	result := C.dcgmUnwatchFieldValue(
+		handle.handle,
+		C.int(gpuID),
+		C.ushort(fieldID),
+		clearCacheValue,
+	)
+	if err := errorString(result); err != nil {
+		return fmt.Errorf("error unwatching field value: %w", err)
+	}
+
+	return nil
+}
+
+// GetMultipleValuesForField returns up to maxSamples retained samples for a
+// field in ascending timestamp order. A zero startTime or endTime leaves that
+// bound open. maxSamples must be between 1 and 1024. For a global field,
+// gpuID is ignored.
+func GetMultipleValuesForField(
+	gpuID uint, fieldID Short, maxSamples int, startTime, endTime time.Time,
+) ([]FieldValue_v1, error) {
+	if maxSamples <= 0 || maxSamples > maxFieldValueHistorySamples {
+		return nil, newBadParameterError()
+	}
+
+	values := acquireFieldValueSlice(maxSamples)
+	defer releaseFieldValueSlice(values)
+
+	startTimeMicros := int64(0)
+	if !startTime.IsZero() {
+		startTimeMicros = startTime.UnixMicro()
+	}
+	endTimeMicros := int64(0)
+	if !endTime.IsZero() {
+		endTimeMicros = endTime.UnixMicro()
+	}
+
+	count := C.int(maxSamples)
+	result := C.dcgmGetMultipleValuesForField(
+		handle.handle,
+		C.int(gpuID),
+		C.ushort(fieldID),
+		&count,
+		C.longlong(startTimeMicros),
+		C.longlong(endTimeMicros),
+		C.DCGM_ORDER_ASCENDING,
+		&values.values[0],
+	)
+	if err := errorString(result); err != nil {
+		return nil, fmt.Errorf("error getting multiple field values: %w", err)
+	}
+
+	return toFieldValue(values.values[:int(count)]), nil
 }
 
 var (
