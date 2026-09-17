@@ -148,10 +148,6 @@ func watchPidFieldsForGroup(group GroupHandle, updateFreq, maxKeepAge time.Durat
 		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
-	// Match WatchFieldsWithGroupEx and existing PID watch behavior
-	if err := UpdateAllFields(); err != nil {
-		return err
-	}
 	return nil
 }
 

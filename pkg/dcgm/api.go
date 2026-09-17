@@ -144,7 +144,7 @@ func WatchPidFields() (GroupHandle, error) {
 //
 //	// Use GetProcessInfo with the group...
 func WatchPidFieldsForGroup(group GroupHandle) error {
-	return watchPidFieldsForGroup(group, time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
+	return WatchPidFieldsForGroupEx(group, time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
 }
 
 // WatchPidFieldsForGroupEx configures DCGM to start recording stats for GPU processes
@@ -154,7 +154,10 @@ func WatchPidFieldsForGroup(group GroupHandle) error {
 // Important: The group must be cleaned up by calling DestroyGroup
 // when monitoring is no longer needed to prevent resource leaks.
 func WatchPidFieldsForGroupEx(group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
-	return watchPidFieldsForGroup(group, updateFreq, maxKeepAge, maxKeepSamples)
+	if err := watchPidFieldsForGroup(group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
+		return err
+	}
+	return UpdateAllFields()
 }
 
 // GetProcessInfo returns detailed per-GPU statistics for the specified process
