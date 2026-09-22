@@ -18,8 +18,30 @@ package dcgm
 
 import "testing"
 
-func TestSelectedFieldEntityGroupConnectXString(t *testing.T) {
-	if got, want := FE_CONNECTX.String(), "ConnectX"; got != want {
-		t.Fatalf("FE_CONNECTX.String() = %q, want %q", got, want)
+func TestSelectedFieldEntityGroupString(t *testing.T) {
+	tests := []struct {
+		group Field_Entity_Group
+		want  string
+	}{
+		{FE_NONE, "unknown"},
+		{FE_GPU, "GPU"},
+		{FE_VGPU, "vGPU"},
+		{FE_SWITCH, "NvSwitch"},
+		{FE_GPU_I, "GPU Instance"},
+		{FE_GPU_CI, "GPU Compute Instance"},
+		{FE_LINK, "NvLink"},
+		{FE_CPU, "CPU"},
+		{FE_CPU_CORE, "CPU Core"},
+		{FE_CONNECTX, "ConnectX"},
+		{FE_COUNT, "unknown"},
+		{Field_Entity_Group(999), "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.group.String(); got != tt.want {
+				t.Fatalf("Field_Entity_Group(%d).String() = %q, want %q", tt.group, got, tt.want)
+			}
+		})
 	}
 }

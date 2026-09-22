@@ -131,6 +131,59 @@ type DeviceStatus struct {
 	FanSpeed    int64 // %
 }
 
+const (
+	devicePower = iota
+	deviceTemperature
+	deviceGPUUtilization
+	deviceMemoryUtilization
+	deviceEncoderUtilization
+	deviceDecoderUtilization
+	deviceSMClock
+	deviceMemoryClock
+	deviceBAR1Used
+	devicePCIeRxThroughput
+	devicePCIeTxThroughput
+	devicePCIeReplay
+	deviceFBUsed
+	deviceSingleBitErrors
+	deviceDoubleBitErrors
+	devicePerformanceState
+	deviceFanSpeed
+	deviceStatusFieldCount
+)
+
+func deviceStatusFromValues(values []FieldValue_v1) DeviceStatus {
+	return DeviceStatus{
+		Power:       values[devicePower].Float64(),
+		Temperature: values[deviceTemperature].Int64(),
+		Utilization: UtilizationInfo{
+			GPU:     values[deviceGPUUtilization].Int64(),
+			Memory:  values[deviceMemoryUtilization].Int64(),
+			Encoder: values[deviceEncoderUtilization].Int64(),
+			Decoder: values[deviceDecoderUtilization].Int64(),
+		},
+		Memory: MemoryInfo{ECCErrors: ECCErrorsInfo{
+			SingleBit: values[deviceSingleBitErrors].Int64(),
+			DoubleBit: values[deviceDoubleBitErrors].Int64(),
+		}},
+		Clocks: ClockInfo{
+			Cores:  values[deviceSMClock].Int64(),
+			Memory: values[deviceMemoryClock].Int64(),
+		},
+		PCI: PCIStatusInfo{
+			BAR1Used: values[deviceBAR1Used].Int64(),
+			Throughput: PCIThroughputInfo{
+				Rx:      values[devicePCIeRxThroughput].Int64(),
+				Tx:      values[devicePCIeTxThroughput].Int64(),
+				Replays: values[devicePCIeReplay].Int64(),
+			},
+			FBUsed: values[deviceFBUsed].Int64(),
+		},
+		Performance: PerfState(values[devicePerformanceState].Int64()),
+		FanSpeed:    values[deviceFanSpeed].Int64(),
+	}
+}
+
 func getGPUStatus(gpuID uint) EntityStatus {
 	var status C.DcgmEntityStatus_t
 	result := C.dcgmGetGpuStatus(handle.handle, C.uint(gpuID), &status)
@@ -141,45 +194,24 @@ func getGPUStatus(gpuID uint) EntityStatus {
 }
 
 func latestValuesForDevice(gpuId uint) (status DeviceStatus, err error) {
-	const (
-		pwr int = iota
-		temp
-		sm
-		mem
-		enc
-		dec
-		smClock
-		memClock
-		bar1Used
-		pcieRxThroughput
-		pcieTxThroughput
-		pcieReplay
-		fbUsed
-		sbe
-		dbe
-		pstate
-		fanSpeed
-		fieldsCount
-	)
-
-	deviceFields := make([]Short, fieldsCount)
-	deviceFields[pwr] = C.DCGM_FI_DEV_POWER_USAGE
-	deviceFields[temp] = C.DCGM_FI_DEV_GPU_TEMP
-	deviceFields[sm] = C.DCGM_FI_DEV_GPU_UTIL
-	deviceFields[mem] = C.DCGM_FI_DEV_MEM_COPY_UTIL
-	deviceFields[enc] = C.DCGM_FI_DEV_ENC_UTIL
-	deviceFields[dec] = C.DCGM_FI_DEV_DEC_UTIL
-	deviceFields[smClock] = C.DCGM_FI_DEV_SM_CLOCK
-	deviceFields[memClock] = C.DCGM_FI_DEV_MEM_CLOCK
-	deviceFields[bar1Used] = C.DCGM_FI_DEV_BAR1_USED
-	deviceFields[pcieRxThroughput] = C.DCGM_FI_DEV_PCIE_RX_THROUGHPUT
-	deviceFields[pcieTxThroughput] = C.DCGM_FI_DEV_PCIE_TX_THROUGHPUT
-	deviceFields[pcieReplay] = C.DCGM_FI_DEV_PCIE_REPLAY_COUNTER
-	deviceFields[fbUsed] = C.DCGM_FI_DEV_FB_USED
-	deviceFields[sbe] = C.DCGM_FI_DEV_ECC_SBE_AGG_TOTAL
-	deviceFields[dbe] = C.DCGM_FI_DEV_ECC_DBE_AGG_TOTAL
-	deviceFields[pstate] = C.DCGM_FI_DEV_PSTATE
-	deviceFields[fanSpeed] = C.DCGM_FI_DEV_FAN_SPEED
+	deviceFields := make([]Short, deviceStatusFieldCount)
+	deviceFields[devicePower] = C.DCGM_FI_DEV_POWER_USAGE
+	deviceFields[deviceTemperature] = C.DCGM_FI_DEV_GPU_TEMP
+	deviceFields[deviceGPUUtilization] = C.DCGM_FI_DEV_GPU_UTIL
+	deviceFields[deviceMemoryUtilization] = C.DCGM_FI_DEV_MEM_COPY_UTIL
+	deviceFields[deviceEncoderUtilization] = C.DCGM_FI_DEV_ENC_UTIL
+	deviceFields[deviceDecoderUtilization] = C.DCGM_FI_DEV_DEC_UTIL
+	deviceFields[deviceSMClock] = C.DCGM_FI_DEV_SM_CLOCK
+	deviceFields[deviceMemoryClock] = C.DCGM_FI_DEV_MEM_CLOCK
+	deviceFields[deviceBAR1Used] = C.DCGM_FI_DEV_BAR1_USED
+	deviceFields[devicePCIeRxThroughput] = C.DCGM_FI_DEV_PCIE_RX_THROUGHPUT
+	deviceFields[devicePCIeTxThroughput] = C.DCGM_FI_DEV_PCIE_TX_THROUGHPUT
+	deviceFields[devicePCIeReplay] = C.DCGM_FI_DEV_PCIE_REPLAY_COUNTER
+	deviceFields[deviceFBUsed] = C.DCGM_FI_DEV_FB_USED
+	deviceFields[deviceSingleBitErrors] = C.DCGM_FI_DEV_ECC_SBE_AGG_TOTAL
+	deviceFields[deviceDoubleBitErrors] = C.DCGM_FI_DEV_ECC_DBE_AGG_TOTAL
+	deviceFields[devicePerformanceState] = C.DCGM_FI_DEV_PSTATE
+	deviceFields[deviceFanSpeed] = C.DCGM_FI_DEV_FAN_SPEED
 
 	fieldsName := fmt.Sprintf("devStatusFields%d", rand.Uint64())
 	fieldsId, err := FieldGroupCreate(fieldsName, deviceFields)
@@ -201,47 +233,7 @@ func latestValuesForDevice(gpuId uint) (status DeviceStatus, err error) {
 		return status, err
 	}
 
-	power := values[pwr].Float64()
-
-	gpuUtil := UtilizationInfo{
-		GPU:     values[sm].Int64(),
-		Memory:  values[mem].Int64(),
-		Encoder: values[enc].Int64(),
-		Decoder: values[dec].Int64(),
-	}
-
-	memory := MemoryInfo{
-		ECCErrors: ECCErrorsInfo{
-			SingleBit: values[sbe].Int64(),
-			DoubleBit: values[dbe].Int64(),
-		},
-	}
-
-	clocks := ClockInfo{
-		Cores:  values[smClock].Int64(),
-		Memory: values[memClock].Int64(),
-	}
-
-	pci := PCIStatusInfo{
-		BAR1Used: values[bar1Used].Int64(),
-		Throughput: PCIThroughputInfo{
-			Rx:      values[pcieRxThroughput].Int64(),
-			Tx:      values[pcieTxThroughput].Int64(),
-			Replays: values[pcieReplay].Int64(),
-		},
-		FBUsed: values[fbUsed].Int64(),
-	}
-
-	status = DeviceStatus{
-		Power:       power,
-		Temperature: values[temp].Int64(),
-		Utilization: gpuUtil,
-		Memory:      memory,
-		Clocks:      clocks,
-		PCI:         pci,
-		Performance: PerfState(values[pstate].Int64()),
-		FanSpeed:    values[fanSpeed].Int64(),
-	}
+	status = deviceStatusFromValues(values)
 
 	_ = FieldGroupDestroy(fieldsId)
 	_ = DestroyGroup(groupId)

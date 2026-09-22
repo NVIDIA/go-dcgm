@@ -25,11 +25,11 @@ package dcgm
 //   Improvement: 69% fewer allocations, 50% less memory, 3.7x faster
 //
 // Run all benchmarks:
-//   bazel test //pkg/dcgm:dcgm_test --test_arg=-test.run=^$ \
+//   bazel test //pkg/dcgm:dcgm_unit_test --test_arg=-test.run=^$ \
 //     --test_arg=-test.bench=. --test_arg=-test.benchmem
 //
 // Verify optimizations with proof tests:
-//   bazel test //pkg/dcgm:dcgm_test --test_filter=TestOptimizationProof --test_output=all
+//   bazel test //pkg/dcgm:dcgm_unit_test --test_filter=TestOptimizationProof --test_output=all
 
 import (
 	"runtime"

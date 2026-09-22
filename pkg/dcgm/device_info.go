@@ -141,15 +141,17 @@ func getPciBandwidth(gpuID uint) (int64, error) {
 	_ = FieldGroupDestroy(fieldsID)
 	_ = DestroyGroup(groupID)
 
-	genMap := map[int64]int64{
+	return pcieBandwidth(gen, width), nil
+}
+
+func pcieBandwidth(generation, width int64) int64 {
+	perLane := map[int64]int64{
 		1: 250, // MB/s
 		2: 500,
 		3: 985,
 		4: 1969,
 	}
-
-	bandwidth := genMap[gen] * width
-	return bandwidth, nil
+	return perLane[generation] * width
 }
 
 func getCPUAffinity(gpuID uint) (string, error) {

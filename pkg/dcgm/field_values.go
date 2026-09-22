@@ -60,14 +60,16 @@ type callback struct {
 	limitExceeded bool
 }
 
+func callbackLimitExceeded(current, incoming int) bool {
+	return current > maxCallbackValues-incoming
+}
+
 func (cb *callback) processValues(entityGroup Field_Entity_Group, entityID uint, cvalues []C.dcgmFieldValue_v1) {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 
-	// Check if adding new values would exceed the limit BEFORE conversion
-	// to avoid unnecessary allocation and conversion work
-	if len(cb.Values)+len(cvalues) > maxCallbackValues {
-		// Mark that limit was exceeded so we can return an error
+	// Check the limit before conversion to avoid unnecessary allocation work.
+	if callbackLimitExceeded(len(cb.Values), len(cvalues)) {
 		cb.limitExceeded = true
 		return
 	}

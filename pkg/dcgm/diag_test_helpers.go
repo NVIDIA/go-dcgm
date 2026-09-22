@@ -128,4 +128,9 @@ const (
 	testDiagResultWarn   = C.DCGM_DIAG_RESULT_WARN
 	testDiagResultFail   = C.DCGM_DIAG_RESULT_FAIL
 	testDiagResultNotRun = C.DCGM_DIAG_RESULT_NOT_RUN
+	testDiagLevelShort   = C.DCGM_DIAG_LVL_SHORT
+	testDiagLevelMedium  = C.DCGM_DIAG_LVL_MED
+	testDiagLevelLong    = C.DCGM_DIAG_LVL_LONG
+	testDiagLevelXLong   = C.DCGM_DIAG_LVL_XLONG
+	testDiagLevelInvalid = C.DCGM_DIAG_LVL_INVALID
 )

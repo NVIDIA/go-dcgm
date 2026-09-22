@@ -76,6 +76,24 @@ func TestSelectedEmptyInputEntityGetLatestValues(t *testing.T) {
 	}
 }
 
+func TestSelectedEmptyInputLinkGetLatestValues(t *testing.T) {
+	tests := []struct {
+		name   string
+		fields []Short
+	}{
+		{name: "nil"},
+		{name: "empty", fields: []Short{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values, err := LinkGetLatestValues(0, FE_GPU, 0, tt.fields)
+
+			requireRejectedEmptyLatestValues(t, values, err)
+		})
+	}
+}
+
 func TestSelectedEmptyInputEntitiesGetLatestValues(t *testing.T) {
 	entity := GroupEntityPair{EntityGroupId: FE_GPU, EntityId: 0}
 	field := DCGM_FI_DEV_NAME

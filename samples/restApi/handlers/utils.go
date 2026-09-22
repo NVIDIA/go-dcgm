@@ -135,6 +135,9 @@ func logRequestMessage(req *http.Request, message string) {
 // Returns math.MaxUint32 if the conversion fails
 func getId(resp http.ResponseWriter, req *http.Request, key string) uint {
 	id, err := strconv.ParseUint(key, base, bitsize)
+	if err == nil && id == math.MaxUint32 {
+		err = fmt.Errorf("invalid ID %q", key)
+	}
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusBadRequest)
 		logRequestError(req, err)
@@ -157,48 +160,40 @@ func getIdByUuid(resp http.ResponseWriter, req *http.Request, key string) uint {
 	return id
 }
 
-// isValidId checks if the given GPU ID exists and is valid
-// Returns true if the ID is valid, false otherwise
-func isValidId(id uint, resp http.ResponseWriter, req *http.Request) bool {
-	count, err := dcgm.GetAllDeviceCount()
+func isValidIdWithDeps(id uint, resp http.ResponseWriter, req *http.Request, deps deviceDeps) bool {
+	count, err := deps.getAllDeviceCount()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		logRequestError(req, err)
-
 		return false
 	}
 
 	if id >= count {
 		http.NotFound(resp, req)
 		logRequestStatus(req, http.StatusNotFound)
-
 		return false
 	}
 
 	return true
 }
 
-// isDcgmSupported checks if DCGM supports the given GPU
-// Returns true if supported, false otherwise
-func isDcgmSupported(gpuId uint, resp http.ResponseWriter, req *http.Request) bool {
-	gpus, err := dcgm.GetSupportedDevices()
+func isDcgmSupportedWithDeps(gpuID uint, resp http.ResponseWriter, req *http.Request, deps deviceDeps) bool {
+	gpus, err := deps.getSupportedDevices()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		logRequestError(req, err)
-
 		return false
 	}
 
 	for _, gpu := range gpus {
-		if gpuId == gpu {
+		if gpuID == gpu {
 			return true
 		}
 	}
 
-	err = fmt.Errorf("error adding gpu %d to group: This gpu is not supported by dcgm", gpuId)
+	err = fmt.Errorf("error adding gpu %d to group: This gpu is not supported by dcgm", gpuID)
 	http.Error(resp, err.Error(), http.StatusInternalServerError)
 	logRequestError(req, err)
-
 	return false
 }
 
