@@ -34,10 +34,14 @@ import (
 
 const legacyFieldsCSVName = "legacy_fields.csv"
 
+var dcgmConstNamePattern = regexp.MustCompile(`^DCGM_FI_[A-Z0-9_]+$`)
+
+// Field describes a numeric field parsed from the DCGM header.
 type Field struct {
-	Name    string
-	ID      int
-	Comment string
+	Name       string
+	LookupName string
+	ID         int
+	Comment    string
 }
 
 // DeprecatedFieldAlias describes a deprecated DCGM field name that aliases a current field.
@@ -47,6 +51,7 @@ type DeprecatedFieldAlias struct {
 	ID     int
 }
 
+// TemplateData contains the complete input used to render const_fields.go.
 type TemplateData struct {
 	Fields            []Field
 	DeprecatedAliases []DeprecatedFieldAlias
@@ -99,12 +104,26 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Error reading legacy fields from %q: %v\n", legacyFieldsPath, err)
 		return 1
 	}
+	fields, compatibilityAliases := preserveLegacyFieldNames(fields, legacyFields)
 
-	// Merge resolved aliases into the legacy map. Alias names start with
-	// DCGM_FI_ and so never collide with the lowercase curated 1.x names.
+	// Merge resolved aliases into the legacy map. Curated names are lowercase
+	// except for preserved Go constant names.
 	for _, alias := range deprecatedAliases {
 		legacyFields[alias.Name] = alias.ID
 	}
+	// A compatibility alias can share its historical Go constant name with a
+	// current DCGM header field. Keep the current header name available for
+	// config-file lookup; the Go constant is preserved separately above.
+	for _, alias := range compatibilityAliases {
+		delete(legacyFields, alias.Name)
+	}
+	deprecatedAliases = append(deprecatedAliases, compatibilityAliases...)
+	sort.Slice(deprecatedAliases, func(i, j int) bool {
+		if deprecatedAliases[i].ID != deprecatedAliases[j].ID {
+			return deprecatedAliases[i].ID < deprecatedAliases[j].ID
+		}
+		return deprecatedAliases[i].Name < deprecatedAliases[j].Name
+	})
 
 	// Generate output
 	data := TemplateData{
@@ -284,9 +303,10 @@ func parseHeader(path string) ([]Field, map[string]string, error) {
 			}
 
 			fields = append(fields, Field{
-				Name:    name,
-				ID:      id,
-				Comment: comment,
+				Name:       name,
+				LookupName: name,
+				ID:         id,
+				Comment:    generatedFieldComment(name, comment),
 			})
 
 			lastComment = ""
@@ -326,6 +346,17 @@ func parseHeader(path string) ([]Field, map[string]string, error) {
 	})
 
 	return fields, aliases, nil
+}
+
+func generatedFieldComment(name, comment string) string {
+	switch name {
+	case "DCGM_FI_PROF_NVLINK_TX_BYTES":
+		return "represents aggregate NVLink transmit bytes for a GPU. For a DCGM_FE_LINK entity, dcgm_link_t selects the GPU and link whose traffic is reported."
+	case "DCGM_FI_PROF_NVLINK_RX_BYTES":
+		return "represents aggregate NVLink receive bytes for a GPU. For a DCGM_FE_LINK entity, dcgm_link_t selects the GPU and link whose traffic is reported."
+	default:
+		return comment
+	}
 }
 
 func isDeprecatedBlockStart(trimmed string) bool {
@@ -412,8 +443,8 @@ func readLegacyFieldsCSV(path string) (map[string]int, error) {
 		if name == "" {
 			return nil, fmt.Errorf("legacy fields CSV row %d: name is required", row)
 		}
-		if name != strings.ToLower(name) {
-			return nil, fmt.Errorf("legacy fields CSV row %d: %q must be lowercase", row, name)
+		if name != strings.ToLower(name) && !dcgmConstNamePattern.MatchString(name) {
+			return nil, fmt.Errorf("legacy fields CSV row %d: %q must be lowercase or a DCGM field constant", row, name)
 		}
 		if idText == "" {
 			return nil, fmt.Errorf("legacy fields CSV row %d: id is required", row)
@@ -429,6 +460,70 @@ func readLegacyFieldsCSV(path string) (map[string]int, error) {
 	}
 
 	return legacyFields, nil
+}
+
+// preserveLegacyFieldNames keeps previously exported Go constants stable when
+// a newer DCGM header reuses the name for a different numeric field. The newer
+// field receives a distinct Go name and the older name remains an alias.
+func preserveLegacyFieldNames(fields []Field, legacyFields map[string]int) ([]Field, []DeprecatedFieldAlias) {
+	fieldNames := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		fieldNames[field.Name] = struct{}{}
+	}
+
+	renamedFields := make(map[string]string)
+	type pendingAlias struct {
+		name string
+		id   int
+	}
+	var pendingAliases []pendingAlias
+	for i := range fields {
+		legacyID, preserve := legacyFields[fields[i].Name]
+		if !preserve || legacyID == fields[i].ID {
+			continue
+		}
+
+		oldName := fields[i].Name
+		newName := oldName + "_V2"
+		for suffix := 3; ; suffix++ {
+			if _, exists := fieldNames[newName]; !exists {
+				break
+			}
+			newName = fmt.Sprintf("%s_V%d", oldName, suffix)
+		}
+		delete(fieldNames, oldName)
+		fieldNames[newName] = struct{}{}
+		fields[i].Name = newName
+		renamedFields[oldName] = newName
+		pendingAliases = append(pendingAliases, pendingAlias{name: oldName, id: legacyID})
+	}
+
+	fieldNamesByID := make(map[int]string, len(fields))
+	for _, field := range fields {
+		fieldNamesByID[field.ID] = field.Name
+	}
+	aliases := make([]DeprecatedFieldAlias, 0, len(pendingAliases))
+	for _, pending := range pendingAliases {
+		target, ok := fieldNamesByID[pending.id]
+		if !ok {
+			target = strconv.Itoa(pending.id)
+		}
+		aliases = append(aliases, DeprecatedFieldAlias{
+			Name:   pending.name,
+			Target: target,
+			ID:     pending.id,
+		})
+	}
+	for i := range fields {
+		for oldName, newName := range renamedFields {
+			fields[i].Comment = strings.ReplaceAll(fields[i].Comment, oldName, newName)
+			if fields[i].Name == newName {
+				fields[i].Comment = strings.TrimSpace(fields[i].Comment + " Go name adjusted to preserve source compatibility.")
+			}
+		}
+	}
+
+	return fields, aliases
 }
 
 func generateOutput(data TemplateData, outputPath string) error {

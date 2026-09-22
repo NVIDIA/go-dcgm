@@ -17,12 +17,6 @@ repos:
     rev: v0.49.1
     hooks:
       - id: markdownlint
-        name: markdownlint
-        description: "Checks the style of Markdown/Commonmark files."
-        entry: ghcr.io/igorshubovych/markdownlint-cli
-        language: docker_image
-        types: [markdown]
-        minimum_pre_commit_version: 0.15.0
   - repo: https://github.com/hadolint/hadolint
     rev: v2.15.1
     hooks:
@@ -40,6 +34,7 @@ repos:
         description: run goimports
         entry: goimports -w -local nvidia.com/NVIDIA/go-dcgm
         language: golang
+        additional_dependencies: [golang.org/x/tools/cmd/goimports@v0.50.0]
         types: [go]
         exclude: '(\.pb|\.sql|mock_.*)\.go'
       - id: go-mod-tidy
@@ -48,21 +43,18 @@ repos:
         pass_filenames: false
         language: 'script'
         description: "Runs `go mod tidy -v`, requires golang"
-  - repo: https://github.com/golangci/golangci-lint
-    rev: v2.12.2
-    hooks:
       - id: golangci-lint-config-verify
         name: golangci-lint-config-verify
         description: Verifies the configuration file
         entry: golangci-lint config verify
         files: .golangci.yml
-        language: golang
+        language: system
         pass_filenames: false
       - id: golangci-lint
         name: golangci-lint
         description: Fast linters runner for Go.
-        entry: golangci-lint run --new-from-rev origin/main --fix --allow-parallel-runners --timeout 5m
+        entry: env GOFLAGS=-buildvcs=false golangci-lint run --new-from-rev origin/main --fix --allow-parallel-runners --timeout 5m
         types: [go]
-        language: golang
+        language: system
         require_serial: true
         pass_filenames: false

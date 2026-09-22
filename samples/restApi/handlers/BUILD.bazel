@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "handlers",
+    srcs = [
+        "byIds.go",
+        "byUuids.go",
+        "dcgm.go",
+        "utils.go",
+    ],
+    importpath = "github.com/NVIDIA/go-dcgm/samples/restApi/handlers",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/dcgm",
+        "@com_github_gorilla_mux//:mux",
+    ],
+)
+
+go_test(
+    name = "handlers_test",
+    srcs = ["dcgm_test.go"],
+    embed = [":handlers"],
+    deps = [
+        "//pkg/dcgm",
+        "@com_github_gorilla_mux//:mux",
+    ],
+)

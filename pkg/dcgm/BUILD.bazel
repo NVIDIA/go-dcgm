@@ -1,0 +1,185 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# gazelle:exclude alias_resolution_test.go
+# gazelle:exclude base_unit_fields_test.go
+# gazelle:exclude const_test.go
+# gazelle:exclude cpu_test_helpers.go
+# gazelle:exclude diag_test_helpers.go
+# gazelle:exclude field_policy_test.go
+# gazelle:exclude field_policy_test_helpers.go
+# gazelle:exclude field_scope_test.go
+# gazelle:exclude health_unit_test.go
+# gazelle:exclude mndiag_test.go
+# gazelle:exclude mndiag_test_helpers.go
+# gazelle:exclude test_utils.go
+
+cc_library(
+    name = "dcgm_headers",
+    hdrs = [
+        "dcgm_agent.h",
+        "dcgm_api_export.h",
+        "dcgm_errors.h",
+        "dcgm_fields.h",
+        "dcgm_nvml.h",
+        "dcgm_structs.h",
+        "dcgm_structs_internal.h",
+        "dcgm_test_apis.h",
+        "dcgm_test_structs.h",
+        "field_values_cb.h",
+        "nvml.h",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "link_dcgm_runtime",
+    define_values = {"link_dcgm_runtime": "true"},
+)
+
+# keep: preserve this hand-written cgo target during Gazelle updates.
+go_library(
+    name = "dcgm",
+    srcs = [
+        "admin.go",
+        "api.go",
+        "callback.c",
+        "const.go",
+        "const_fields.go",
+        "cpu.go",
+        "dcgm_agent.h",
+        "dcgm_api_export.h",
+        "dcgm_errors.h",
+        "dcgm_fields.h",
+        "dcgm_nvml.h",
+        "dcgm_structs.h",
+        "dcgm_structs_internal.h",
+        "dcgm_test_apis.h",
+        "dcgm_test_structs.h",
+        "device_info.go",
+        "device_status.go",
+        "diag.go",
+        "error.go",
+        "field_policy.go",
+        "field_policy_callback.c",
+        "field_scope.go",
+        "field_summary.go",
+        "field_values.go",
+        "field_values_bench_helpers.go",
+        "field_values_cb.c",
+        "field_values_cb.h",
+        "fields.go",
+        "gpu_group.go",
+        "health.go",
+        "hostengine_status.go",
+        "internal.go",
+        "mig.go",
+        "mndiag.go",
+        "nvml.h",
+        "policy.go",
+        "process_info.go",
+        "profile.go",
+        "structs.go",
+        "topology.go",
+        "utils.go",
+        "version_info.go",
+    ],
+    cgo = True,
+    clinkopts = select({
+        "@rules_go//go/platform:android": [
+            "-ldl -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files",
+        ],
+        "@rules_go//go/platform:darwin": [
+            "-ldl -Wl,--export-dynamic -Wl,-undefined,dynamic_lookup",
+            "-ldl -Wl,-undefined,dynamic_lookup",
+        ],
+        "@rules_go//go/platform:ios": [
+            "-ldl -Wl,--export-dynamic -Wl,-undefined,dynamic_lookup",
+            "-ldl -Wl,-undefined,dynamic_lookup",
+        ],
+        "@rules_go//go/platform:linux": [
+            "-ldl -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":link_dcgm_runtime": ["-Wl,--no-as-needed -ldcgm -Wl,--as-needed"],
+        "//conditions:default": [],
+    }),
+    importpath = "github.com/NVIDIA/go-dcgm/pkg/dcgm",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_bits_and_blooms_bitset//:bitset",
+    ],
+)
+
+go_test(
+    name = "dcgm_test",
+    srcs = [
+        "admin_test.go",
+        "api_test.go",
+        "bind_unbind_test.go",
+        "cpu_test.go",
+        "cpu_test_helpers.go",  # keep: used by the runtime test target.
+        "diag_test.go",
+        "diag_test_helpers.go",  # keep: used by the runtime test target.
+        "error_runtime_test.go",
+        "error_test.go",
+        "field_summary_test.go",
+        "field_values_callback_test.go",
+        "field_values_limit_test.go",
+        "field_values_performance_test.go",
+        "field_values_test.go",
+        "fields_empty_test.go",
+        "fields_test.go",
+        "gpu_group_test.go",
+        "group_lifecycle_test.go",
+        "health_test.go",
+        "instances_test.go",
+        "mig_test.go",
+        "policy_dispatcher_test.go",
+        "policy_test.go",
+        "test_utils.go",  # keep: used by the runtime test target.
+        "topology_test.go",
+    ],
+    data = glob(["testdata/**"]) + [
+        "dcgm_agent.h",
+        "dcgm_structs.h",
+        "dcgm_structs_internal.h",
+        "internal.go",
+        "topology.go",
+    ],
+    embed = [":dcgm"],
+    tags = [
+        "manual",
+        "requires-dcgm",
+    ],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)
+
+go_test(
+    name = "dcgm_unit_test",
+    srcs = [
+        "alias_resolution_test.go",
+        "base_unit_fields_test.go",
+        "const_test.go",
+        "error_test.go",  # keep: shared with the runtime test target.
+        "field_policy_test.go",
+        "field_policy_test_helpers.go",
+        "field_scope_test.go",
+        "health_unit_test.go",
+        "mndiag_test.go",
+        "mndiag_test_helpers.go",
+    ],
+    data = [
+        "dcgm_errors.h",
+        "dcgm_structs.h",
+    ],
+    embed = [":dcgm"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

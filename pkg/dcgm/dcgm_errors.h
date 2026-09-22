@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -172,7 +172,16 @@ typedef enum dcgmError_enum
     DCGM_FR_CONTAINED_ERROR                = 131, //!< 131 GPU contained error
     DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT  = 132, //!< 132 Uncorrectable row remap threshold exceeded
     DCGM_FR_CPU_SDC_TEST_FAILED            = 133, //!< 133 SDC test failed
-    DCGM_FR_ERROR_SENTINEL                 = 134, //!< 134 MUST BE THE LAST ERROR CODE
+    DCGM_FR_RIST_TEST_FAILED               = 134, //!< 134 RIST test failed
+    DCGM_FR_RIST_NO_RESULTS                = 135, //!< 135 RISTApp did not produce usable test results
+    DCGM_FR_RIST_PROTOCOL                  = 136, //!< 136 RISTApp produced malformed protocol output
+    DCGM_FR_RIST_NONZERO_EXIT              = 137, //!< 137 RISTApp exited with a non-zero exit code
+    DCGM_FR_CHILD_TERMINATED               = 138, //!< 138 Child process terminated abnormally
+    DCGM_FR_RIST_TIMEOUT                   = 139, //!< 139 RISTApp timed out
+    DCGM_FR_RIST_HEARTBEAT_STALLED         = 140, //!< 140 RISTApp heartbeat stalled
+    DCGM_FR_CHILD_SPAWN_FAILED             = 141, //!< 141 Child process failed to spawn
+    DCGM_FR_GPU_RECOVERY_IMEX_DOMAIN       = 142, //!< 142 GPU requires IMEX domain recovery
+    DCGM_FR_ERROR_SENTINEL                 = 143, //!< 143 MUST BE THE LAST ERROR CODE
 } dcgmError_t;
 
 typedef enum dcgmErrorSeverity_enum
@@ -478,6 +487,14 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_EUD_ZOMBIE_MSG             "" /* See message inplace */
 #define DCGM_FR_EUD_NON_ZERO_EXIT_CODE_MSG "" /* See message inplace */
 #define DCGM_FR_EUD_TEST_FAILED_MSG        "" /* See message inplace */
+#define DCGM_FR_RIST_TEST_FAILED_MSG       "" /* See message inplace */
+#define DCGM_FR_RIST_NO_RESULTS_MSG        "" /* See message inplace */
+#define DCGM_FR_RIST_PROTOCOL_MSG          "" /* See message inplace */
+#define DCGM_FR_RIST_NONZERO_EXIT_MSG      "" /* See message inplace */
+#define DCGM_FR_CHILD_TERMINATED_MSG       "" /* See message inplace */
+#define DCGM_FR_RIST_TIMEOUT_MSG           "" /* See message inplace */
+#define DCGM_FR_RIST_HEARTBEAT_STALLED_MSG "" /* See message inplace */
+#define DCGM_FR_CHILD_SPAWN_FAILED_MSG     "" /* See message inplace */
 #define DCGM_FR_FILE_CREATE_PERMISSIONS_MSG \
     "The DCGM Diagnostic does not have permissions to create a file in directory '%s'"
 #define DCGM_FR_PAUSE_RESUME_FAILED_MSG "" /* See message inplace */
@@ -521,7 +538,10 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_NCCL_ERROR_MSG          "Detected NCCL error: %s Recovery action: %ld (DRAIN_AND_RESET)."
 #define DCGM_FR_RETEST_REQUESTED_MSG    "" /* See message inplace */
 #define DCGM_FR_CPU_SDC_TEST_FAILED_MSG "" /* See message inplace */
-#define DCGM_FR_ERROR_SENTINEL_MSG      "" /* See message inplace */
+// gpu id, recovery action value
+#define DCGM_FR_GPU_RECOVERY_IMEX_DOMAIN_MSG \
+    "GPU %u requires IMEX domain recovery. Recovery action: %ld (RECOVER_IMEX_DOMAIN)."
+#define DCGM_FR_ERROR_SENTINEL_MSG "" /* See message inplace */
 
 /*
  * Suggestions for next steps for the corresponding error message
@@ -678,6 +698,14 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 #define DCGM_FR_EUD_ZOMBIE_NEXT             "" /* See message inplace */
 #define DCGM_FR_EUD_NON_ZERO_EXIT_CODE_NEXT "" /* See message inplace */
 #define DCGM_FR_EUD_TEST_FAILED_NEXT        "" /* See message inplace */
+#define DCGM_FR_RIST_TEST_FAILED_NEXT       "" /* See message inplace */
+#define DCGM_FR_RIST_NO_RESULTS_NEXT        "" /* See message inplace */
+#define DCGM_FR_RIST_PROTOCOL_NEXT          "" /* See message inplace */
+#define DCGM_FR_RIST_NONZERO_EXIT_NEXT      "" /* See message inplace */
+#define DCGM_FR_CHILD_TERMINATED_NEXT       "" /* See message inplace */
+#define DCGM_FR_RIST_TIMEOUT_NEXT           "" /* See message inplace */
+#define DCGM_FR_RIST_HEARTBEAT_STALLED_NEXT "" /* See message inplace */
+#define DCGM_FR_CHILD_SPAWN_FAILED_NEXT     "" /* See message inplace */
 #define DCGM_FR_FILE_CREATE_PERMISSIONS_NEXT                                                                 \
     "Please restart the hostengine with parameter --home-dir to specify a different home directory for the " \
     "diagnostic or change permissions in the current directory to allow the user to write files there."
@@ -712,10 +740,11 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
     "Terminate GPU processes conducting peer-to-peer traffic and disable UVM persistence mode. Check GPU health status again after draining."
 #define DCGM_FR_GPU_RECOVERY_DRAIN_RESET_NEXT \
     "Do not schedule new work on this GPU. Reset the GPU after existing work has drained."
-#define DCGM_FR_NCCL_ERROR_NEXT          "Attempt to reset the GPUs and reboot the machines if that fails."
-#define DCGM_FR_RETEST_REQUESTED_NEXT    "" /* See message inplace */
-#define DCGM_FR_CPU_SDC_TEST_FAILED_NEXT "" /* See message inplace */
-#define DCGM_FR_ERROR_SENTINEL_NEXT      "" /* See message inplace */
+#define DCGM_FR_NCCL_ERROR_NEXT               "Attempt to reset the GPUs and reboot the machines if that fails."
+#define DCGM_FR_RETEST_REQUESTED_NEXT         "" /* See message inplace */
+#define DCGM_FR_CPU_SDC_TEST_FAILED_NEXT      "" /* See message inplace */
+#define DCGM_FR_GPU_RECOVERY_IMEX_DOMAIN_NEXT "Recover or re-establish the IMEX domain."
+#define DCGM_FR_ERROR_SENTINEL_NEXT           "" /* See message inplace */
 
 #ifdef __cplusplus
 extern "C" {

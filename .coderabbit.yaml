@@ -55,7 +55,7 @@ reviews:
       instructions: |
         DCGM field constant generation.
         - Header parsing, alias resolution, and legacy lowercase names must stay deterministic and covered by tests.
-        - Changes to generated constants should come from generator, header, or legacy CSV changes and pass `make check-generate`.
+        - Changes to generated constants should come from generator, header, or legacy CSV changes and pass `task generate:check`.
         - Flag duplicate legacy names, changed field IDs, or parser behavior that can silently drop fields.
     - path: "samples/**"
       instructions: |
@@ -68,7 +68,7 @@ reviews:
         GPU/DCGM integration tests.
         - Preserve skips for hardware, driver, permission, and DCGM-version constraints.
         - Avoid making tests order-dependent or dependent on mutable global DCGM state without cleanup.
-    - path: "{.gitlab-ci.yml,.github/workflows/**,Dockerfile,docker-bake.hcl,Makefile,scripts/**}"
+    - path: "{.gitlab-ci.yml,.github/workflows/**,.devcontainer/**,Taskfile.yml,MODULE.bazel,**/BUILD.bazel,hack/**}"
       instructions: |
         CI, container, build, and helper scripts.
         - Preserve merge request, main branch, and sample build behavior.
@@ -124,8 +124,6 @@ reviews:
     semgrep:
       enabled: true
     dotenvLint:
-      enabled: true
-    checkmake:
       enabled: true
     languagetool:
       enabled: true

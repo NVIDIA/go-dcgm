@@ -5,8 +5,9 @@ A sample REST API is provided, demonstrating various endpoints for getting GPU m
 ```bash
 # Start the http server
 # By default the http server is started at localhost:8070
+# Run these commands from the repository root.
 
-$ go build && ./restApi
+$ bazel run //samples/restApi
 
 # Query GPU 0 info
 $ GPUID=0
@@ -78,8 +79,8 @@ $ curl localhost:8070/dcgm/device/status/uuid/$UUID/json
 $ sudo dcgmi stats -e
 # 2. Start process to be monitored
 $ nbody -benchmark -numbodies=1000192
-# 3. Start restApi
-$ go build && ./restApi
+# 3. Start restApi from the repository root
+$ bazel run //samples/restApi
 $ PID=$(pgrep nbody)
 
 $ curl localhost:8070/dcgm/process/info/pid/$PID

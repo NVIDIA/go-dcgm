@@ -547,8 +547,26 @@ const (
 	DCGM_FR_UNCORRECTABLE_ROW_REMAP_LIMIT HealthCheckErrorCode = 132
 	// DCGM_FR_CPU_SDC_TEST_FAILED SDC test failed
 	DCGM_FR_CPU_SDC_TEST_FAILED HealthCheckErrorCode = 133
+	// DCGM_FR_RIST_TEST_FAILED RIST test failed
+	DCGM_FR_RIST_TEST_FAILED HealthCheckErrorCode = 134
+	// DCGM_FR_RIST_NO_RESULTS RISTApp did not produce usable test results
+	DCGM_FR_RIST_NO_RESULTS HealthCheckErrorCode = 135
+	// DCGM_FR_RIST_PROTOCOL RISTApp produced malformed protocol output
+	DCGM_FR_RIST_PROTOCOL HealthCheckErrorCode = 136
+	// DCGM_FR_RIST_NONZERO_EXIT RISTApp exited with a non-zero exit code
+	DCGM_FR_RIST_NONZERO_EXIT HealthCheckErrorCode = 137
+	// DCGM_FR_CHILD_TERMINATED Child process terminated abnormally
+	DCGM_FR_CHILD_TERMINATED HealthCheckErrorCode = 138
+	// DCGM_FR_RIST_TIMEOUT RISTApp timed out
+	DCGM_FR_RIST_TIMEOUT HealthCheckErrorCode = 139
+	// DCGM_FR_RIST_HEARTBEAT_STALLED RISTApp heartbeat stalled
+	DCGM_FR_RIST_HEARTBEAT_STALLED HealthCheckErrorCode = 140
+	// DCGM_FR_CHILD_SPAWN_FAILED Child process failed to spawn
+	DCGM_FR_CHILD_SPAWN_FAILED HealthCheckErrorCode = 141
+	// DCGM_FR_GPU_RECOVERY_IMEX_DOMAIN GPU requires IMEX domain recovery
+	DCGM_FR_GPU_RECOVERY_IMEX_DOMAIN HealthCheckErrorCode = 142
 	// DCGM_FR_ERROR_SENTINEL MUST BE THE LAST ERROR CODE
-	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 134
+	DCGM_FR_ERROR_SENTINEL HealthCheckErrorCode = 143
 )
 
 // BindUnbindEventState represents the state of GPU bind/unbind events

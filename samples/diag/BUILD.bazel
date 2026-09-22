@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "diag_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/NVIDIA/go-dcgm/samples/diag",
+    visibility = ["//visibility:private"],
+    deps = ["//pkg/dcgm"],
+)
+
+go_binary(
+    name = "diag",
+    embed = [":diag_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "diag_test",
+    srcs = ["main_test.go"],
+    embed = [":diag_lib"],
+    deps = ["//pkg/dcgm"],
+)

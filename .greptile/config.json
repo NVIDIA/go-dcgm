@@ -56,8 +56,8 @@
     },
     {
       "id": "ci-container-secret-hygiene",
-      "rule": "CI, Docker, build, and script changes must not expose tokens, registry credentials, or unsigned/unpinned image inputs. Verify artifact paths, generated-code checks, lint jobs, and Docker build arguments still match their producers and consumers.",
-      "scope": [".gitlab-ci.yml", ".github/workflows/**", "Dockerfile", "docker-bake.hcl", "Makefile", "scripts/**"],
+      "rule": "CI, development-container, build, and script changes must not expose tokens, registry credentials, or unsigned/unpinned image inputs. Verify artifact paths, generated-code checks, lint jobs, and container inputs still match their producers and consumers.",
+      "scope": [".gitlab-ci.yml", ".gitlab/ci/**", ".github/workflows/**", ".devcontainer/**", "Taskfile.yml", "hack/**"],
       "severity": "high"
     },
     {

@@ -31,17 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIMEXHealthWatchConstant(t *testing.T) {
-	const want HealthSystem = 0x2000
-
-	require.Equal(t, want, DCGM_HEALTH_WATCH_IMEX)
-	require.Equal(t, want, DCGM_HEALTH_WATCH_ALL&want)
-}
-
-func TestSystemWatchIMEX(t *testing.T) {
-	require.Equal(t, "IMEX watches", systemWatch(DCGM_HEALTH_WATCH_IMEX))
-}
-
 func TestIMEXHealthWatchIntegration(t *testing.T) {
 	teardownTest := setupTest(t)
 	defer teardownTest(t)

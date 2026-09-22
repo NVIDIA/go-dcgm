@@ -147,7 +147,8 @@ func peerEntities(links []P2PLink) []GroupEntityPair {
 
 func populatePeerBusIDs(links []P2PLink, values []FieldValue_v2) error {
 	busIDs := make(map[uint]string, len(values))
-	for _, value := range values {
+	for index := range values {
+		value := &values[index]
 		if value.EntityGroupId != FE_GPU || value.FieldID != DCGM_FI_DEV_PCI_BUS_ID {
 			continue
 		}

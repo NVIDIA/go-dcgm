@@ -112,6 +112,18 @@ func AddEntityToGroup(groupID GroupHandle, entityGroupID Field_Entity_Group, ent
 	return
 }
 
+// RemoveEntityFromGroup removes an entity from an existing group.
+// It returns an error if the group or entity is not found.
+func RemoveEntityFromGroup(groupID GroupHandle, entityGroupID Field_Entity_Group, entityID uint) (err error) {
+	result := C.dcgmGroupRemoveEntity(handle.handle, groupID.handle, C.dcgm_field_entity_group_t(entityGroupID),
+		C.uint(entityID))
+	if err = errorString(result); err != nil {
+		return fmt.Errorf("error removing entity group type %v, entity %v from group: %s", entityGroupID, entityID, err)
+	}
+
+	return
+}
+
 // DestroyGroup destroys an existing GPU group
 func DestroyGroup(groupID GroupHandle) (err error) {
 	result := C.dcgmGroupDestroy(handle.handle, groupID.handle)

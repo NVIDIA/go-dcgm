@@ -54,7 +54,10 @@ const (
 // dcgmFields maps field names to their IDs
 var dcgmFields = map[string]Short{
 {{- range .Fields}}
+	"{{if .LookupName}}{{.LookupName}}{{else}}{{.Name}}{{end}}": {{.ID}},
+{{- if and .LookupName (ne .LookupName .Name)}}
 	"{{.Name}}": {{.ID}},
+{{- end}}
 {{- end}}
 }
 

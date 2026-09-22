@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "restApi_lib",
+    srcs = [
+        "main.go",
+        "server.go",
+    ],
+    importpath = "github.com/NVIDIA/go-dcgm/samples/restApi",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/dcgm",
+        "//samples/restApi/handlers",
+        "@com_github_gorilla_mux//:mux",
+    ],
+)
+
+go_binary(
+    name = "restApi",
+    embed = [":restApi_lib"],
+    visibility = ["//visibility:public"],
+)

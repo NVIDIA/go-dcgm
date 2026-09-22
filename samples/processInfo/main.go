@@ -50,7 +50,7 @@ Avg Memory Utilization (%)   : {{or .ProcessUtilization.MemUtil "N/A"}}
 //     sudo dcgmi stats -e
 //  2. Start process to be monitored
 //  3. Run processInfo. This is equivalent to "dcgmi stats --pid ENTERPID -v"
-//     go build && ./processInfo -pid PID
+//     bazel run //samples/processInfo -- -pid PID
 func main() {
 	process := flag.Uint("pid", 0, "Provide pid to get this process information.")
 

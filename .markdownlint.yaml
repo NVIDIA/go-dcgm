@@ -6,3 +6,14 @@ MD013:
   line_length: 500
   tables: false
   code_blocks: false
+
+# Allow the centered README header and its badges.
+MD033:
+  allowed_elements:
+    - a
+    - div
+    - img
+    - p
+
+# The centered README header appears before its H1.
+MD041: false

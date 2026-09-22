@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "gen-fields_lib",
+    srcs = [
+        "main.go",
+        "template.go",
+    ],
+    importpath = "github.com/NVIDIA/go-dcgm/cmd/gen-fields",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "gen-fields",
+    embed = [":gen-fields_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "gen-fields_test",
+    srcs = ["main_test.go"],
+    embed = [":gen-fields_lib"],
+)

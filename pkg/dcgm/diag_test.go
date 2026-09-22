@@ -23,103 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestGetInfoMsg_NoMessages verifies getInfoMsg returns empty string when no info messages exist
-func TestGetInfoMsg_NoMessages(t *testing.T) {
-	response := createTestDiagResponse()
-
-	result := getInfoMsg(0, 0, response)
-
-	assert.Empty(t, result, "expected empty string when no info messages exist")
-}
-
-// TestGetInfoMsg_SingleMessage verifies getInfoMsg returns the single message without separator
-func TestGetInfoMsg_SingleMessage(t *testing.T) {
-	response := createTestDiagResponse()
-
-	expectedMsg := "Allocated 83618558100 bytes (98.4%)"
-	addInfoMessage(&response, 0, testMemoryIndex, expectedMsg)
-
-	result := getInfoMsg(0, testMemoryIndex, response)
-
-	assert.Equal(t, expectedMsg, result, "expected single message to be returned as-is")
-}
-
-// TestGetInfoMsg_MultipleMessages verifies all matching info messages are concatenated
-func TestGetInfoMsg_MultipleMessages(t *testing.T) {
-	response := createTestDiagResponse()
-
-	entityID := uint(0)
-	testID := uint(testPCIIndex)
-
-	messages := []string{
-		"GPU to Host bandwidth: 28.27 GB/s",
-		"Host to GPU bandwidth: 27.65 GB/s",
-		"bidirectional bandwidth: 50.59 GB/s",
-		"GPU to Host latency: 1.305 us",
-		"Host to GPU latency: 2.097 us",
-		"bidirectional latency: 2.666 us",
-	}
-
-	for _, msg := range messages {
-		addInfoMessage(&response, entityID, testID, msg)
-	}
-
-	result := getInfoMsg(entityID, testID, response)
-
-	expected := "GPU to Host bandwidth: 28.27 GB/s | Host to GPU bandwidth: 27.65 GB/s | bidirectional bandwidth: 50.59 GB/s | GPU to Host latency: 1.305 us | Host to GPU latency: 2.097 us | bidirectional latency: 2.666 us"
-	assert.Equal(t, expected, result, "expected all messages to be concatenated with ' | ' separator")
-}
-
-// TestGetInfoMsg_FiltersByEntityID verifies only messages matching entityId are returned
-func TestGetInfoMsg_FiltersByEntityID(t *testing.T) {
-	response := createTestDiagResponse()
-
-	targetEntityID := uint(0)
-	testID := uint(testMemoryIndex)
-
-	// Add messages for different entities
-	addInfoMessage(&response, targetEntityID, testID, "Message for entity 0")
-	addInfoMessage(&response, 1, testID, "Message for entity 1")
-	addInfoMessage(&response, targetEntityID, testID, "Another message for entity 0")
-
-	result := getInfoMsg(targetEntityID, testID, response)
-
-	expected := "Message for entity 0 | Another message for entity 0"
-	assert.Equal(t, expected, result, "expected only messages matching entityId to be included")
-	assert.NotContains(t, result, "entity 1", "should not contain messages from different entity")
-}
-
-// TestGetInfoMsg_FiltersByTestID verifies only messages matching testId are returned
-func TestGetInfoMsg_FiltersByTestID(t *testing.T) {
-	response := createTestDiagResponse()
-
-	entityID := uint(0)
-	targetTestID := uint(testMemoryIndex)
-
-	// Add messages for different test IDs
-	addInfoMessage(&response, entityID, targetTestID, "Memory test message 1")
-	addInfoMessage(&response, entityID, testPCIIndex, "PCIe test message")
-	addInfoMessage(&response, entityID, targetTestID, "Memory test message 2")
-
-	result := getInfoMsg(entityID, targetTestID, response)
-
-	expected := "Memory test message 1 | Memory test message 2"
-	assert.Equal(t, expected, result, "expected only messages matching testId to be included")
-	assert.NotContains(t, result, "PCIe", "should not contain messages from different test")
-}
-
-// TestGetInfoMsg_NoMatchingMessages verifies empty string when no messages match filters
-func TestGetInfoMsg_NoMatchingMessages(t *testing.T) {
-	response := createTestDiagResponse()
-
-	// Add messages that don't match the query
-	addInfoMessage(&response, 0, testMemoryIndex, "Some message")
-	addInfoMessage(&response, 1, testPCIIndex, "Another message")
-
-	// Query with different entityId and testId
-	result := getInfoMsg(99, 99, response)
-
-	assert.Empty(t, result, "expected empty string when no messages match the filters")
+func TestDiagResultStringSizeCompatibility(t *testing.T) {
+	assert.Equal(t, 1024, DIAG_RESULT_STRING_SIZE)
 }
 
 // TestDiagResultString verifies diagResultString conversion
@@ -145,68 +50,93 @@ func TestDiagResultString(t *testing.T) {
 	}
 }
 
-// TestGpuTestName verifies gpuTestName conversion
-func TestGpuTestName(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    int
-		expected string
-	}{
-		{"memory", testMemoryIndex, "memory"},
-		{"diagnostic", testDiagnosticIndex, "diagnostic"},
-		{"pcie", testPCIIndex, "pcie"},
-		{"sm stress", testSMStressIndex, "sm stress"},
-		{"targeted stress", testTargetedStressIndex, "targeted stress"},
-		{"targeted power", testTargetedPowerIndex, "targeted power"},
-		{"memory bandwidth", testMemoryBandwidthIndex, "memory bandwidth"},
-		{"memtest", testMemtestIndex, "memtest"},
-		{"pulse", testPulseTestIndex, "pulse"},
-		{"eud", testEUDTestIndex, "eud"},
-		{"software", testSoftwareIndex, "software"},
-		{"context create", testContextCreateIndex, "context create"},
-		{"unknown", 999, ""},
-	}
+func TestNewDiagResultsPreservesHierarchy(t *testing.T) {
+	response := createFullTestDiagResponse()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := gpuTestName(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
+	result := newDiagResults(&response)
+
+	assert.Equal(t, "4.6.1", result.DCGMVersion)
+	assert.Equal(t, "580.1", result.DriverVersion)
+	assert.Equal(t, []string{"Deployment", "Hardware"}, result.Categories)
+	require.Len(t, result.Entities, 1)
+	assert.Equal(t, GroupEntityPair{EntityGroupId: FE_GPU, EntityId: 7}, result.Entities[0].Entity)
+	assert.Equal(t, "GPU-SERIAL", result.Entities[0].SerialNumber)
+	assert.Equal(t, "27B8", result.Entities[0].SKUDeviceID)
+	require.Len(t, result.SystemErrors, 1)
+	assert.Equal(t, uint(99), result.SystemErrors[0].Code)
+	assert.Equal(t, "system failure", result.SystemErrors[0].Message)
+
+	require.Len(t, result.Tests, 2)
+	software := result.Tests[0]
+	assert.Equal(t, "software", software.Name)
+	assert.Equal(t, "software", software.PluginName)
+	assert.Equal(t, "Deployment", software.Category)
+	assert.Equal(t, "warn", software.Status)
+	assert.Equal(t, uint(1), software.AuxDataVersion)
+	assert.Equal(t, `{"version":"1"}`, software.AuxData)
+	require.Len(t, software.Errors, 1)
+	assert.Equal(t, GroupEntityPair{EntityGroupId: FE_NONE}, software.Errors[0].Entity)
+	assert.Equal(t, uint(42), software.Errors[0].Code)
+	assert.Equal(t, DCGM_FR_EC_SOFTWARE_CONFIG, software.Errors[0].Category)
+	assert.Equal(t, DCGM_ERROR_CONFIG, software.Errors[0].Severity)
+	assert.Equal(t, "software warning", software.Errors[0].Message)
+	require.Len(t, software.Info, 1)
+	assert.Equal(t, "software checked", software.Info[0].Message)
+
+	memory := result.Tests[1]
+	assert.Equal(t, "memory", memory.Name)
+	assert.Equal(t, "Hardware", memory.Category)
+	assert.Equal(t, "pass", memory.Status)
+	require.Len(t, memory.Results, 1)
+	assert.Equal(t, GroupEntityPair{EntityGroupId: FE_GPU, EntityId: 7}, memory.Results[0].Entity)
+	assert.Equal(t, "pass", memory.Results[0].Status)
+	require.Len(t, memory.Info, 1)
+	assert.Equal(t, GroupEntityPair{EntityGroupId: FE_GPU, EntityId: 7}, memory.Info[0].Entity)
+	assert.Equal(t, "memory ok", memory.Info[0].Message)
 }
 
-// TestNewDiagResult verifies DiagResult construction with multiple info messages
-func TestNewDiagResult(t *testing.T) {
-	response := createTestDiagResponse()
+func TestNewDiagResultsIgnoresOutOfRangeCategoryIndex(t *testing.T) {
+	response := createFullTestDiagResponse()
+	response.tests[0].categoryIndex = response.numCategories
 
-	entityID := uint(0)
-	testID := uint(testPCIIndex)
-	serialNumber := "1652923033635"
+	result := newDiagResults(&response)
 
-	// Setup result
-	addDiagResult(&response, entityID, testID, testDiagResultPass)
+	require.NotEmpty(t, result.Tests)
+	assert.Empty(t, result.Tests[0].Category)
+}
 
-	// Setup multiple info messages
-	messages := []string{
-		"GPU to Host bandwidth: 28.27 GB/s",
-		"Host to GPU bandwidth: 27.65 GB/s",
-		"bidirectional bandwidth: 50.59 GB/s",
-	}
-	for _, msg := range messages {
-		addInfoMessage(&response, entityID, testID, msg)
-	}
+func TestNewDiagResultsPreservesLegacyView(t *testing.T) {
+	response := createFullTestDiagResponse()
 
-	// Setup entity with serial number
-	addEntityWithSerial(&response, entityID, serialNumber)
+	result := newDiagResults(&response)
 
-	result := newDiagResult(0, response)
+	require.Len(t, result.Software, 2)
+	assert.Equal(t, DiagResult{
+		Status:       "warn",
+		TestName:     "software",
+		TestOutput:   "software checked",
+		ErrorCode:    42,
+		ErrorMessage: "software warning",
+		SerialNumber: "GPU-SERIAL",
+		EntityID:     7,
+	}, result.Software[0])
+	assert.Equal(t, DiagResult{
+		Status:       "pass",
+		TestName:     "memory",
+		TestOutput:   "memory ok",
+		SerialNumber: "GPU-SERIAL",
+		EntityID:     7,
+	}, result.Software[1])
+}
 
-	require.NotNil(t, result)
-	assert.Equal(t, "pass", result.Status)
-	assert.Equal(t, "pcie", result.TestName)
-	assert.Equal(t, "GPU to Host bandwidth: 28.27 GB/s | Host to GPU bandwidth: 27.65 GB/s | bidirectional bandwidth: 50.59 GB/s", result.TestOutput)
-	assert.Equal(t, uint(0), result.ErrorCode)
-	assert.Empty(t, result.ErrorMessage)
-	assert.Equal(t, serialNumber, result.SerialNumber)
-	assert.Equal(t, entityID, result.EntityID)
+func TestLegacyDiagResultsExcludesNonGPUEntities(t *testing.T) {
+	result := DiagResults{Tests: []DiagTest{{
+		Name: "cpu",
+		Results: []DiagEntityResult{{
+			Entity: GroupEntityPair{EntityGroupId: FE_CPU, EntityId: 7},
+			Status: "fail",
+		}},
+	}}}
+
+	assert.Empty(t, legacyDiagResults(result))
 }

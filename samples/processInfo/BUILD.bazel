@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "processInfo_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/NVIDIA/go-dcgm/samples/processInfo",
+    visibility = ["//visibility:private"],
+    deps = ["//pkg/dcgm"],
+)
+
+go_binary(
+    name = "processInfo",
+    embed = [":processInfo_lib"],
+    visibility = ["//visibility:public"],
+)

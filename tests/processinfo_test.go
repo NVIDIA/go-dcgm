@@ -39,7 +39,7 @@ func TestProcessInfo(t *testing.T) {
 	time.Sleep(3000 * time.Millisecond)
 
 	// Get current process ID as an example
-	currentPid := uint(os.Getpid())
+	currentPid := uint(os.Getpid()) // #nosec G115 -- process IDs are non-negative.
 	t.Logf("Testing with current process PID: %d", currentPid)
 
 	pidInfo, err := dcgm.GetProcessInfo(group, currentPid)

@@ -6,14 +6,11 @@ package dcgm
 */
 import "C"
 
-import (
-	"strings"
-	"unsafe"
-)
+import "strings"
 
 // Package dcgm provides bindings for NVIDIA's Data Center GPU Manager (DCGM)
 
-// DIAG_RESULT_STRING_SIZE represents the maximum size of diagnostic result strings
+// DIAG_RESULT_STRING_SIZE represents the maximum size of diagnostic result strings.
 const DIAG_RESULT_STRING_SIZE = 1024
 
 // DiagType represents the type of diagnostic test to run
@@ -33,28 +30,72 @@ const (
 	DiagExtended DiagType = 4
 )
 
-// DiagResult represents the result of a single diagnostic test
+// DiagResult represents the legacy flattened result of one diagnostic test for one entity.
+//
+// Deprecated: Use DiagTest and DiagEntityResult.
 type DiagResult struct {
-	// Status indicates the test result: "pass", "fail", "warn", "skip", or "notrun"
-	Status string
-	// TestName is the name of the diagnostic test that was run
-	TestName string
-	// TestOutput contains any additional output or messages from the test
-	TestOutput string
-	// ErrorCode is the numeric error code if the test failed
-	ErrorCode uint
-	// ErrorMessage contains a detailed error message if the test failed
+	Status       string
+	TestName     string
+	TestOutput   string
+	ErrorCode    uint
 	ErrorMessage string
-	// Serial number of the tested entity
 	SerialNumber string
-	// EntityID
-	EntityID uint
+	EntityID     uint
 }
 
-// DiagResults contains the results of all diagnostic tests
+// DiagEntity contains metadata for an entity included in a diagnostic response.
+type DiagEntity struct {
+	Entity       GroupEntityPair
+	SerialNumber string
+	SKUDeviceID  string
+}
+
+// DiagEntityResult contains one diagnostic test result for one entity.
+type DiagEntityResult struct {
+	Entity GroupEntityPair
+	Status string
+}
+
+// DiagError contains an error reported by a diagnostic test.
+type DiagError struct {
+	Entity   GroupEntityPair
+	Code     uint
+	Category ErrorCategory
+	Severity ErrorSeverity
+	Message  string
+}
+
+// DiagInfo contains an informational message reported by a diagnostic test.
+type DiagInfo struct {
+	Entity  GroupEntityPair
+	Message string
+}
+
+// DiagTest contains the overall and per-entity results of one diagnostic test.
+type DiagTest struct {
+	Name           string
+	PluginName     string
+	Category       string
+	Status         string
+	Errors         []DiagError
+	Info           []DiagInfo
+	Results        []DiagEntityResult
+	AuxDataVersion uint
+	AuxData        string
+}
+
+// DiagResults contains the complete diagnostic response.
 type DiagResults struct {
-	// Software contains the results of software-related diagnostic tests
-	Software []DiagResult
+	// Software contains a flattened GPU-only compatibility view of Tests.
+	//
+	// Deprecated: Use Tests for diagnostic test results.
+	Software      []DiagResult
+	DCGMVersion   string
+	DriverVersion string
+	Categories    []string
+	Entities      []DiagEntity
+	SystemErrors  []DiagError
+	Tests         []DiagTest
 }
 
 // diagResultString converts a diagnostic result code to its string representation
@@ -74,93 +115,148 @@ func diagResultString(r int) string {
 	return ""
 }
 
-// gpuTestName returns the category name for a diagnostic test based on its test ID.
-// This function handles all diagnostic test types including GPU tests and software tests.
-// Software tests (DCGM_SWTEST_*) all report under DCGM_SOFTWARE_INDEX and return "software".
-// Detailed test information is provided in TestOutput, not in the TestName.
-func gpuTestName(t int) string {
-	switch t {
-	case C.DCGM_MEMORY_INDEX:
-		return "memory"
-	case C.DCGM_DIAGNOSTIC_INDEX:
-		return "diagnostic"
-	case C.DCGM_PCI_INDEX:
-		return "pcie"
-	case C.DCGM_SM_STRESS_INDEX:
-		return "sm stress"
-	case C.DCGM_TARGETED_STRESS_INDEX:
-		return "targeted stress"
-	case C.DCGM_TARGETED_POWER_INDEX:
-		return "targeted power"
-	case C.DCGM_MEMORY_BANDWIDTH_INDEX:
-		return "memory bandwidth"
-	case C.DCGM_MEMTEST_INDEX:
-		return "memtest"
-	case C.DCGM_PULSE_TEST_INDEX:
-		return "pulse"
-	case C.DCGM_EUD_TEST_INDEX:
-		return "eud"
-	case C.DCGM_SOFTWARE_INDEX:
-		return "software"
-	case C.DCGM_CONTEXT_CREATE_INDEX:
-		return "context create"
+func groupEntityPair(entity C.dcgmGroupEntityPair_t) GroupEntityPair {
+	return GroupEntityPair{
+		EntityGroupId: Field_Entity_Group(entity.entityGroupId),
+		EntityId:      uint(entity.entityId),
 	}
-	return ""
 }
 
-func getErrorMsg(entityId, testId uint, response C.dcgmDiagResponse_v12) (msg string, code uint) {
-	for i := 0; i < int(response.numErrors); i++ {
-		if uint(response.errors[i].entity.entityId) != entityId || uint(response.errors[i].testId) != testId {
-			continue
-		}
-
-		msg = C.GoString((*C.char)(unsafe.Pointer(&response.errors[i].msg)))
-		code = uint(response.errors[i].code)
-		return
+func newDiagError(diagError *C.dcgmDiagError_v1) DiagError {
+	return DiagError{
+		Entity:   groupEntityPair(diagError.entity),
+		Code:     uint(diagError.code),
+		Category: ErrorCategory(diagError.category),
+		Severity: ErrorSeverity(diagError.severity),
+		Message:  C.GoString(&diagError.msg[0]),
 	}
-
-	return
 }
 
-func getInfoMsg(entityId, testId uint, response C.dcgmDiagResponse_v12) string {
-	var msgs []string
-	for i := 0; i < int(response.numInfo); i++ {
-		if uint(response.info[i].entity.entityId) != entityId || uint(response.info[i].testId) != testId {
-			continue
-		}
-		msgs = append(msgs, C.GoString((*C.char)(unsafe.Pointer(&response.info[i].msg))))
-	}
-	return strings.Join(msgs, " | ")
-}
+func legacyDiagResults(result DiagResults) []DiagResult {
+	legacy := make([]DiagResult, 0)
+	for i := range result.Tests {
+		test := &result.Tests[i]
+		for _, entityResult := range test.Results {
+			if entityResult.Entity.EntityGroupId != FE_GPU {
+				continue
+			}
+			diagResult := DiagResult{
+				Status:   entityResult.Status,
+				TestName: test.Name,
+				EntityID: entityResult.Entity.EntityId,
+			}
 
-func getSerial(resultIdx uint, response C.dcgmDiagResponse_v12) string {
-	for i := 0; i < int(response.numEntities); i++ {
-		if response.entities[i].entity.entityId == response.results[resultIdx].entity.entityId &&
-			response.entities[i].entity.entityGroupId == response.results[resultIdx].entity.entityGroupId {
-			return C.GoString((*C.char)(unsafe.Pointer(&response.entities[i].serialNum)))
+			for _, entity := range result.Entities {
+				if entity.Entity == entityResult.Entity {
+					diagResult.SerialNumber = entity.SerialNumber
+					break
+				}
+			}
+
+			var info []string
+			for _, diagInfo := range test.Info {
+				if diagInfo.Entity == entityResult.Entity || diagInfo.Entity.EntityGroupId == FE_NONE {
+					info = append(info, diagInfo.Message)
+				}
+			}
+			diagResult.TestOutput = strings.Join(info, " | ")
+
+			for _, diagError := range test.Errors {
+				if diagError.Entity != entityResult.Entity && diagError.Entity.EntityGroupId != FE_NONE {
+					continue
+				}
+				diagResult.ErrorCode = diagError.Code
+				diagResult.ErrorMessage = diagError.Message
+				if diagError.Entity == entityResult.Entity {
+					break
+				}
+			}
+
+			legacy = append(legacy, diagResult)
 		}
 	}
-	return ""
+	return legacy
 }
 
-func newDiagResult(resultIndex uint, response C.dcgmDiagResponse_v12) DiagResult {
-	entityId := uint(response.results[resultIndex].entity.entityId)
-	testId := uint(response.results[resultIndex].testId)
-
-	msg, code := getErrorMsg(entityId, testId, response)
-	info := getInfoMsg(entityId, testId, response)
-	testName := strings.ToLower(gpuTestName(int(testId)))
-	serial := getSerial(resultIndex, response)
-
-	return DiagResult{
-		Status:       diagResultString(int(response.results[resultIndex].result)),
-		TestName:     testName,
-		TestOutput:   info,
-		ErrorCode:    code,
-		ErrorMessage: msg,
-		SerialNumber: serial,
-		EntityID:     entityId,
+func newDiagResults(response *C.dcgmDiagResponse_v12) DiagResults {
+	result := DiagResults{
+		DCGMVersion:   C.GoString(&response.dcgmVersion[0]),
+		DriverVersion: C.GoString(&response.driverVersion[0]),
 	}
+
+	categoryCount := min(int(response.numCategories), len(response.categories))
+	result.Categories = make([]string, categoryCount)
+	for i := range categoryCount {
+		result.Categories[i] = C.GoString(&response.categories[i][0])
+	}
+
+	entityCount := min(int(response.numEntities), len(response.entities))
+	result.Entities = make([]DiagEntity, entityCount)
+	for i := range entityCount {
+		result.Entities[i] = DiagEntity{
+			Entity:       groupEntityPair(response.entities[i].entity),
+			SerialNumber: C.GoString(&response.entities[i].serialNum[0]),
+			SKUDeviceID:  C.GoString(&response.entities[i].skuDeviceId[0]),
+		}
+	}
+
+	for i := 0; i < min(int(response.numErrors), len(response.errors)); i++ {
+		if response.errors[i].testId == C.DCGM_DIAG_RESPONSE_SYSTEM_ERROR {
+			result.SystemErrors = append(result.SystemErrors, newDiagError(&response.errors[i]))
+		}
+	}
+
+	testCount := min(int(response.numTests), len(response.tests))
+	result.Tests = make([]DiagTest, testCount)
+	for i := range testCount {
+		test := &response.tests[i]
+		diagTest := DiagTest{
+			Name:           C.GoString(&test.name[0]),
+			PluginName:     C.GoString(&test.pluginName[0]),
+			Status:         diagResultString(int(test.result)),
+			AuxDataVersion: uint(test.auxData.version >> 24),
+			AuxData:        C.GoString(&test.auxData.data[0]),
+		}
+		if int(test.categoryIndex) < len(result.Categories) {
+			diagTest.Category = result.Categories[test.categoryIndex]
+		}
+
+		for j := 0; j < min(int(test.numErrors), len(test.errorIndices)); j++ {
+			index := int(test.errorIndices[j])
+			if index >= min(int(response.numErrors), len(response.errors)) {
+				continue
+			}
+			diagTest.Errors = append(diagTest.Errors, newDiagError(&response.errors[index]))
+		}
+
+		for j := 0; j < min(int(test.numInfo), len(test.infoIndices)); j++ {
+			index := int(test.infoIndices[j])
+			if index >= min(int(response.numInfo), len(response.info)) {
+				continue
+			}
+			diagInfo := &response.info[index]
+			diagTest.Info = append(diagTest.Info, DiagInfo{
+				Entity:  groupEntityPair(diagInfo.entity),
+				Message: C.GoString(&diagInfo.msg[0]),
+			})
+		}
+
+		for j := 0; j < min(int(test.numResults), len(test.resultIndices)); j++ {
+			index := uint(test.resultIndices[j])
+			if index >= uint(min(int(response.numResults), len(response.results))) {
+				continue
+			}
+			entityResult := response.results[index]
+			diagTest.Results = append(diagTest.Results, DiagEntityResult{
+				Entity: groupEntityPair(entityResult.entity),
+				Status: diagResultString(int(entityResult.result)),
+			})
+		}
+		result.Tests[i] = diagTest
+	}
+
+	result.Software = legacyDiagResults(result)
+	return result
 }
 
 func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
@@ -180,25 +276,19 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 // RunDiag runs diagnostic tests on a group of GPUs with the specified diagnostic level.
 // Parameters:
 //   - diagType: The type/level of diagnostic test to run (Quick, Medium, Long, or Extended)
-//   - groupId: The group of GPUs to run diagnostics on
+//   - groupID: The group of GPUs to run diagnostics on
 //
 // Returns:
 //   - DiagResults containing the results of all diagnostic tests
 //   - error if the diagnostics failed to run
 func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
-	var diagResults C.dcgmDiagResponse_v12
+	diagResults := new(C.dcgmDiagResponse_v12)
 	diagResults.version = C.dcgmDiagResponse_version12
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), &diagResults)
+	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), diagResults)
 	if err := errorString(result); err != nil {
 		return DiagResults{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
 
-	var diagRun DiagResults
-	diagRun.Software = make([]DiagResult, diagResults.numResults)
-	for i := 0; i < int(diagResults.numResults); i++ {
-		diagRun.Software[i] = newDiagResult(uint(i), diagResults)
-	}
-
-	return diagRun, nil
+	return newDiagResults(diagResults), nil
 }

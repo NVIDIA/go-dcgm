@@ -7,7 +7,7 @@
     {
       "path": "CONTRIBUTING.md",
       "description": "Contributor expectations, generated field workflow, and repository development guidance.",
-      "scope": ["README.md", "CONTRIBUTING.md", "Makefile", "cmd/gen-fields/**", "pkg/dcgm/**"]
+      "scope": ["README.md", "CONTRIBUTING.md", "Taskfile.yml", "cmd/gen-fields/**", "pkg/dcgm/**"]
     },
     {
       "path": "go.mod",
@@ -15,19 +15,19 @@
       "scope": ["go.mod", "go.sum", "**/*.go"]
     },
     {
-      "path": "Makefile",
-      "description": "Primary local build, test, format, lint, and generated-code targets.",
-      "scope": ["Makefile", ".gitlab-ci.yml", ".github/workflows/**", "cmd/**", "pkg/**", "samples/**", "tests/**"]
+      "path": "Taskfile.yml",
+      "description": "Primary local build, test, format, lint, generation, and validation interface.",
+      "scope": ["Taskfile.yml", "MODULE.bazel", "**/BUILD.bazel", ".gitlab-ci.yml", ".github/workflows/**", "hack/**", "cmd/**", "pkg/**", "samples/**", "tests/**"]
     },
     {
       "path": ".gitlab-ci.yml",
-      "description": "GitLab build, GPU test, format, lint, and Docker build-matrix pipeline.",
-      "scope": [".gitlab-ci.yml", "Dockerfile", "docker-bake.hcl", "Makefile", "scripts/**"]
+      "description": "GitLab development-container, GPU test, format, lint, and build pipeline.",
+      "scope": [".gitlab-ci.yml", ".gitlab/ci/**", ".devcontainer/**", "Taskfile.yml", "MODULE.bazel", "hack/**"]
     },
     {
-      "path": "Dockerfile",
-      "description": "CUDA/DCGM build image and sample binary build environment.",
-      "scope": ["Dockerfile", "docker-bake.hcl", ".gitlab-ci.yml", "Makefile", "samples/**"]
+      "path": ".devcontainer/devcontainer.json",
+      "description": "Local development container configuration shared with GitLab CI.",
+      "scope": [".devcontainer/**", ".gitlab/ci/**", "Taskfile.yml", "MODULE.bazel", "hack/**"]
     },
     {
       "path": "pkg/dcgm/api.go",

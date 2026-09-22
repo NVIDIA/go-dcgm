@@ -1681,6 +1681,56 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyGet(dcgmHandle_t pDcgmHandle,
                                            dcgmPolicy_t *policy,
                                            dcgmStatus_t statusHandle);
 
+/* Field-policy management APIs added in DCGM v4.7.0. */
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyCreate(dcgmHandle_t pDcgmHandle,
+                                              unsigned short fieldId,
+                                              const char *name,
+                                              double threshold,
+                                              dcgmPolicyOperator_t policyOperator,
+                                              const dcgmGroupEntityPair_t *entities,
+                                              unsigned int entityCount,
+                                              unsigned int channelMask,
+                                              unsigned int enabled,
+                                              unsigned int rateLimitSec,
+                                              uint64_t *policyId);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyModify(dcgmHandle_t pDcgmHandle, const dcgmPolicyInfo_t *policy);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyDelete(dcgmHandle_t pDcgmHandle,
+                                              unsigned short fieldId,
+                                              uint64_t policyId,
+                                              unsigned int deleteAll);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyEnable(dcgmHandle_t pDcgmHandle, unsigned short fieldId, uint64_t policyId);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyDisable(dcgmHandle_t pDcgmHandle, unsigned short fieldId, uint64_t policyId);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyGetOne(dcgmHandle_t pDcgmHandle,
+                                              unsigned short fieldId,
+                                              uint64_t policyId,
+                                              dcgmPolicyInfo_t *policy);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyGetAll(dcgmHandle_t pDcgmHandle,
+                                              dcgmPolicyInfo_t *policies,
+                                              unsigned int *count);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyImport(dcgmHandle_t pDcgmHandle, const char *path);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyGetViolations(dcgmHandle_t pDcgmHandle,
+                                                     int64_t sinceTimestamp,
+                                                     dcgm_policy_violation_t *violations,
+                                                     unsigned int *count);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyRegister_v3(dcgmHandle_t pDcgmHandle,
+                                                   unsigned short fieldId,
+                                                   uint64_t policyId,
+                                                   fpRecvPolicyViolation callback,
+                                                   uint64_t userData);
+
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyUnregister_v3(dcgmHandle_t pDcgmHandle,
+                                                     unsigned short fieldId,
+                                                     uint64_t policyId);
+
 /**
  * Register a function to be called when a specific policy condition (see \ref dcgmPolicyCondition_t) has been
  * violated.  This callback(s) will be called automatically when in DCGM_OPERATION_MODE_AUTO mode and only after

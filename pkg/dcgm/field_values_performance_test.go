@@ -7,17 +7,17 @@ package dcgm
 // 1. Direct Append (appendConvertedValues):
 //    - Eliminates intermediate slice allocation
 //    - Results: 50% fewer allocations, 27-38% faster
-//    - Run: go test -bench=BenchmarkAppendConvertedValues -benchmem
+//    - Benchmark: BenchmarkAppendConvertedValues
 //
 // 2. Initial Capacity (initialCallbackCapacity = 256):
 //    - Pre-allocates slice to avoid reallocations for typical queries
 //    - Results: Prevents 8+ reallocations for small-medium datasets
-//    - Run: go test -bench=BenchmarkInitialCapacity -benchmem
+//    - Benchmark: BenchmarkInitialCapacity
 //
 // 3. Exponential Growth:
 //    - Reduces allocation count for large datasets
 //    - Results: 3x faster, 62% less memory for 100+ callback invocations
-//    - Run: go test -bench=BenchmarkSliceGrowth -benchmem
+//    - Benchmark: BenchmarkSliceGrowth
 //
 // Realistic Scenario (8 GPUs × 128 fields):
 //   Optimized:    4 allocations,  8 MB,  650 μs
@@ -25,10 +25,11 @@ package dcgm
 //   Improvement: 69% fewer allocations, 50% less memory, 3.7x faster
 //
 // Run all benchmarks:
-//   go test -bench=. -benchmem -run='^$' ./pkg/dcgm
+//   bazel test //pkg/dcgm:dcgm_test --test_arg=-test.run=^$ \
+//     --test_arg=-test.bench=. --test_arg=-test.benchmem
 //
 // Verify optimizations with proof tests:
-//   go test -v -run TestOptimizationProof ./pkg/dcgm
+//   bazel test //pkg/dcgm:dcgm_test --test_filter=TestOptimizationProof --test_output=all
 
 import (
 	"runtime"
@@ -37,15 +38,15 @@ import (
 )
 
 // simulateCallbackAccumulation simulates realistic multi-entity callback scenarios
-func simulateCallbackAccumulation(entityCount, fieldsPerEntity int, useOptimized bool) []FieldValue_v2 {
+func simulateCallbackAccumulation(entityCount uint, fieldsPerEntity int, useOptimized bool) []FieldValue_v2 {
 	cfields := makeTestCFields(fieldsPerEntity)
 	dst := make([]FieldValue_v2, 0, initialCallbackCapacity)
 
-	for entityID := 0; entityID < entityCount; entityID++ {
+	for entityID := uint(0); entityID < entityCount; entityID++ {
 		if useOptimized {
-			dst = appendConvertedValues(dst, FE_GPU, uint(entityID), cfields)
+			dst = appendConvertedValues(dst, FE_GPU, entityID, cfields)
 		} else {
-			dst = oldAppendApproach(dst, FE_GPU, uint(entityID), cfields)
+			dst = oldAppendApproach(dst, FE_GPU, entityID, cfields)
 		}
 	}
 	return dst
@@ -55,7 +56,7 @@ func simulateCallbackAccumulation(entityCount, fieldsPerEntity int, useOptimized
 // vs creating an intermediate slice. The optimization eliminates one allocation per
 // callback invocation.
 //
-// Run with: go test -bench=BenchmarkAppendConvertedValues -benchmem
+// Benchmark selector: BenchmarkAppendConvertedValues
 func BenchmarkAppendConvertedValues(b *testing.B) {
 	scenarios := []struct {
 		name   string
@@ -99,11 +100,11 @@ func BenchmarkAppendConvertedValues(b *testing.B) {
 // - Better memory locality
 // - Reduced GC pressure
 //
-// Run with: go test -bench=BenchmarkCallbackAccumulation -benchmem
+// Benchmark selector: BenchmarkCallbackAccumulation
 func BenchmarkCallbackAccumulation(b *testing.B) {
 	scenarios := []struct {
 		name            string
-		entities        int
+		entities        uint
 		fieldsPerEntity int
 	}{
 		{"1gpu_10fields", 1, 10},
@@ -113,11 +114,11 @@ func BenchmarkCallbackAccumulation(b *testing.B) {
 	}
 
 	for _, scenario := range scenarios {
-		totalValues := scenario.entities * scenario.fieldsPerEntity
+		totalValues := int64(scenario.entities) * int64(scenario.fieldsPerEntity) // #nosec G115 -- benchmark counts are bounded.
 
 		b.Run("Optimized_"+scenario.name, func(b *testing.B) {
 			b.ReportAllocs()
-			b.SetBytes(int64(totalValues) * int64(unsafe.Sizeof(FieldValue_v2{})))
+			b.SetBytes(totalValues * int64(unsafe.Sizeof(FieldValue_v2{})))
 			for i := 0; i < b.N; i++ {
 				result := simulateCallbackAccumulation(scenario.entities, scenario.fieldsPerEntity, true)
 				_ = result
@@ -126,7 +127,7 @@ func BenchmarkCallbackAccumulation(b *testing.B) {
 
 		b.Run("OldApproach_"+scenario.name, func(b *testing.B) {
 			b.ReportAllocs()
-			b.SetBytes(int64(totalValues) * int64(unsafe.Sizeof(FieldValue_v2{})))
+			b.SetBytes(totalValues * int64(unsafe.Sizeof(FieldValue_v2{})))
 			for i := 0; i < b.N; i++ {
 				result := simulateCallbackAccumulation(scenario.entities, scenario.fieldsPerEntity, false)
 				_ = result
@@ -138,7 +139,7 @@ func BenchmarkCallbackAccumulation(b *testing.B) {
 // BenchmarkInitialCapacity demonstrates the benefit of pre-allocating slice capacity
 // to avoid multiple reallocations during typical queries.
 //
-// Run with: go test -bench=BenchmarkInitialCapacity -benchmem
+// Benchmark selector: BenchmarkInitialCapacity
 func BenchmarkInitialCapacity(b *testing.B) {
 	cfields := makeTestCFields(50)
 
@@ -146,8 +147,8 @@ func BenchmarkInitialCapacity(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			dst := make([]FieldValue_v2, 0, initialCallbackCapacity)
-			for j := 0; j < 5; j++ {
-				dst = appendConvertedValues(dst, FE_GPU, uint(j), cfields)
+			for j := uint(0); j < 5; j++ {
+				dst = appendConvertedValues(dst, FE_GPU, j, cfields)
 			}
 			_ = dst
 		}
@@ -157,8 +158,8 @@ func BenchmarkInitialCapacity(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			dst := make([]FieldValue_v2, 0) // No initial capacity
-			for j := 0; j < 5; j++ {
-				dst = appendConvertedValues(dst, FE_GPU, uint(j), cfields)
+			for j := uint(0); j < 5; j++ {
+				dst = appendConvertedValues(dst, FE_GPU, j, cfields)
 			}
 			_ = dst
 		}
@@ -170,7 +171,7 @@ func BenchmarkInitialCapacity(b *testing.B) {
 //
 // Exponential growth significantly reduces allocation count and total memory usage.
 //
-// Run with: go test -bench=BenchmarkSliceGrowth -benchmem
+// Benchmark selector: BenchmarkSliceGrowth
 func BenchmarkSliceGrowth(b *testing.B) {
 	cfields := makeTestCFields(10)
 
@@ -179,8 +180,8 @@ func BenchmarkSliceGrowth(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			dst := make([]FieldValue_v2, 0, 1) // Start small
 			// Simulate 100 callback invocations
-			for j := 0; j < 100; j++ {
-				dst = appendConvertedValues(dst, FE_GPU, uint(j), cfields)
+			for j := uint(0); j < 100; j++ {
+				dst = appendConvertedValues(dst, FE_GPU, j, cfields)
 			}
 			_ = dst
 		}
@@ -190,9 +191,9 @@ func BenchmarkSliceGrowth(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			dst := make([]FieldValue_v2, 0)
-			for j := 0; j < 100; j++ {
+			for j := uint(0); j < 100; j++ {
 				// Simulate naive append without pre-growth
-				temp := oldAppendApproach(nil, FE_GPU, uint(j), cfields)
+				temp := oldAppendApproach(nil, FE_GPU, j, cfields)
 				dst = append(dst, temp...)
 			}
 			_ = dst
@@ -245,16 +246,16 @@ func TestOptimizationProof(t *testing.T) {
 
 		withCap := testing.AllocsPerRun(1000, func() {
 			dst := make([]FieldValue_v2, 0, initialCallbackCapacity)
-			for j := 0; j < 5; j++ {
-				dst = appendConvertedValues(dst, FE_GPU, uint(j), cfields)
+			for j := uint(0); j < 5; j++ {
+				dst = appendConvertedValues(dst, FE_GPU, j, cfields)
 			}
 			_ = dst
 		})
 
 		withoutCap := testing.AllocsPerRun(1000, func() {
 			dst := make([]FieldValue_v2, 0)
-			for j := 0; j < 5; j++ {
-				dst = appendConvertedValues(dst, FE_GPU, uint(j), cfields)
+			for j := uint(0); j < 5; j++ {
+				dst = appendConvertedValues(dst, FE_GPU, j, cfields)
 			}
 			_ = dst
 		})
