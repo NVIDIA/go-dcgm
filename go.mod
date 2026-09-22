@@ -1,6 +1,6 @@
 module github.com/NVIDIA/go-dcgm
 
-go 1.26.7
+go 1.27.1
 
 require (
 	github.com/bits-and-blooms/bitset v1.25.0

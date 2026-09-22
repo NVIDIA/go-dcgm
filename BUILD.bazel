@@ -1,0 +1,4 @@
+load("@gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/NVIDIA/go-dcgm
+gazelle(name = "gazelle")

@@ -1,0 +1,34 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "tests",
+    srcs = ["nvsmi.go"],
+    importpath = "github.com/NVIDIA/go-dcgm/tests",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "tests_test",
+    srcs = [
+        "dcgm_test.go",
+        "deviceinfo_test.go",
+        "diag_test.go",
+        "dmon_test.go",
+        "health_test.go",
+        "hostengine_test.go",
+        "policy_test.go",
+        "processinfo_test.go",
+        "restapi_test.go",
+        "topology_test.go",
+    ],
+    embed = [":tests"],
+    tags = [
+        "manual",
+        "requires-dcgm",
+    ],
+    deps = [
+        "//pkg/dcgm",
+        "@com_github_gorilla_mux//:mux",
+        "@com_github_stretchr_testify//assert",
+    ],
+)

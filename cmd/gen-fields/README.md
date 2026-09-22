@@ -12,40 +12,40 @@ The generator parses `dcgm_fields.h` and generates a Go file with:
 - `dcgmFields`: maps canonical name to field ID.
 - `legacyDCGMFields`: maps backward-compatible names to the same IDs.
   Populated from two sources:
-    - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`)
-      listed in `pkg/dcgm/legacy_fields.csv`.
-    - Deprecated-alias `#define OLD NEW` lines in the header, either
-      inside an `#ifdef DCGM_DEPRECATED` block or preceded by a
-      `Deprecated:` comment.
+  - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`) and
+    the preserved `DCGM_FI_DEV_GPU_UTIL` compatibility name listed in
+    `pkg/dcgm/legacy_fields.csv`.
+  - Deprecated-alias `#define OLD NEW` lines in the header, either
+    inside an `#ifdef DCGM_DEPRECATED` block or preceded by a
+    `Deprecated:` comment.
 - Helper functions: `GetFieldID`, `GetFieldIDOrPanic`, `IsLegacyField`,
   `IsCurrentField`.
 
 ## Usage
 
-The generator is typically invoked via `go generate` or `make generate`:
+The generator is invoked through Task:
 
 ```bash
-# Via Make
-make generate
-
-# Via go generate
-go generate ./...
+task generate
+task generate:check
 ```
 
 ### Direct Usage
 
-You can also run the generator directly:
+The focused low-level entry point is the Bazel target:
 
 ```bash
-go run cmd/gen-fields/main.go cmd/gen-fields/template.go \
-    --legacy-fields pkg/dcgm/legacy_fields.csv \
-    pkg/dcgm/dcgm_fields.h \
-    pkg/dcgm/const_fields.go
+bazel run //cmd/gen-fields:gen-fields -- \
+    --legacy-fields "$PWD/pkg/dcgm/legacy_fields.csv" \
+    "$PWD/pkg/dcgm/dcgm_fields.h" \
+    "$PWD/pkg/dcgm/const_fields.go"
 ```
 
 Arguments:
-1. Optional `--legacy-fields` CSV path for curated lowercase names; when omitted,
-   the generator reads `legacy_fields.csv` from the output file's directory.
+
+1. Optional `--legacy-fields` CSV path for curated compatibility names; when
+   omitted, the generator reads `legacy_fields.csv` from the output file's
+   directory.
 2. Path to `dcgm_fields.h` (input)
 3. Path to `const_fields.go` (output)
 
@@ -62,11 +62,12 @@ Arguments:
    field's canonical ID. The resolved alias feeds both Go const alias
    generation and legacy string lookup. If a target isn't a known field,
    generation fails so header churn can't silently drop previously-exposed names.
-3. **Read curated legacy names**: lowercase DCGM 1.x names are read from
-   `legacy_fields.csv`. `DCGM_FI_*` entries are not listed there; they
-   re-derive from step 2 every run.
-4. **Emit Go code** via `template.go`, then run `gofmt -w` on the output
-   so `make check-generate` stays stable.
+3. **Read curated legacy names**: lowercase DCGM 1.x names and the preserved
+   `DCGM_FI_DEV_GPU_UTIL` compatibility name are read from
+   `legacy_fields.csv`. Other `DCGM_FI_*` entries re-derive from step 2 every
+   run.
+4. **Emit Go code** via `template.go`; `task generate` and
+   `task generate:check` apply the pinned gofumpt version.
 
 ## Output
 
@@ -112,10 +113,11 @@ The code generation template is defined in `template.go` and includes the full s
 When DCGM adds new fields:
 
 1. Update `pkg/dcgm/dcgm_fields.h` with the latest version from DCGM
-2. Run `make generate`
+2. Run `task generate`
 3. Review the diff in `pkg/dcgm/const_fields.go`
-4. If a curated lowercase compatibility name is needed, update
-   `pkg/dcgm/legacy_fields.csv`
+4. If a curated compatibility name is needed, update
+   `pkg/dcgm/legacy_fields.csv`. Names are lowercase except the preserved
+   `DCGM_FI_DEV_GPU_UTIL` compatibility name.
 5. Commit the header, generated file, and any legacy CSV changes
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md#updating-dcgm-fields) for detailed instructions.

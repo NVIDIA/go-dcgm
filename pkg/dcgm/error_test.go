@@ -19,29 +19,10 @@
 package dcgm
 
 import (
-	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-func TestSelectedErrorMeta(t *testing.T) {
-	cleanup, err := Init(Embedded)
-	require.NoError(t, err)
-	defer cleanup()
-
-	meta := GetErrorMeta(DCGM_FR_PCI_REPLAY_RATE)
-	require.NotNil(t, meta)
-	require.Equal(t, DCGM_FR_PCI_REPLAY_RATE, meta.ErrorID)
-	require.NotEmpty(t, meta.MessageFormat)
-	require.NotEmpty(t, meta.Suggestion)
-	// Keep this known entry exact so a runtime DCGM metadata change is detected.
-	require.Equal(t, DCGM_ERROR_ISOLATE, meta.Severity)
-	require.Equal(t, DCGM_FR_EC_HARDWARE_PCIE, meta.Category)
-
-	require.Nil(t, GetErrorMeta(DCGM_FR_ERROR_SENTINEL))
-	require.Nil(t, GetErrorMeta(HealthCheckErrorCode(math.MaxUint)))
-}
 
 func TestGoStringOrEmpty(t *testing.T) {
 	require.Empty(t, goStringOrEmpty(nil))

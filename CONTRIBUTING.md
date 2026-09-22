@@ -1,7 +1,22 @@
 # Contribute to the DCGM Golang Bindings
 
-Want to hack on the NVIDIA DCGM Golang Bindings Project? Awesome!
-We only require you to sign your work, the below section describes this!
+To contribute to the NVIDIA DCGM Go bindings project, sign your work. The
+section below explains how.
+
+## Build tool prerequisites
+
+The repository uses Go 1.27.1, Task 3.53.1, Bazelisk 1.29.0, gofumpt 0.12.0,
+and golangci-lint 2.13.2. Install those versions using your platform package
+manager or their upstream installation instructions. Bazelisk reads the
+repository's `.bazelversion` file.
+
+You can instead open the repository in a
+[Dev Containers](https://containers.dev/) compatible editor. The checked-in
+development container includes DCGM headers and the pinned tools that CI uses.
+
+Run `task versions:validate` to check repository pin consistency. Tool setup is
+intentionally documented rather than performed by a privileged bootstrap
+script.
 
 ## Updating DCGM Fields
 
@@ -21,10 +36,11 @@ cp /path/to/dcgm/dcgmlib/dcgm_fields.h pkg/dcgm/dcgm_fields.h
 Run the code generator to update the Go field constants:
 
 ```bash
-make generate
+task generate
 ```
 
 This will:
+
 - Parse `pkg/dcgm/dcgm_fields.h`
 - Read curated lowercase compatibility names from `pkg/dcgm/legacy_fields.csv`
 - Generate `pkg/dcgm/const_fields.go` with all DCGM field constants and helper functions
@@ -34,7 +50,7 @@ This will:
 Check that the generated code is correct:
 
 ```bash
-make check-generate
+task generate:check
 ```
 
 This ensures the generated code is in sync with the header file.
@@ -55,15 +71,16 @@ If a lowercase compatibility name needs to be added or removed, update
 Run tests to ensure the bindings work correctly:
 
 ```bash
-make test-main
+task test
+task test:integration
+task test:race
 ```
 
 ## Validate your work
 
-All changes need to be able to pass all linting and pre-commit checks.  All tests
-must pass, including `make lint-full`, `pre-commit run --all-files`, and `make test-main`
-
-Note: There is a race in `make test-main` and it will occaisionally fail due to the race.
+All changes need to pass `task validate` and `pre-commit run --all-files`.
+Changes affecting runtime behavior must also pass `task test:integration` and
+`task test:race` on a qualified GPU/DCGM system.
 
 ### Setting up pre-commit
 
@@ -76,11 +93,11 @@ pip install pre-commit
 Once installed, you can run:
 
 ```bash
-make install-pre-commit
+task pre-commit:install
 pre-commit autoupdate
 ```
 
-Once you've complete this step, pre-commit is setup and ready to go.  The pre-commit hooks
+Once you complete this step, pre-commit is set up and ready to go. The pre-commit hooks
 will be executed when you run `git commit`.
 
 ## Sign your work

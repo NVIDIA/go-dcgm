@@ -199,15 +199,15 @@ const (
 	DCGM_FI_DEV_PCIE_RX_THROUGHPUT Short = 201
 	// DCGM_FI_DEV_PCIE_REPLAY_TOTAL represents PCIe replay counter
 	DCGM_FI_DEV_PCIE_REPLAY_TOTAL Short = 202
-	// DCGM_FI_DEV_GPU_UTIL_RATIO represents GPU Utilization
-	DCGM_FI_DEV_GPU_UTIL_RATIO Short = 203
-	// DCGM_FI_DEV_MEM_COPY_UTIL represents Memory Utilization
+	// DCGM_FI_DEV_GPU_UTIL represents Deprecated: Use DCGM_FI_DEV_GPU_UTIL_RATIO_V2 instead.
+	DCGM_FI_DEV_GPU_UTIL Short = 203
+	// DCGM_FI_DEV_MEM_COPY_UTIL represents Deprecated: Use DCGM_FI_DEV_MEMORY_UTIL_RATIO instead.
 	DCGM_FI_DEV_MEM_COPY_UTIL Short = 204
 	// DCGM_FI_DEV_PROCESS_ACCOUNTING_STATS represents running "nvidia-smi -am 1" as root on the same node the host engine is running on.
 	DCGM_FI_DEV_PROCESS_ACCOUNTING_STATS Short = 205
-	// DCGM_FI_DEV_ENC_UTIL represents Encoder Utilization
+	// DCGM_FI_DEV_ENC_UTIL represents DCGM_FI_DEV_ENC_UTIL_RATIO instead.
 	DCGM_FI_DEV_ENC_UTIL Short = 206
-	// DCGM_FI_DEV_DEC_UTIL represents Decoder Utilization
+	// DCGM_FI_DEV_DEC_UTIL represents DCGM_FI_DEV_DEC_UTIL_RATIO instead.
 	DCGM_FI_DEV_DEC_UTIL Short = 207
 	// DCGM_FI_DEV_XID_ERROR represents XID errors. The value is the specific XID error
 	DCGM_FI_DEV_XID_ERROR Short = 230
@@ -219,29 +219,29 @@ const (
 	DCGM_FI_DEV_PCIE_LINK_GEN Short = 237
 	// DCGM_FI_DEV_PCIE_LINK_WIDTH represents PCIe Current Link Width
 	DCGM_FI_DEV_PCIE_LINK_WIDTH Short = 238
-	// DCGM_FI_DEV_POWER_VIOLATION represents Power Violation time in ns
+	// DCGM_FI_DEV_POWER_VIOLATION represents Deprecated: Use DCGM_FI_DEV_GPU_POWER_THROTTLE_SECONDS_TOTAL instead.
 	DCGM_FI_DEV_POWER_VIOLATION Short = 240
-	// DCGM_FI_DEV_THERMAL_VIOLATION represents Thermal Violation time in ns
+	// DCGM_FI_DEV_THERMAL_VIOLATION represents Deprecated: Use DCGM_FI_DEV_GPU_THERMAL_THROTTLE_SECONDS_TOTAL instead.
 	DCGM_FI_DEV_THERMAL_VIOLATION Short = 241
-	// DCGM_FI_DEV_SYNC_BOOST_VIOLATION represents Sync Boost Violation time in ns
+	// DCGM_FI_DEV_SYNC_BOOST_VIOLATION represents Deprecated: Use DCGM_FI_DEV_GPU_SYNC_BOOST_THROTTLE_SECONDS_TOTAL instead.
 	DCGM_FI_DEV_SYNC_BOOST_VIOLATION Short = 242
-	// DCGM_FI_DEV_BOARD_LIMIT_VIOLATION represents Board violation limit.
+	// DCGM_FI_DEV_BOARD_LIMIT_VIOLATION represents Deprecated: Use DCGM_FI_DEV_GPU_LIMIT_THROTTLE_SECONDS_TOTAL instead.
 	DCGM_FI_DEV_BOARD_LIMIT_VIOLATION Short = 243
-	// DCGM_FI_DEV_LOW_UTIL_VIOLATION represents Low utilisation violation limit.
+	// DCGM_FI_DEV_LOW_UTIL_VIOLATION represents Deprecated: Use DCGM_FI_DEV_GPU_LOW_UTIL_THROTTLE_SECONDS_TOTAL instead.
 	DCGM_FI_DEV_LOW_UTIL_VIOLATION Short = 244
-	// DCGM_FI_DEV_RELIABILITY_VIOLATION represents Reliability violation limit.
+	// DCGM_FI_DEV_RELIABILITY_VIOLATION represents Deprecated: Use DCGM_FI_DEV_GPU_RELIABILITY_THROTTLE_SECONDS_TOTAL instead.
 	DCGM_FI_DEV_RELIABILITY_VIOLATION Short = 245
-	// DCGM_FI_DEV_TOTAL_APP_CLOCKS_VIOLATION represents App clock violation limit.
+	// DCGM_FI_DEV_TOTAL_APP_CLOCKS_VIOLATION represents Deprecated: Use DCGM_FI_DEV_GPU_APP_THROTTLE_SECONDS_TOTAL instead.
 	DCGM_FI_DEV_TOTAL_APP_CLOCKS_VIOLATION Short = 246
-	// DCGM_FI_DEV_TOTAL_BASE_CLOCKS_VIOLATION represents Base clock violation limit.
+	// DCGM_FI_DEV_TOTAL_BASE_CLOCKS_VIOLATION represents Deprecated: Use DCGM_FI_DEV_GPU_BASE_THROTTLE_SECONDS_TOTAL instead.
 	DCGM_FI_DEV_TOTAL_BASE_CLOCKS_VIOLATION Short = 247
-	// DCGM_FI_DEV_FB_TOTAL represents Total Frame Buffer of the GPU in MB
+	// DCGM_FI_DEV_FB_TOTAL represents Deprecated: Use DCGM_FI_DEV_FB_CAPACITY_BYTES instead.
 	DCGM_FI_DEV_FB_TOTAL Short = 250
-	// DCGM_FI_DEV_FB_FREE represents Free Frame Buffer in MB
+	// DCGM_FI_DEV_FB_FREE represents Deprecated: Use DCGM_FI_DEV_FB_FREE_BYTES instead.
 	DCGM_FI_DEV_FB_FREE Short = 251
-	// DCGM_FI_DEV_FB_USED represents Used Frame Buffer in MB
+	// DCGM_FI_DEV_FB_USED represents Deprecated: Use DCGM_FI_DEV_FB_USED_BYTES instead.
 	DCGM_FI_DEV_FB_USED Short = 252
-	// DCGM_FI_DEV_FB_RESERVED represents Reserved Frame Buffer in MB
+	// DCGM_FI_DEV_FB_RESERVED represents Deprecated: Use DCGM_FI_DEV_FB_RESERVED_BYTES instead.
 	DCGM_FI_DEV_FB_RESERVED Short = 253
 	// DCGM_FI_DEV_FB_USED_RATIO represents Ratio of Frame Buffer used: 'Used/(Total - Reserved)'. Range 0.0-1.0
 	DCGM_FI_DEV_FB_USED_RATIO Short = 254
@@ -249,7 +249,7 @@ const (
 	DCGM_FI_DEV_C2C_LINK_QUANTITY Short = 285
 	// DCGM_FI_DEV_C2C_LINK_STATUS represents The value of 1 the link is ACTIVE.
 	DCGM_FI_DEV_C2C_LINK_STATUS Short = 286
-	// DCGM_FI_DEV_C2C_MAX_BANDWIDTH represents The value indicates the link speed in MB/s.
+	// DCGM_FI_DEV_C2C_MAX_BANDWIDTH represents Deprecated: Use DCGM_FI_DEV_C2C_MAX_BANDWIDTH_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_C2C_MAX_BANDWIDTH Short = 287
 	// DCGM_FI_DEV_ECC_MODE represents Current ECC mode for the device
 	DCGM_FI_DEV_ECC_MODE Short = 300
@@ -357,6 +357,8 @@ const (
 	DCGM_FI_DEV_DIAG_STATUS Short = 362
 	// DCGM_FI_DEV_DIAG_NCCL_TESTS_RESULT represents Refers to a `int64_t` storing a value drawn from `dcgmError_t` enumeration
 	DCGM_FI_DEV_DIAG_NCCL_TESTS_RESULT Short = 363
+	// DCGM_FI_DEV_DIAG_CPU_SDC_RESULT represents Refers to a `int64_t` storing a value drawn from `dcgmError_t` enumeration
+	DCGM_FI_DEV_DIAG_CPU_SDC_RESULT Short = 364
 	// DCGM_FI_DEV_BANK_REMAP_AVAIL_MAX represents Historical max available spare memory rows per memory bank
 	DCGM_FI_DEV_BANK_REMAP_AVAIL_MAX Short = 385
 	// DCGM_FI_DEV_BANK_REMAP_AVAIL_HIGH represents Historical high mark of available spare memory rows per memory bank
@@ -461,25 +463,25 @@ const (
 	DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_L14_TOTAL Short = 438
 	// DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_TOTAL represents NV Link Recovery Error Counter total for all Lanes
 	DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_TOTAL Short = 439
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L0 represents NV Link Throughput for Lane 0
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L0 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L0_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L0 Short = 440
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L1 represents NV Link Throughput for Lane 1
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L1 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L1_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L1 Short = 441
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L2 represents NV Link Throughput for Lane 2
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L2 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L2_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L2 Short = 442
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L3 represents NV Link Throughput for Lane 3
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L3 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L3_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L3 Short = 443
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L4 represents NV Link Throughput for Lane 4
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L4 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L4_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L4 Short = 444
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L5 represents NV Link Throughput for Lane 5
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L5 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L5_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L5 Short = 445
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L12
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L12 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L12_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L12 Short = 446
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L13
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L13 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L13_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L13 Short = 447
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L14
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L14 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L14_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L14 Short = 448
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_TOTAL represents NV Link Throughput total for all Lanes
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_TOTAL represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_TOTAL Short = 449
 	// DCGM_FI_DEV_NVLINK_ERROR represents GPU NVLink error information
 	DCGM_FI_DEV_NVLINK_ERROR Short = 450
@@ -531,17 +533,17 @@ const (
 	DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_L10_TOTAL Short = 473
 	// DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_L11_TOTAL represents NV Link Recovery Error Counter for Lane 11
 	DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_L11_TOTAL Short = 474
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L6 represents NV Link Throughput for Lane 6
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L6 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L6_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L6 Short = 475
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L7 represents NV Link Throughput for Lane 7
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L7 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L7_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L7 Short = 476
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L8 represents NV Link Throughput for Lane 8
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L8 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L8_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L8 Short = 477
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L9 represents NV Link Throughput for Lane 9
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L9 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L9_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L9 Short = 478
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L10 represents NV Link Throughput for Lane 10
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L10 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L10_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L10 Short = 479
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L11 represents NV Link Throughput for Lane 11
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L11 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L11_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L11 Short = 480
 	// DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_L15_TOTAL
 	DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_L15_TOTAL Short = 481
@@ -567,11 +569,11 @@ const (
 	DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_L16_TOTAL Short = 492
 	// DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_L17_TOTAL
 	DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_L17_TOTAL Short = 493
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L15
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L15 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L15_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L15 Short = 494
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L16
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L16 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L16_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L16 Short = 495
-	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L17
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L17 represents Deprecated: Use DCGM_FI_DEV_NVLINK_THROUGHPUT_L17_BYTES_PER_SECOND instead.
 	DCGM_FI_DEV_NVLINK_THROUGHPUT_L17 Short = 496
 	// DCGM_FI_DEV_NVLINK_CRC_ERROR_TOTAL represents NVLink CRC Error Counter Total
 	DCGM_FI_DEV_NVLINK_CRC_ERROR_TOTAL Short = 497
@@ -607,10 +609,10 @@ const (
 	DCGM_FI_DEV_VGPU_TYPE_CLASS Short = 512
 	// DCGM_FI_DEV_VGPU_TYPE_LICENSE represents Includes the license info for a vGPU type supported on a device
 	DCGM_FI_DEV_VGPU_TYPE_LICENSE Short = 513
-	// DCGM_FI_FIRST_VGPU_FIELD_ID represents Starting field ID of the vGPU instance
-	DCGM_FI_FIRST_VGPU_FIELD_ID Short = 520
 	// DCGM_FI_DEV_VGPU_VM_ID represents VM ID of the vGPU instance
 	DCGM_FI_DEV_VGPU_VM_ID Short = 520
+	// DCGM_FI_FIRST_VGPU_FIELD_ID represents Starting field ID of the vGPU instance
+	DCGM_FI_FIRST_VGPU_FIELD_ID Short = 520
 	// DCGM_FI_DEV_VGPU_VM_NAME represents VM name of the vGPU instance
 	DCGM_FI_DEV_VGPU_VM_NAME Short = 521
 	// DCGM_FI_DEV_VGPU_TYPE represents vGPU type of the vGPU instance
@@ -619,7 +621,7 @@ const (
 	DCGM_FI_DEV_VGPU_UUID Short = 523
 	// DCGM_FI_DEV_VGPU_DRIVER_VERSION represents Driver version of the vGPU instance
 	DCGM_FI_DEV_VGPU_DRIVER_VERSION Short = 524
-	// DCGM_FI_DEV_VGPU_MEMORY_USAGE represents Memory usage of the vGPU instance
+	// DCGM_FI_DEV_VGPU_MEMORY_USAGE represents Deprecated: Use DCGM_FI_DEV_VGPU_FB_USED_BYTES instead.
 	DCGM_FI_DEV_VGPU_MEMORY_USAGE Short = 525
 	// DCGM_FI_DEV_VGPU_LICENSE_STATUS represents 1 = vgpu is licensed
 	DCGM_FI_DEV_VGPU_LICENSE_STATUS Short = 526
@@ -657,9 +659,9 @@ const (
 	DCGM_FI_DEV_PLATFORM_MODULE_ID Short = 577
 	// DCGM_FI_DEV_NVLINK_PPRM_OPER_RECOVERY represents PPRM recovery operation status
 	DCGM_FI_DEV_NVLINK_PPRM_OPER_RECOVERY Short = 580
-	// DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_SINCE_LAST represents Time in seconds since last PRM recovery
-	DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_SINCE_LAST Short = 581
-	// DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_BETWEEN_LAST_TWO represents Time in milliseconds between last two recoveries
+	// DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SINCE_LAST_SECONDS represents Time in seconds since last PRM recovery
+	DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SINCE_LAST_SECONDS Short = 581
+	// DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_BETWEEN_LAST_TWO represents Deprecated: Use DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_LAST_GAP_SECONDS instead.
 	DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_BETWEEN_LAST_TWO Short = 582
 	// DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SUCCESSFUL_TOTAL represents Total successful recovery events counter
 	DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SUCCESSFUL_TOTAL Short = 583
@@ -935,9 +937,9 @@ const (
 	DCGM_FI_PROF_PCIE_TX_BYTES Short = 1009
 	// DCGM_FI_PROF_PCIE_RX_BYTES represents would be reflected in this metric.
 	DCGM_FI_PROF_PCIE_RX_BYTES Short = 1010
-	// DCGM_FI_PROF_NVLINK_TX_BYTES represents Per-link fields are available below
+	// DCGM_FI_PROF_NVLINK_TX_BYTES represents aggregate NVLink transmit bytes for a GPU. For a DCGM_FE_LINK entity, dcgm_link_t selects the GPU and link whose traffic is reported.
 	DCGM_FI_PROF_NVLINK_TX_BYTES Short = 1011
-	// DCGM_FI_PROF_NVLINK_RX_BYTES represents Per-link fields are available below
+	// DCGM_FI_PROF_NVLINK_RX_BYTES represents aggregate NVLink receive bytes for a GPU. For a DCGM_FE_LINK entity, dcgm_link_t selects the GPU and link whose traffic is reported.
 	DCGM_FI_PROF_NVLINK_RX_BYTES Short = 1012
 	// DCGM_FI_PROF_IMMA_UTIL_RATIO represents The ratio of cycles the tensor (IMMA) pipe is active (off the peak sustained elapsed cycles)
 	DCGM_FI_PROF_IMMA_UTIL_RATIO Short = 1013
@@ -983,7 +985,7 @@ const (
 	DCGM_FI_PROF_NVOFA_UTIL_0_RATIO Short = 1033
 	// DCGM_FI_PROF_NVOFA_UTIL_1_RATIO
 	DCGM_FI_PROF_NVOFA_UTIL_1_RATIO Short = 1034
-	// DCGM_FI_PROF_NVLINK_L0_TX_BYTES represents total = DCGM_FI_PROF_NVLINK_L0_TX_BYTES + DCGM_FI_PROF_NVLINK_L0_RX_BYTES
+	// DCGM_FI_PROF_NVLINK_L0_TX_BYTES represents values for source compatibility with DCGM 4.7 consumers.
 	DCGM_FI_PROF_NVLINK_L0_TX_BYTES Short = 1040
 	// DCGM_FI_PROF_NVLINK_L0_RX_BYTES
 	DCGM_FI_PROF_NVLINK_L0_RX_BYTES Short = 1041
@@ -1311,7 +1313,7 @@ const (
 	DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_PER_LINK Short = 1530
 	// DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_PER_LINK
 	DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_PER_LINK Short = 1531
-	// DCGM_FI_PROF_NVLINK_TX_BYTES_PER_LINK represents every link. Distinct from the GPU-wide DCGM_FI_PROF_NVLINK_TX/RX_BYTES.
+	// DCGM_FI_PROF_NVLINK_TX_BYTES_PER_LINK represents DCGM_FE_LINK dcgm_link_t entity instead.
 	DCGM_FI_PROF_NVLINK_TX_BYTES_PER_LINK Short = 1532
 	// DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK
 	DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK Short = 1533
@@ -1341,6 +1343,82 @@ const (
 	DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL Short = 1611
 	// DCGM_FI_DEV_FAN_SPEED_RATIO represents Fan speed for the device as a ratio of maximum noise-tolerance fan speed (0.0-1.0+)
 	DCGM_FI_DEV_FAN_SPEED_RATIO Short = 1612
+	// DCGM_FI_DEV_GPU_UTIL_RATIO_V2 represents GPU Utilization (0.0-1.0) Go name adjusted to preserve source compatibility.
+	DCGM_FI_DEV_GPU_UTIL_RATIO_V2 Short = 1613
+	// DCGM_FI_DEV_MEMORY_UTIL_RATIO represents Memory Utilization (0.0-1.0)
+	DCGM_FI_DEV_MEMORY_UTIL_RATIO Short = 1614
+	// DCGM_FI_DEV_ENC_UTIL_RATIO represents Encoder Utilization (0.0-1.0)
+	DCGM_FI_DEV_ENC_UTIL_RATIO Short = 1615
+	// DCGM_FI_DEV_DEC_UTIL_RATIO represents Decoder Utilization (0.0-1.0)
+	DCGM_FI_DEV_DEC_UTIL_RATIO Short = 1616
+	// DCGM_FI_DEV_GPU_POWER_THROTTLE_SECONDS_TOTAL represents Cumulative time the GPU was held below application clocks due to power policy, in seconds
+	DCGM_FI_DEV_GPU_POWER_THROTTLE_SECONDS_TOTAL Short = 1617
+	// DCGM_FI_DEV_GPU_THERMAL_THROTTLE_SECONDS_TOTAL represents Cumulative time the GPU was held below application clocks due to thermal policy, in seconds
+	DCGM_FI_DEV_GPU_THERMAL_THROTTLE_SECONDS_TOTAL Short = 1618
+	// DCGM_FI_DEV_GPU_SYNC_BOOST_THROTTLE_SECONDS_TOTAL represents Cumulative time the GPU was held below application clocks due to sync boost, in seconds
+	DCGM_FI_DEV_GPU_SYNC_BOOST_THROTTLE_SECONDS_TOTAL Short = 1619
+	// DCGM_FI_DEV_GPU_LIMIT_THROTTLE_SECONDS_TOTAL represents Cumulative time the GPU was held below application clocks due to board limit, in seconds
+	DCGM_FI_DEV_GPU_LIMIT_THROTTLE_SECONDS_TOTAL Short = 1620
+	// DCGM_FI_DEV_GPU_LOW_UTIL_THROTTLE_SECONDS_TOTAL represents Cumulative time the GPU was held below application clocks due to low utilization, in seconds
+	DCGM_FI_DEV_GPU_LOW_UTIL_THROTTLE_SECONDS_TOTAL Short = 1621
+	// DCGM_FI_DEV_GPU_RELIABILITY_THROTTLE_SECONDS_TOTAL represents Cumulative time the GPU was held below application clocks due to board reliability limit, in seconds
+	DCGM_FI_DEV_GPU_RELIABILITY_THROTTLE_SECONDS_TOTAL Short = 1622
+	// DCGM_FI_DEV_GPU_APP_THROTTLE_SECONDS_TOTAL represents Cumulative time the GPU was held below application clocks by any limiter, in seconds
+	DCGM_FI_DEV_GPU_APP_THROTTLE_SECONDS_TOTAL Short = 1623
+	// DCGM_FI_DEV_GPU_BASE_THROTTLE_SECONDS_TOTAL represents Cumulative time the GPU was held below base clocks, in seconds
+	DCGM_FI_DEV_GPU_BASE_THROTTLE_SECONDS_TOTAL Short = 1624
+	// DCGM_FI_DEV_FB_CAPACITY_BYTES represents Total framebuffer capacity of the GPU in bytes
+	DCGM_FI_DEV_FB_CAPACITY_BYTES Short = 1625
+	// DCGM_FI_DEV_FB_FREE_BYTES represents Free framebuffer of the GPU in bytes
+	DCGM_FI_DEV_FB_FREE_BYTES Short = 1626
+	// DCGM_FI_DEV_FB_USED_BYTES represents Used framebuffer of the GPU in bytes
+	DCGM_FI_DEV_FB_USED_BYTES Short = 1627
+	// DCGM_FI_DEV_FB_RESERVED_BYTES represents Reserved framebuffer of the GPU in bytes
+	DCGM_FI_DEV_FB_RESERVED_BYTES Short = 1628
+	// DCGM_FI_DEV_C2C_MAX_BANDWIDTH_BYTES_PER_SECOND represents C2C max bandwidth in bytes per second
+	DCGM_FI_DEV_C2C_MAX_BANDWIDTH_BYTES_PER_SECOND Short = 1629
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L0_BYTES_PER_SECOND represents NV Link Throughput for Lane 0 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L0_BYTES_PER_SECOND Short = 1630
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L1_BYTES_PER_SECOND represents NV Link Throughput for Lane 1 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L1_BYTES_PER_SECOND Short = 1631
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L2_BYTES_PER_SECOND represents NV Link Throughput for Lane 2 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L2_BYTES_PER_SECOND Short = 1632
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L3_BYTES_PER_SECOND represents NV Link Throughput for Lane 3 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L3_BYTES_PER_SECOND Short = 1633
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L4_BYTES_PER_SECOND represents NV Link Throughput for Lane 4 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L4_BYTES_PER_SECOND Short = 1634
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L5_BYTES_PER_SECOND represents NV Link Throughput for Lane 5 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L5_BYTES_PER_SECOND Short = 1635
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L6_BYTES_PER_SECOND represents NV Link Throughput for Lane 6 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L6_BYTES_PER_SECOND Short = 1636
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L7_BYTES_PER_SECOND represents NV Link Throughput for Lane 7 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L7_BYTES_PER_SECOND Short = 1637
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L8_BYTES_PER_SECOND represents NV Link Throughput for Lane 8 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L8_BYTES_PER_SECOND Short = 1638
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L9_BYTES_PER_SECOND represents NV Link Throughput for Lane 9 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L9_BYTES_PER_SECOND Short = 1639
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L10_BYTES_PER_SECOND represents NV Link Throughput for Lane 10 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L10_BYTES_PER_SECOND Short = 1640
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L11_BYTES_PER_SECOND represents NV Link Throughput for Lane 11 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L11_BYTES_PER_SECOND Short = 1641
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L12_BYTES_PER_SECOND represents NV Link Throughput for Lane 12 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L12_BYTES_PER_SECOND Short = 1642
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L13_BYTES_PER_SECOND represents NV Link Throughput for Lane 13 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L13_BYTES_PER_SECOND Short = 1643
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L14_BYTES_PER_SECOND represents NV Link Throughput for Lane 14 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L14_BYTES_PER_SECOND Short = 1644
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L15_BYTES_PER_SECOND represents NV Link Throughput for Lane 15 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L15_BYTES_PER_SECOND Short = 1645
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L16_BYTES_PER_SECOND represents NV Link Throughput for Lane 16 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L16_BYTES_PER_SECOND Short = 1646
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_L17_BYTES_PER_SECOND represents NV Link Throughput for Lane 17 in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_L17_BYTES_PER_SECOND Short = 1647
+	// DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND represents NV Link Throughput for all lanes in bytes per second
+	DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND Short = 1648
+	// DCGM_FI_DEV_VGPU_FB_USED_BYTES represents Used framebuffer of the vGPU instance in bytes
+	DCGM_FI_DEV_VGPU_FB_USED_BYTES Short = 1649
+	// DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_LAST_GAP_SECONDS represents Gap in seconds between last two PRM recoveries (floating-point).
+	DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_LAST_GAP_SECONDS Short = 1650
 
 	// Deprecated DCGM field aliases retained for source compatibility.
 	// DCGM_FI_UNKNOWN is deprecated; use DCGM_FI_SYSTEM_FIELD_UNKNOWN.
@@ -1451,8 +1529,8 @@ const (
 	DCGM_FI_DEV_PSTATE Short = DCGM_FI_DEV_GPU_PSTATE
 	// DCGM_FI_DEV_PCIE_REPLAY_COUNTER is deprecated; use DCGM_FI_DEV_PCIE_REPLAY_TOTAL.
 	DCGM_FI_DEV_PCIE_REPLAY_COUNTER Short = DCGM_FI_DEV_PCIE_REPLAY_TOTAL
-	// DCGM_FI_DEV_GPU_UTIL is deprecated; use DCGM_FI_DEV_GPU_UTIL_RATIO.
-	DCGM_FI_DEV_GPU_UTIL Short = DCGM_FI_DEV_GPU_UTIL_RATIO
+	// DCGM_FI_DEV_GPU_UTIL_RATIO is deprecated; use DCGM_FI_DEV_GPU_UTIL.
+	DCGM_FI_DEV_GPU_UTIL_RATIO Short = DCGM_FI_DEV_GPU_UTIL
 	// DCGM_FI_DEV_ACCOUNTING_DATA is deprecated; use DCGM_FI_DEV_PROCESS_ACCOUNTING_STATS.
 	DCGM_FI_DEV_ACCOUNTING_DATA Short = DCGM_FI_DEV_PROCESS_ACCOUNTING_STATS
 	// DCGM_FI_DEV_XID_ERRORS is deprecated; use DCGM_FI_DEV_XID_ERROR.
@@ -1703,6 +1781,8 @@ const (
 	DCGM_FI_DEV_VGPU_INSTANCE_LICENSE_STATE Short = DCGM_FI_DEV_VGPU_INSTANCE_LICENSE_STATUS
 	// DCGM_FI_DEV_VGPU_VM_GPU_INSTANCE_ID is deprecated; use DCGM_FI_DEV_VGPU_GPU_INSTANCE_ID.
 	DCGM_FI_DEV_VGPU_VM_GPU_INSTANCE_ID Short = DCGM_FI_DEV_VGPU_GPU_INSTANCE_ID
+	// DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_SINCE_LAST is deprecated; use DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SINCE_LAST_SECONDS.
+	DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_SINCE_LAST Short = DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SINCE_LAST_SECONDS
 	// DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TOTAL_SUCCESSFUL_EVENTS is deprecated; use DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SUCCESSFUL_TOTAL.
 	DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TOTAL_SUCCESSFUL_EVENTS Short = DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SUCCESSFUL_TOTAL
 	// DCGM_FI_DEV_NVLINK_PPCNT_PHYSICAL_SUCCESSFUL_RECOVERY_EVENTS is deprecated; use DCGM_FI_DEV_NVLINK_PPCNT_PHYSICAL_RECOVERY_SUCCESSFUL_TOTAL.
@@ -2161,7 +2241,7 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_PCIE_TX_THROUGHPUT":                                    200,
 	"DCGM_FI_DEV_PCIE_RX_THROUGHPUT":                                    201,
 	"DCGM_FI_DEV_PCIE_REPLAY_TOTAL":                                     202,
-	"DCGM_FI_DEV_GPU_UTIL_RATIO":                                        203,
+	"DCGM_FI_DEV_GPU_UTIL":                                              203,
 	"DCGM_FI_DEV_MEM_COPY_UTIL":                                         204,
 	"DCGM_FI_DEV_PROCESS_ACCOUNTING_STATS":                              205,
 	"DCGM_FI_DEV_ENC_UTIL":                                              206,
@@ -2240,6 +2320,7 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_DIAG_NVBANDWIDTH_RESULT":                               361,
 	"DCGM_FI_DEV_DIAG_STATUS":                                           362,
 	"DCGM_FI_DEV_DIAG_NCCL_TESTS_RESULT":                                363,
+	"DCGM_FI_DEV_DIAG_CPU_SDC_RESULT":                                   364,
 	"DCGM_FI_DEV_BANK_REMAP_AVAIL_MAX":                                  385,
 	"DCGM_FI_DEV_BANK_REMAP_AVAIL_HIGH":                                 386,
 	"DCGM_FI_DEV_BANK_REMAP_AVAIL_PARTIAL":                              387,
@@ -2365,8 +2446,8 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_VGPU_TYPE_NAME":                                        511,
 	"DCGM_FI_DEV_VGPU_TYPE_CLASS":                                       512,
 	"DCGM_FI_DEV_VGPU_TYPE_LICENSE":                                     513,
-	"DCGM_FI_FIRST_VGPU_FIELD_ID":                                       520,
 	"DCGM_FI_DEV_VGPU_VM_ID":                                            520,
+	"DCGM_FI_FIRST_VGPU_FIELD_ID":                                       520,
 	"DCGM_FI_DEV_VGPU_VM_NAME":                                          521,
 	"DCGM_FI_DEV_VGPU_TYPE":                                             522,
 	"DCGM_FI_DEV_VGPU_UUID":                                             523,
@@ -2390,7 +2471,7 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_PLATFORM_PEER_TYPE":                                    576,
 	"DCGM_FI_DEV_PLATFORM_MODULE_ID":                                    577,
 	"DCGM_FI_DEV_NVLINK_PPRM_OPER_RECOVERY":                             580,
-	"DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_SINCE_LAST":                 581,
+	"DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SINCE_LAST_SECONDS":              581,
 	"DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_BETWEEN_LAST_TWO":           582,
 	"DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_SUCCESSFUL_TOTAL":                583,
 	"DCGM_FI_DEV_NVLINK_PPCNT_PHYSICAL_RECOVERY_SUCCESSFUL_TOTAL":       584,
@@ -2732,6 +2813,45 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_VIDEO_MAX_CLOCK_HERTZ":                                 1610,
 	"DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL":                               1611,
 	"DCGM_FI_DEV_FAN_SPEED_RATIO":                                       1612,
+	"DCGM_FI_DEV_GPU_UTIL_RATIO":                                        1613,
+	"DCGM_FI_DEV_GPU_UTIL_RATIO_V2":                                     1613,
+	"DCGM_FI_DEV_MEMORY_UTIL_RATIO":                                     1614,
+	"DCGM_FI_DEV_ENC_UTIL_RATIO":                                        1615,
+	"DCGM_FI_DEV_DEC_UTIL_RATIO":                                        1616,
+	"DCGM_FI_DEV_GPU_POWER_THROTTLE_SECONDS_TOTAL":                      1617,
+	"DCGM_FI_DEV_GPU_THERMAL_THROTTLE_SECONDS_TOTAL":                    1618,
+	"DCGM_FI_DEV_GPU_SYNC_BOOST_THROTTLE_SECONDS_TOTAL":                 1619,
+	"DCGM_FI_DEV_GPU_LIMIT_THROTTLE_SECONDS_TOTAL":                      1620,
+	"DCGM_FI_DEV_GPU_LOW_UTIL_THROTTLE_SECONDS_TOTAL":                   1621,
+	"DCGM_FI_DEV_GPU_RELIABILITY_THROTTLE_SECONDS_TOTAL":                1622,
+	"DCGM_FI_DEV_GPU_APP_THROTTLE_SECONDS_TOTAL":                        1623,
+	"DCGM_FI_DEV_GPU_BASE_THROTTLE_SECONDS_TOTAL":                       1624,
+	"DCGM_FI_DEV_FB_CAPACITY_BYTES":                                     1625,
+	"DCGM_FI_DEV_FB_FREE_BYTES":                                         1626,
+	"DCGM_FI_DEV_FB_USED_BYTES":                                         1627,
+	"DCGM_FI_DEV_FB_RESERVED_BYTES":                                     1628,
+	"DCGM_FI_DEV_C2C_MAX_BANDWIDTH_BYTES_PER_SECOND":                    1629,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L0_BYTES_PER_SECOND":                 1630,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L1_BYTES_PER_SECOND":                 1631,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L2_BYTES_PER_SECOND":                 1632,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L3_BYTES_PER_SECOND":                 1633,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L4_BYTES_PER_SECOND":                 1634,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L5_BYTES_PER_SECOND":                 1635,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L6_BYTES_PER_SECOND":                 1636,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L7_BYTES_PER_SECOND":                 1637,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L8_BYTES_PER_SECOND":                 1638,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L9_BYTES_PER_SECOND":                 1639,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L10_BYTES_PER_SECOND":                1640,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L11_BYTES_PER_SECOND":                1641,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L12_BYTES_PER_SECOND":                1642,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L13_BYTES_PER_SECOND":                1643,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L14_BYTES_PER_SECOND":                1644,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L15_BYTES_PER_SECOND":                1645,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L16_BYTES_PER_SECOND":                1646,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_L17_BYTES_PER_SECOND":                1647,
+	"DCGM_FI_DEV_NVLINK_THROUGHPUT_BYTES_PER_SECOND":                    1648,
+	"DCGM_FI_DEV_VGPU_FB_USED_BYTES":                                    1649,
+	"DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_LAST_GAP_SECONDS":                1650,
 }
 
 // legacyDCGMFields maps legacy field names to their IDs
@@ -2906,6 +3026,7 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_NVLINK_PPCNT_PLR_XMIT_CODES":                      589,
 	"DCGM_FI_DEV_NVLINK_PPCNT_PLR_XMIT_RETRY_CODES":                590,
 	"DCGM_FI_DEV_NVLINK_PPCNT_PLR_XMIT_RETRY_EVENTS":               591,
+	"DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TIME_SINCE_LAST":            581,
 	"DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_TOTAL_SUCCESSFUL_EVENTS":    583,
 	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L0":                   430,
 	"DCGM_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L1":                   431,

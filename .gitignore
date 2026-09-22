@@ -9,5 +9,13 @@ tags
 # But keep these
 !.gitignore
 !.gitattributes
+!.dockerignore
 !.github/
 !.gitlab/
+!.devcontainer/
+!.bazelrc
+!.bazelversion
+
+bazel-*
+dist/
+test-reports/

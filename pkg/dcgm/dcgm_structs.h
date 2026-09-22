@@ -2188,7 +2188,7 @@ typedef struct dcgmPolicySpec_v1
     unsigned int entityCount;                             //!< IN: Number of valid entries in entities.
     unsigned int channelMask;                             //!< IN: Bitmask of dcgmPolicyChannel_t values.
     dcgmPolicyState_t state;                              //!< IN: Initial enabled/disabled state.
-    int rateLimitSec;                                     //!< IN: Minimum seconds between notifications.
+    unsigned int rateLimitSec;                            //!< IN: Minimum seconds between notifications.
 } dcgmPolicySpec_v1;
 
 #define dcgmPolicySpec_version1 MAKE_DCGM_VERSION(dcgmPolicySpec_v1, 1)
@@ -2211,7 +2211,7 @@ typedef struct dcgmPolicyInfo_v1
     unsigned int entityCount;                             //!< OUT: Number of valid entries in entities.
     unsigned int channelMask;                             //!< OUT: Bitmask of dcgmPolicyChannel_t values.
     dcgmPolicyState_t state;                              //!< OUT: Enabled/disabled state.
-    int rateLimitSec;                                     //!< OUT: Minimum seconds between notifications.
+    unsigned int rateLimitSec;                            //!< OUT: Minimum seconds between notifications.
     int64_t createdAt;                                    //!< OUT: Creation timestamp in usec since 1970.
     unsigned int violationCount;                          //!< OUT: Module-owned violation count.
     int64_t lastTriggeredTimestamp;                       //!< OUT: Latest violation timestamp in usec since 1970.

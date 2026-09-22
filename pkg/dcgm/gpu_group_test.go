@@ -18,6 +18,7 @@ package dcgm
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,6 +64,48 @@ func TestGetGroupInfo(t *testing.T) {
 	assert.Len(t, grInfo.EntityList, 1)
 	assert.Equal(t, FE_GPU, grInfo.EntityList[0].EntityGroupId)
 	assert.Equal(t, gpuID, grInfo.EntityList[0].EntityId)
+}
+
+func TestRemoveEntityFromGroup(t *testing.T) {
+	teardownTest := setupTest(t)
+	defer teardownTest(t)
+
+	gpuIDs, err := withInjectionGPUs(t, 2)
+	require.NoError(t, err)
+
+	groupID, err := CreateGroup("remove-entity")
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, DestroyGroup(groupID))
+	}()
+
+	for _, gpuID := range gpuIDs {
+		require.NoError(t, AddEntityToGroup(groupID, FE_GPU, gpuID))
+	}
+
+	require.NoError(t, RemoveEntityFromGroup(groupID, FE_GPU, gpuIDs[0]))
+
+	groupInfo, err := GetGroupInfo(groupID)
+	require.NoError(t, err)
+	assert.Equal(t, "remove-entity", groupInfo.GroupName)
+	assert.Equal(t, []GroupEntityPair{{EntityGroupId: FE_GPU, EntityId: gpuIDs[1]}}, groupInfo.EntityList)
+
+	err = RemoveEntityFromGroup(groupID, FE_GPU, gpuIDs[0])
+	require.Error(t, err)
+	assert.ErrorContains(t, err, fmt.Sprintf("entity %v", gpuIDs[0]))
+
+	missingGroup, err := CreateGroup("removed-group")
+	require.NoError(t, err)
+	require.NoError(t, DestroyGroup(missingGroup))
+
+	err = RemoveEntityFromGroup(missingGroup, FE_GPU, gpuIDs[1])
+	require.Error(t, err)
+	assert.ErrorContains(t, err, fmt.Sprintf("entity %v", gpuIDs[1]))
+
+	groupInfo, err = GetGroupInfo(groupID)
+	require.NoError(t, err)
+	assert.Equal(t, "remove-entity", groupInfo.GroupName)
+	assert.Equal(t, []GroupEntityPair{{EntityGroupId: FE_GPU, EntityId: gpuIDs[1]}}, groupInfo.EntityList)
 }
 
 func TestCreateGroupWithContext(t *testing.T) {

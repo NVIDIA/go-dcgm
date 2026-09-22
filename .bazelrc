@@ -1,0 +1,11 @@
+build --@rules_go//go/config:static=false
+build --jobs=auto
+test --test_output=errors
+
+build:ci --verbose_failures
+build:ci --show_timestamps
+build:ci --incompatible_strict_action_env
+
+build:race --@rules_go//go/config:race
+
+build:dcgm-runtime --define=link_dcgm_runtime=true

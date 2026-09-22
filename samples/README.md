@@ -35,12 +35,20 @@ This is an add-on mode which opens an Unix socket for starting and connecting wi
 
 ## Samples
 
+Build all sample targets from the repository root:
+
+```bash
+task build:samples
+```
+
+Run a sample with its Bazel target.
+
 ### deviceInfo
 
 Provides detailed information about each GPU on the system, along with whether the given GPU is DCGM supported or not.
 
 ```bash
-$ go build && ./deviceInfo
+$ bazel run //samples/deviceInfo
 
 # sample output
 
@@ -70,7 +78,7 @@ P2P Available          : None
 Monitors each device status including its power, memory and GPU utilization.
 
 ```bash
-$ go build && ./dmon
+$ bazel run //samples/dmon
 
 # sample output
 
@@ -86,7 +94,7 @@ Started host engine version 1.4.3 using socket path: /tmp/dcgmrxvqro.socket
 Monitors the health of the given GPU every second, by checking the configured watches for any errors/failures/warnings.
 
 ```bash
-$ go build && ./health
+$ bazel run //samples/health
 
 # sample output
 GPU                : 0
@@ -98,7 +106,7 @@ Status             : Healthy
 Reports about DCGM hostengine memory and CPU usage.
 
 ```bash
-$ go build && ./hostengineStatus
+$ bazel run //samples/hostengineStatus
 
 # sample output
 
@@ -111,7 +119,7 @@ CPU     : 0.08 %
 Sets GPU usage and error policies and notifies in case of violations via callback functions.
 
 ```bash
-$ go build && ./policy
+$ bazel run //samples/policy
 
 # sample output
 
@@ -128,7 +136,7 @@ Data       : {31}
 Provides per GPU detailed stats for this process.
 
 ```bash
-$ go build && ./processInfo -pid PID
+$ bazel run //samples/processInfo -- -pid PID
 
 # sample output
 
@@ -170,7 +178,7 @@ Avg Memory Utilization (%)   : 0
 Informs about GPU topology and its CPU affinity.
 
 ```bash
-$ go build && ./topology
+$ bazel run //samples/topology
 
 # sample output
 

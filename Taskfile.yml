@@ -1,0 +1,168 @@
+version: "3"
+
+silent: true
+
+dotenv:
+  - hack/versions.env
+
+vars:
+  GOLANGCI_LINT_TIMEOUT: 10m
+  ROOT_DIR: "{{.TASKFILE_DIR}}"
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  versions:validate:
+    desc: Validate shared version pins
+    cmds:
+      - bash hack/validate-versions.sh
+
+  bazel:gazelle:
+    desc: Generate and update Bazel Go targets
+    cmds:
+      - bazel run //:gazelle
+
+  bazel:tidy:
+    desc: Update Bzlmod use_repo declarations and the lockfile
+    cmds:
+      - bazel mod tidy
+      - bazel mod deps >/dev/null
+      - bazel mod graph >/dev/null
+
+  bazel:validate:
+    desc: Validate Gazelle, Bzlmod metadata, and prerequisite-free targets
+    cmds:
+      - bazel mod graph --lockfile_mode=error >/dev/null
+      - bazel run //:gazelle -- -mode=diff
+      - bazel build --config=ci //pkg/dcgm:dcgm //pkg/dcgm:dcgm_headers //cmd/gen-fields:gen-fields //samples/...
+      - bazel test --config=ci //...
+
+  build:
+    desc: Build the dcgm library and all samples
+    cmds:
+      - task: generate:check
+      - bazel build --config=ci //pkg/dcgm:dcgm //samples/...
+
+  build:samples:
+    desc: Build all sample binaries
+    cmds:
+      - task: generate:check
+      - bazel build --config=ci //samples/...
+
+  test:
+    desc: Run default CI-safe tests
+    cmds:
+      - task: test:unit
+
+  test:unit:
+    desc: Run prerequisite-free tests
+    cmds:
+      - bazel test --config=ci //cmd/gen-fields:gen-fields_test //pkg/dcgm:dcgm_unit_test //samples/restApi/handlers:handlers_test {{.CLI_ARGS}}
+
+  test:error-metadata:
+    desc: Run DCGM runtime error metadata tests
+    cmds:
+      - bazel test --config=ci --config=dcgm-runtime //pkg/dcgm:dcgm_test --test_filter='^TestSelectedErrorMeta$' --cache_test_results=no {{.CLI_ARGS}}
+
+  test:integration:
+    desc: Run GPU and DCGM integration tests
+    cmds:
+      - |
+        set +e
+        bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^TestPolicyErrors$'
+        policy_status=$?
+        bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //tests:tests_test {{.CLI_ARGS}}
+        suite_status=$?
+        set -e
+        if [ "${policy_status}" -ne 0 ]; then
+          exit "${policy_status}"
+        fi
+        exit "${suite_status}"
+
+  test:race:
+    desc: Run GPU and DCGM integration tests with the race detector
+    cmds:
+      - |
+        set +e
+        bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^TestPolicyErrors$'
+        policy_status=$?
+        bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no //tests:tests_test {{.CLI_ARGS}}
+        suite_status=$?
+        set -e
+        if [ "${policy_status}" -ne 0 ]; then
+          exit "${policy_status}"
+        fi
+        exit "${suite_status}"
+
+  test:diagnostics:
+    desc: Run hardware-sensitive diagnostic tests
+    cmds:
+      - bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //tests:tests_test --test_filter='^(TestDiagnostics|TestDiagnosticsLong|TestDiagTestNameFormat)$' {{.CLI_ARGS}}
+
+  lint:
+    desc: Run full Go lint
+    cmds:
+      - GOFLAGS=-buildvcs=false golangci-lint run ./... --timeout {{.GOLANGCI_LINT_TIMEOUT}}
+
+  lint:incremental:
+    desc: Run Go lint for changes since the previous revision
+    cmds:
+      - GOFLAGS=-buildvcs=false golangci-lint run ./... --timeout {{.GOLANGCI_LINT_TIMEOUT}} --new-from-rev=HEAD~1
+
+  fmt:
+    desc: Format Go sources
+    cmds:
+      - gofumpt -w .
+
+  fmt:check:
+    desc: Check Go source formatting
+    cmds:
+      - |
+        files="$(gofumpt -l .)"
+        if [[ -n "${files}" ]]; then
+          printf '%s\n' "${files}"
+          exit 1
+        fi
+
+  generate:
+    desc: Regenerate checked-in DCGM field constants
+    cmds:
+      - bazel run //cmd/gen-fields:gen-fields -- --legacy-fields {{.ROOT_DIR}}/pkg/dcgm/legacy_fields.csv {{.ROOT_DIR}}/pkg/dcgm/dcgm_fields.h {{.ROOT_DIR}}/pkg/dcgm/const_fields.go
+      - gofumpt -w {{.ROOT_DIR}}/pkg/dcgm/const_fields.go
+
+  generate:check:
+    desc: Check generated DCGM field constants without modifying the source tree
+    cmds:
+      - |
+        output="$(mktemp)"
+        trap 'rm -f -- "${output}"' EXIT
+        bazel run //cmd/gen-fields:gen-fields -- \
+          --legacy-fields {{.ROOT_DIR}}/pkg/dcgm/legacy_fields.csv \
+          {{.ROOT_DIR}}/pkg/dcgm/dcgm_fields.h "${output}"
+        gofumpt -w "${output}"
+        if ! cmp -s {{.ROOT_DIR}}/pkg/dcgm/const_fields.go "${output}"; then
+          diff -u {{.ROOT_DIR}}/pkg/dcgm/const_fields.go "${output}" || true
+          exit 1
+        fi
+
+  pre-commit:install:
+    desc: Install repository pre-commit hooks
+    cmds:
+      - pre-commit install --config .pre-commit-config.yaml
+
+  clean:
+    desc: Remove Bazel outputs
+    cmds:
+      - bazel clean
+
+  validate:
+    desc: Run all prerequisite-free validation
+    cmds:
+      - task: versions:validate
+      - task: bazel:validate
+      - task: generate:check
+      - task: fmt:check
+      - task: lint

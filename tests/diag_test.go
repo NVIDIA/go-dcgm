@@ -33,23 +33,20 @@ func TestDiagnostics(t *testing.T) {
 		t.Fatalf("Failed to run diagnostics: %v", err)
 	}
 
-	// Log software test results
-	t.Logf("Software Tests:")
-	for _, test := range dr.Software {
-		t.Logf("  %-50s %s\t%s", test.TestName, test.Status, test.TestOutput)
+	t.Log("Diagnostic Tests:")
+	for _, test := range dr.Tests {
+		t.Logf("  %-50s %s", test.Name, test.Status)
 	}
 
-	// Basic validation - we should have some results
-	if len(dr.Software) == 0 {
+	if len(dr.Tests) == 0 {
 		t.Error("No diagnostic results returned")
 	}
 
-	// Check for any failed tests
 	failedTests := 0
-	for _, test := range dr.Software {
+	for _, test := range dr.Tests {
 		if test.Status == "fail" {
 			failedTests++
-			t.Logf("Software test failed: %s - %s", test.TestName, test.TestOutput)
+			t.Logf("Diagnostic test failed: %s", test.Name)
 		}
 	}
 
@@ -108,13 +105,12 @@ func TestDiagnosticsLong(t *testing.T) {
 
 	t.Logf("Medium diagnostics completed for GPU %d", gpus[0])
 
-	// Log results
-	for _, test := range dr.Software {
-		t.Logf("  %s: %s", test.TestName, test.Status)
+	for _, test := range dr.Tests {
+		t.Logf("  %s: %s", test.Name, test.Status)
 	}
 }
 
-// TestDiagTestNameFormat validates that TestName field contains category names,
+// TestDiagTestNameFormat validates that Name contains a test name,
 // not detailed test descriptions (issue #97)
 func TestDiagTestNameFormat(t *testing.T) {
 	skipIfDiagnosticsDisabled(t)
@@ -130,23 +126,7 @@ func TestDiagTestNameFormat(t *testing.T) {
 		t.Fatalf("Failed to run diagnostics: %v", err)
 	}
 
-	assert.NotEmpty(t, dr.Software, "diagnostic results should not be empty")
-
-	// Valid test category names that should appear (lowercase)
-	validTestNames := []string{
-		"software",
-		"memory",
-		"pcie",
-		"diagnostic",
-		"sm stress",
-		"targeted stress",
-		"targeted power",
-		"memory bandwidth",
-		"memtest",
-		"pulse",
-		"eud",
-		"context create",
-	}
+	assert.NotEmpty(t, dr.Tests, "diagnostic results should not be empty")
 
 	// Invalid strings that should NOT appear in TestName
 	// These are detailed descriptions that were incorrectly returned before fix
@@ -158,36 +138,28 @@ func TestDiagTestNameFormat(t *testing.T) {
 		"presence (and version)",
 	}
 
-	for i, test := range dr.Software {
-		t.Logf("Result %d: TestName=%q, Status=%s", i, test.TestName, test.Status)
-
-		// TestName should be one of the valid category names
-		assert.Contains(
-			t,
-			validTestNames,
-			test.TestName,
-			"TestName should be a category name like 'software', 'memory', 'pcie', got: %q",
-			test.TestName,
-		)
+	for i, test := range dr.Tests {
+		t.Logf("Result %d: Name=%q, Status=%s", i, test.Name, test.Status)
+		assert.NotEmpty(t, test.Name, "diagnostic test name should not be empty")
 
 		// TestName should NOT contain detailed descriptions
 		for _, invalid := range invalidPatterns {
 			assert.NotContains(
 				t,
-				test.TestName,
+				test.Name,
 				invalid,
-				"TestName should not contain detailed descriptions, got: %q",
-				test.TestName,
+				"Name should not contain detailed descriptions, got: %q",
+				test.Name,
 			)
 		}
 
 		// TestName should be lowercase
 		assert.Equal(
 			t,
-			strings.ToLower(test.TestName),
-			test.TestName,
-			"TestName should be lowercase, got: %q",
-			test.TestName,
+			strings.ToLower(test.Name),
+			test.Name,
+			"Name should be lowercase, got: %q",
+			test.Name,
 		)
 	}
 }

@@ -1,0 +1,4 @@
+.git
+bazel-*
+dist
+test-reports
