@@ -265,7 +265,7 @@ func TestResponseFormattingErrors(t *testing.T) {
 		})
 	}
 
-	t.Run("process list stops after committed write error", func(t *testing.T) {
+	t.Run("process list does not retry after committed write error", func(t *testing.T) {
 		resp := &failingResponseWriter{header: make(http.Header)}
 		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 
@@ -274,8 +274,8 @@ func TestResponseFormattingErrors(t *testing.T) {
 		if resp.status != http.StatusOK {
 			t.Fatalf("status = %d, want committed %d", resp.status, http.StatusOK)
 		}
-		if resp.writes != 2 {
-			t.Fatalf("writes = %d, want failed template write plus failed error write", resp.writes)
+		if resp.writes != 1 {
+			t.Fatalf("writes = %d, want one failed response write", resp.writes)
 		}
 	})
 }
