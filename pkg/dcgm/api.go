@@ -88,7 +88,9 @@ func GetGPUStatus(gpuID uint) EntityStatus {
 	return getGPUStatus(gpuID)
 }
 
-// GetDeviceStatus returns current status information about the specified GPU
+// GetDeviceStatus returns current status information about the specified GPU.
+// If collection succeeds but temporary DCGM resource cleanup fails, the
+// returned DeviceStatus remains populated and the error reports the failure.
 func GetDeviceStatus(gpuID uint) (DeviceStatus, error) {
 	return latestValuesForDevice(gpuID)
 }

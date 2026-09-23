@@ -2,12 +2,22 @@ package handlers
 
 import (
 	"net/http"
+
+	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
 // DeviceInfo handles HTTP requests for device information by device ID
 // It returns either JSON or formatted text output based on the request URL
 func DeviceInfo(resp http.ResponseWriter, req *http.Request) {
-	device := getDeviceInfo(resp, req)
+	handleDeviceInfo(resp, req, getDeviceInfo)
+}
+
+func handleDeviceInfo(
+	resp http.ResponseWriter,
+	req *http.Request,
+	get func(http.ResponseWriter, *http.Request) *dcgm.Device,
+) {
+	device := get(resp, req)
 	if device == nil {
 		return
 	}
@@ -23,63 +33,95 @@ func DeviceInfo(resp http.ResponseWriter, req *http.Request) {
 // DeviceStatus handles HTTP requests for device status by device ID
 // It returns either JSON or formatted text output based on the request URL
 func DeviceStatus(resp http.ResponseWriter, req *http.Request) {
-	st := getDeviceStatus(resp, req)
-	if st == nil {
+	handleDeviceStatus(resp, req, getDeviceStatus)
+}
+
+func handleDeviceStatus(
+	resp http.ResponseWriter,
+	req *http.Request,
+	get func(http.ResponseWriter, *http.Request) *dcgm.DeviceStatus,
+) {
+	status := get(resp, req)
+	if status == nil {
 		return
 	}
 
 	if isJson(req) {
-		encode(resp, req, st)
+		encode(resp, req, status)
 		return
 	}
 
-	printer(resp, req, st, deviceStatusTemplate)
+	printer(resp, req, status, deviceStatusTemplate)
 }
 
 // ProcessInfo handles HTTP requests for process information by PID
 // It returns either JSON or formatted text output based on the request URL
 func ProcessInfo(resp http.ResponseWriter, req *http.Request) {
-	pInfo := getProcessInfo(resp, req)
-	if len(pInfo) == 0 {
+	handleProcessInfo(resp, req, getProcessInfo)
+}
+
+func handleProcessInfo(
+	resp http.ResponseWriter,
+	req *http.Request,
+	get func(http.ResponseWriter, *http.Request) []dcgm.ProcessInfo,
+) {
+	processes := get(resp, req)
+	if len(processes) == 0 {
 		return
 	}
 
 	if isJson(req) {
-		encode(resp, req, pInfo)
+		encode(resp, req, processes)
 		return
 	}
 
-	processPrint(resp, req, pInfo)
+	processPrint(resp, req, processes)
 }
 
 // Health handles HTTP requests for device health status by device ID
 // It returns either JSON or formatted text output based on the request URL
 func Health(resp http.ResponseWriter, req *http.Request) {
-	h := getHealth(resp, req)
-	if h == nil {
+	handleHealth(resp, req, getHealth)
+}
+
+func handleHealth(
+	resp http.ResponseWriter,
+	req *http.Request,
+	get func(http.ResponseWriter, *http.Request) *dcgm.DeviceHealth,
+) {
+	health := get(resp, req)
+	if health == nil {
 		return
 	}
 
 	if isJson(req) {
-		encode(resp, req, h)
+		encode(resp, req, health)
 		return
 	}
 
-	printer(resp, req, h, healthStatusTemplate)
+	printer(resp, req, health, healthStatusTemplate)
 }
 
 // Status handles HTTP requests for DCGM daemon status
 // It returns either JSON or formatted text output based on the request URL
 func Status(resp http.ResponseWriter, req *http.Request) {
-	st := getStatus(resp, req)
-	if st == nil {
+	handleStatus(resp, req, getStatus)
+}
+
+func handleStatus(
+	resp http.ResponseWriter,
+	req *http.Request,
+	get func(http.ResponseWriter, *http.Request) *dcgm.Status,
+) {
+	status := get(resp, req)
+	if status == nil {
 		return
 	}
 
 	if isJson(req) {
-		encode(resp, req, st)
+		encode(resp, req, status)
 		return
 	}
 
-	printer(resp, req, st, hostengineTemplate)
+	printer(resp, req, status, hostengineTemplate)
 }

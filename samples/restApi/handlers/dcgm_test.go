@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
@@ -52,7 +53,7 @@ func TestGetProcessInfoDestroysWatchedGroup(t *testing.T) {
 		},
 		destroyGroup: func(dcgm.GroupHandle) error {
 			destroyCalled = true
-			return nil
+			return errors.New("forced DestroyGroup failure")
 		},
 		sleep: func(time.Duration) {},
 	})
@@ -150,4 +151,131 @@ func TestGetProcessInfoDoesNotDestroyGroupWhenWatchFails(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
+}
+
+func TestResponseFormatting(t *testing.T) {
+	tests := []struct {
+		name            string
+		write           func(http.ResponseWriter, *http.Request)
+		wantBody        []string
+		wantContentType string
+	}{
+		{
+			name: "JSON",
+			write: func(resp http.ResponseWriter, req *http.Request) {
+				encode(resp, req, map[string]int{"gpu": 1})
+			},
+			wantBody:        []string{`"gpu":1`},
+			wantContentType: "application/json",
+		},
+		{
+			name: "template",
+			write: func(resp http.ResponseWriter, req *http.Request) {
+				printer(resp, req, dcgm.Status{Memory: 42, CPU: 1.5}, hostengineTemplate)
+			},
+			wantBody: []string{"Memory(KB)      : 42", "CPU(%)          : 1.50"},
+		},
+		{
+			name: "process list",
+			write: func(resp http.ResponseWriter, req *http.Request) {
+				processPrint(resp, req, []dcgm.ProcessInfo{{PID: 7}, {PID: 8}})
+			},
+			wantBody: []string{"PID                          : 7", "PID                          : 8"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+
+			tt.write(resp, req)
+
+			for _, want := range tt.wantBody {
+				if !strings.Contains(resp.Body.String(), want) {
+					t.Fatalf("body %q does not contain %q", resp.Body.String(), want)
+				}
+			}
+			if tt.wantContentType != "" {
+				if got := resp.Header().Get("Content-Type"); got != tt.wantContentType {
+					t.Fatalf("Content-Type = %q, want %q", got, tt.wantContentType)
+				}
+			}
+		})
+	}
+}
+
+type failingResponseWriter struct {
+	header http.Header
+	status int
+	writes int
+}
+
+func (w *failingResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *failingResponseWriter) WriteHeader(status int) {
+	if w.status == 0 {
+		w.status = status
+	}
+}
+
+func (w *failingResponseWriter) Write([]byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	w.writes++
+	return 0, errors.New("forced write failure")
+}
+
+func TestResponseFormattingErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		write func(http.ResponseWriter, *http.Request)
+	}{
+		{
+			name: "JSON serialization before write",
+			write: func(resp http.ResponseWriter, req *http.Request) {
+				encode(resp, req, make(chan int))
+			},
+		},
+		{
+			name: "template evaluation before write",
+			write: func(resp http.ResponseWriter, req *http.Request) {
+				invalid := template.Must(template.New("invalid").Parse("{{.Missing}}"))
+				printer(resp, req, struct{}{}, invalid)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+
+			tt.write(resp, req)
+
+			if resp.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d, want %d", resp.Code, http.StatusInternalServerError)
+			}
+			if resp.Body.Len() == 0 {
+				t.Fatal("body is empty, want formatting error")
+			}
+		})
+	}
+
+	t.Run("process list stops after committed write error", func(t *testing.T) {
+		resp := &failingResponseWriter{header: make(http.Header)}
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+
+		processPrint(resp, req, []dcgm.ProcessInfo{{PID: 7}, {PID: 8}})
+
+		if resp.status != http.StatusOK {
+			t.Fatalf("status = %d, want committed %d", resp.status, http.StatusOK)
+		}
+		if resp.writes != 2 {
+			t.Fatalf("writes = %d, want failed template write plus failed error write", resp.writes)
+		}
+	})
 }

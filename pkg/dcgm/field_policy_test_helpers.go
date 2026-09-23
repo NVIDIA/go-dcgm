@@ -80,3 +80,24 @@ func fieldPolicyRateLimitForTest() uint {
 	policy.rateLimitSec = C.uint(4_294_967_295)
 	return uint(policy.rateLimitSec)
 }
+
+func policyConditionExpectedForTest(condition PolicyCondition) uint {
+	switch condition {
+	case DbePolicy:
+		return uint(C.DCGM_POLICY_COND_DBE)
+	case PCIePolicy:
+		return uint(C.DCGM_POLICY_COND_PCI)
+	case MaxRtPgPolicy:
+		return uint(C.DCGM_POLICY_COND_MAX_PAGES_RETIRED)
+	case ThermalPolicy:
+		return uint(C.DCGM_POLICY_COND_THERMAL)
+	case PowerPolicy:
+		return uint(C.DCGM_POLICY_COND_POWER)
+	case NvlinkPolicy:
+		return uint(C.DCGM_POLICY_COND_NVLINK)
+	case XidPolicy:
+		return uint(C.DCGM_POLICY_COND_XID)
+	default:
+		return 0
+	}
+}

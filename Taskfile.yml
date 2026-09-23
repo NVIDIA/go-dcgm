@@ -67,9 +67,15 @@ tasks:
     cmds:
       - bazel test --config=ci --config=dcgm-runtime //pkg/dcgm:dcgm_test --test_filter='^TestSelectedErrorMeta$' --cache_test_results=no {{.CLI_ARGS}}
 
+  test:gpu:prereqs:
+    desc: Check that DCGM discovers a physical GPU before integration tests
+    cmds:
+      - bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //tests:integration_preflight_test
+
   test:integration:
     desc: Run GPU and DCGM integration tests
     cmds:
+      - task: test:gpu:prereqs
       - |
         set +e
         bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^TestPolicyErrors$'
@@ -85,6 +91,7 @@ tasks:
   test:race:
     desc: Run GPU and DCGM integration tests with the race detector
     cmds:
+      - task: test:gpu:prereqs
       - |
         set +e
         bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^TestPolicyErrors$'

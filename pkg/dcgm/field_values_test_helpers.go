@@ -1,7 +1,7 @@
 package dcgm
 
-// This file contains helpers for benchmarking field value operations.
-// These functions expose internal implementation details for performance testing only.
+// This file contains helpers for testing and benchmarking field value operations.
+// These functions expose internal implementation details for tests and benchmarks only.
 // They should not be used in production code.
 
 /*
@@ -18,7 +18,7 @@ type testFieldValueSpec struct {
 	payload   []byte
 }
 
-// makeTestCFields creates test C field values for benchmarking purposes only.
+// makeTestCFields creates C field values for tests and benchmarks.
 func makeTestCFields(count int) []C.dcgmFieldValue_v1 {
 	return makeTestCFieldsFromSpec(count, testFieldValueSpec{
 		fieldType: DCGM_FT_INT64,

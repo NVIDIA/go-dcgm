@@ -173,6 +173,10 @@ func connectStandaloneV2(address, socketFlag string) (err error) {
 		cHandle       C.dcgmHandle_t
 		connectParams C.dcgmConnectV2Params_v2
 	)
+	sck, err := strconv.ParseUint(socketFlag, 10, 32)
+	if err != nil {
+		return fmt.Errorf("error parsing %s: %w", socketFlag, err)
+	}
 
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
@@ -183,10 +187,6 @@ func connectStandaloneV2(address, socketFlag string) (err error) {
 	defer freeCString(addr)
 	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
 
-	sck, err := strconv.ParseUint(socketFlag, 10, 32)
-	if err != nil {
-		return fmt.Errorf("error parsing %s: %v", socketFlag, err)
-	}
 	connectParams.addressIsUnixSocket = C.uint(sck)
 
 	result = C.dcgmConnect_v2(addr, &connectParams, &cHandle)
