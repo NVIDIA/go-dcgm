@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -208,11 +209,18 @@ func isJson(req *http.Request) bool {
 	return strings.HasSuffix(req.URL.Path, "/json")
 }
 
-// print formats and writes templated text output to the response
+// printer formats and writes templated text output to the response.
 func printer(resp http.ResponseWriter, req *http.Request, stats any, t *template.Template) {
+	// Render first so a template error cannot commit a partial 200 response.
+	var output bytes.Buffer
 	// #nosec G708 -- t is parsed from package-local templates at startup.
-	if err := t.Execute(resp, stats); err != nil {
+	if err := t.Execute(&output, stats); err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
+		logRequestError(req, err)
+		return
+	}
+
+	if _, err := output.WriteTo(resp); err != nil {
 		logRequestError(req, err)
 	}
 }
@@ -229,13 +237,18 @@ func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 
 // processPrint formats and writes process information to the response
 func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.ProcessInfo) {
+	// Render every entry before writing any of them to the response.
+	var output bytes.Buffer
 	for i := range pInfo {
 		// #nosec G708 -- processInfoTemplate is parsed from a package-local template at startup.
-		if err := processInfoTemplate.Execute(resp, pInfo[i]); err != nil {
+		if err := processInfoTemplate.Execute(&output, pInfo[i]); err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			logRequestError(req, err)
-
 			return
 		}
+	}
+
+	if _, err := output.WriteTo(resp); err != nil {
+		logRequestError(req, err)
 	}
 }
