@@ -33,8 +33,11 @@ DCGM_CASSERT(sizeof(dcgmEntitiesGetLatestValues_v4) <= ((4 * 1024 * 1024) - 24),
 import "C"
 
 import (
+	"fmt"
 	"unsafe"
 )
+
+const maxFakeEntities = C.DCGM_MAX_HIERARCHY_INFO
 
 // MigHierarchyInfo represents the Multi-Instance GPU (MIG) hierarchy information
 // for a GPU entity and its relationship to other entities
@@ -51,6 +54,11 @@ type MigHierarchyInfo struct {
 // This function is intended for testing purposes only.
 // Returns a slice of Entity IDs for the created entities and any error encountered.
 func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
+	if len(entities) == 0 {
+		return []uint{}, nil
+	}
+	entities = boundedFakeEntities(entities)
+
 	ccfe := C.dcgmCreateFakeEntities_v2{
 		version:     C.dcgmCreateFakeEntities_version2,
 		numToCreate: C.uint(len(entities)),
@@ -58,9 +66,6 @@ func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 	}
 
 	for i := range entities {
-		if i >= C.DCGM_MAX_HIERARCHY_INFO {
-			break
-		}
 		entity := entities[i]
 		ccfe.entityList[i] = C.dcgmMigHierarchyInfo_t{
 			entity: C.dcgmGroupEntityPair_t{
@@ -87,6 +92,13 @@ func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 	return entityIDs, nil
 }
 
+func boundedFakeEntities(entities []MigHierarchyInfo) []MigHierarchyInfo {
+	if len(entities) > maxFakeEntities {
+		return entities[:maxFakeEntities]
+	}
+	return entities
+}
+
 // InjectFieldValue injects a test value for a specific field into DCGM's field manager.
 // This function is intended for testing purposes only.
 //
@@ -110,13 +122,21 @@ func InjectFieldValue(gpu uint, fieldID Short, fieldType uint, status int, ts in
 
 	switch fieldType {
 	case DCGM_FT_INT64:
-		i64Val := value.(int64)
+		i64Val, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("field type %d requires int64, got %T", fieldType, value)
+		}
 		ptr := (*C.int64_t)(unsafe.Pointer(&field.value[0]))
 		*ptr = C.int64_t(i64Val)
 	case DCGM_FT_DOUBLE:
-		dbVal := value.(float64)
+		dbVal, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("field type %d requires float64, got %T", fieldType, value)
+		}
 		ptr := (*C.double)(unsafe.Pointer(&field.value[0]))
 		*ptr = C.double(dbVal)
+	default:
+		return fmt.Errorf("unsupported field type %d", fieldType)
 	}
 
 	result := C.dcgmInjectFieldValue(handle.handle, C.uint(gpu), &field)

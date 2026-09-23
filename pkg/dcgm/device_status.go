@@ -7,6 +7,7 @@ package dcgm
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 )
@@ -193,7 +194,25 @@ func getGPUStatus(gpuID uint) EntityStatus {
 	return EntityStatus(status)
 }
 
-func latestValuesForDevice(gpuId uint) (status DeviceStatus, err error) {
+type deviceStatusOps struct {
+	createFieldGroup  func(string, []Short) (FieldHandle, error)
+	watchFields       func(uint, FieldHandle, string) (GroupHandle, error)
+	getLatestValues   func(uint, []Short) ([]FieldValue_v1, error)
+	destroyFieldGroup func(FieldHandle) error
+	destroyGroup      func(GroupHandle) error
+}
+
+func latestValuesForDevice(gpuId uint) (DeviceStatus, error) {
+	return latestValuesForDeviceWithOps(gpuId, deviceStatusOps{
+		createFieldGroup:  FieldGroupCreate,
+		watchFields:       WatchFields,
+		getLatestValues:   GetLatestValuesForFields,
+		destroyFieldGroup: FieldGroupDestroy,
+		destroyGroup:      DestroyGroup,
+	})
+}
+
+func latestValuesForDeviceWithOps(gpuId uint, ops deviceStatusOps) (status DeviceStatus, err error) {
 	deviceFields := make([]Short, deviceStatusFieldCount)
 	deviceFields[devicePower] = C.DCGM_FI_DEV_POWER_USAGE
 	deviceFields[deviceTemperature] = C.DCGM_FI_DEV_GPU_TEMP
@@ -214,28 +233,27 @@ func latestValuesForDevice(gpuId uint) (status DeviceStatus, err error) {
 	deviceFields[deviceFanSpeed] = C.DCGM_FI_DEV_FAN_SPEED
 
 	fieldsName := fmt.Sprintf("devStatusFields%d", rand.Uint64())
-	fieldsId, err := FieldGroupCreate(fieldsName, deviceFields)
+	fieldsId, err := ops.createFieldGroup(fieldsName, deviceFields)
 	if err != nil {
 		return
 	}
 
 	groupName := fmt.Sprintf("devStatus%d", rand.Uint64())
-	groupId, err := WatchFields(gpuId, fieldsId, groupName)
+	groupId, err := ops.watchFields(gpuId, fieldsId, groupName)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
+		err = errors.Join(err, ops.destroyFieldGroup(fieldsId))
 		return
 	}
+	defer func() {
+		err = errors.Join(err, ops.destroyFieldGroup(fieldsId), ops.destroyGroup(groupId))
+	}()
 
-	values, err := GetLatestValuesForFields(gpuId, deviceFields)
+	values, err := ops.getLatestValues(gpuId, deviceFields)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsId)
-		_ = DestroyGroup(groupId)
 		return status, err
 	}
 
 	status = deviceStatusFromValues(values)
 
-	_ = FieldGroupDestroy(fieldsId)
-	_ = DestroyGroup(groupId)
 	return
 }

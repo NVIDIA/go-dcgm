@@ -1,15 +1,18 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# gazelle:exclude admin_input_unit_test.go
 # gazelle:exclude admin_test.go
 # gazelle:exclude alias_resolution_test.go
+# gazelle:exclude api_unit_test.go
 # gazelle:exclude base_unit_fields_test.go
 # gazelle:exclude const_test.go
 # gazelle:exclude cpu_test.go
 # gazelle:exclude cpu_test_helpers.go
+# gazelle:exclude device_status_cleanup_unit_test.go
+# gazelle:exclude device_status_unit_test.go
 # gazelle:exclude diag_test.go
 # gazelle:exclude diag_test_helpers.go
-# gazelle:exclude device_status_unit_test.go
 # gazelle:exclude field_policy_test.go
 # gazelle:exclude field_policy_test_helpers.go
 # gazelle:exclude field_scope_test.go
@@ -19,12 +22,14 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude field_values_test_helpers.go
 # gazelle:exclude field_values_unit_test.go
 # gazelle:exclude fields_empty_test.go
+# gazelle:exclude gpu_group_unit_test.go
 # gazelle:exclude health_unit_test.go
 # gazelle:exclude mig_test.go
 # gazelle:exclude mndiag_test.go
 # gazelle:exclude mndiag_test_helpers.go
 # gazelle:exclude policy_dispatcher_test.go
 # gazelle:exclude process_info_unit_test.go
+# gazelle:exclude pure_helpers_test.go
 # gazelle:exclude test_utils.go
 # gazelle:exclude topology_test.go
 # gazelle:exclude utils_unit_test.go
@@ -130,6 +135,7 @@ go_test(
     name = "dcgm_test",
     srcs = [
         "api_test.go",
+        "api_unit_test.go",  # keep: shared counter helpers and tests.
         "bind_unbind_test.go",
         "error_runtime_test.go",
         "error_test.go",
@@ -164,12 +170,15 @@ go_test(
 go_test(
     name = "dcgm_unit_test",
     srcs = [
+        "admin_input_unit_test.go",  # keep
         "admin_test.go",
         "alias_resolution_test.go",
+        "api_unit_test.go",  # keep
         "base_unit_fields_test.go",
         "const_test.go",
         "cpu_test.go",
         "cpu_test_helpers.go",
+        "device_status_cleanup_unit_test.go",  # keep
         "device_status_unit_test.go",
         "diag_test.go",
         "diag_test_helpers.go",
@@ -183,12 +192,14 @@ go_test(
         "field_values_test_helpers.go",
         "field_values_unit_test.go",
         "fields_empty_test.go",
+        "gpu_group_unit_test.go",  # keep
         "health_unit_test.go",
         "mig_test.go",
         "mndiag_test.go",
         "mndiag_test_helpers.go",
         "policy_dispatcher_test.go",
         "process_info_unit_test.go",
+        "pure_helpers_test.go",  # keep
         "topology_test.go",
         "utils_unit_test.go",
     ],
