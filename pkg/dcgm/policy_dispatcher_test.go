@@ -443,6 +443,62 @@ func TestPolicyViolationDropCount(t *testing.T) {
 	_ = receivePolicyViolation(t, ch)
 }
 
+func TestPolicyConditionInfo(t *testing.T) {
+	tests := []struct {
+		name      string
+		condition PolicyCondition
+		wantOK    bool
+	}{
+		{"double-bit ECC", DbePolicy, true},
+		{"PCIe", PCIePolicy, true},
+		{"retired pages", MaxRtPgPolicy, true},
+		{"thermal", ThermalPolicy, true},
+		{"power", PowerPolicy, true},
+		{"NVLink", NvlinkPolicy, true},
+		{"XID", XidPolicy, true},
+		{"unknown", PolicyCondition("unknown"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := policyConditionInfo(tt.condition)
+			if ok != tt.wantOK {
+				t.Fatalf("policyConditionInfo(%q) ok = %t, want %t", tt.condition, ok, tt.wantOK)
+			}
+			if want := policyConditionExpectedForTest(tt.condition); uint(got) != want {
+				t.Fatalf("policyConditionInfo(%q) = %d, want %d", tt.condition, uint(got), want)
+			}
+		})
+	}
+}
+
+func TestPolicyThresholdUint32(t *testing.T) {
+	tests := []struct {
+		name         string
+		value        any
+		defaultValue uint32
+		want         uint32
+	}{
+		{"uint32", uint32(7), 99, 7},
+		{"uint", uint(8), 99, 8},
+		{"int", 9, 99, 9},
+		{"int32", int32(10), 99, 10},
+		{"int64", int64(11), 99, 11},
+		{"negative int", -1, 99, 99},
+		{"unsupported", "12", 99, 99},
+		{"nil", nil, 99, 99},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := policyThresholdUint32(tt.value, tt.defaultValue); got != tt.want {
+				t.Fatalf("policyThresholdUint32(%v, %d) = %d, want %d",
+					tt.value, tt.defaultValue, got, tt.want)
+			}
+		})
+	}
+}
+
 func policyTestGroupHandle(id uintptr) GroupHandle {
 	var group GroupHandle
 	group.SetHandle(id)

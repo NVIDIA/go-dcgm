@@ -819,3 +819,84 @@ dcgm_gpu_temp,150
 		t.Errorf("curated lowercase entry not preserved:\n%s", got)
 	}
 }
+
+func TestRunFailurePathsAndDeprecatedAlias(t *testing.T) {
+	if code := run([]string{"-unknown"}, &bytes.Buffer{}, &bytes.Buffer{}); code == 0 {
+		t.Fatal("unknown flag succeeded")
+	}
+	if code := run(nil, &bytes.Buffer{}, &bytes.Buffer{}); code == 0 {
+		t.Fatal("missing arguments succeeded")
+	}
+	if code := run([]string{"missing.h", "output.go"}, &bytes.Buffer{}, &bytes.Buffer{}); code == 0 {
+		t.Fatal("missing header succeeded")
+	}
+
+	missingTarget := writeHeader(t, `
+#define DCGM_DEPRECATED
+#ifdef DCGM_DEPRECATED
+#define DCGM_FI_DEV_OLD DCGM_FI_DEV_MISSING
+#endif
+`)
+	legacy := writeLegacyCSV(t, "name,id\n")
+	if code := run([]string{"--legacy-fields", legacy, missingTarget, filepath.Join(t.TempDir(), "output.go")}, &bytes.Buffer{}, &bytes.Buffer{}); code == 0 {
+		t.Fatal("missing alias target succeeded")
+	}
+
+	header := writeHeader(t, `
+#define DCGM_FI_DEV_CANONICAL 42
+// Deprecated: use DCGM_FI_DEV_CANONICAL.
+#define DCGM_FI_DEV_OLD DCGM_FI_DEV_CANONICAL
+`)
+	outputDir := t.TempDir()
+	if code := run([]string{"--legacy-fields", legacy, header, outputDir}, &bytes.Buffer{}, &bytes.Buffer{}); code == 0 {
+		t.Fatal("directory output path succeeded")
+	}
+
+	output := filepath.Join(t.TempDir(), "output.go")
+	if code := run([]string{"--legacy-fields", legacy, header, output}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+		t.Fatalf("deprecated alias run returned %d", code)
+	}
+	generated, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(generated), `"DCGM_FI_DEV_OLD": 42`) {
+		t.Fatalf("deprecated alias missing from output:\n%s", generated)
+	}
+}
+
+func TestResolveDeprecatedFieldAliasesSortsByIDThenName(t *testing.T) {
+	got, err := resolveDeprecatedFieldAliases(
+		[]Field{{Name: "TARGET_TWO", ID: 2}, {Name: "TARGET_ONE", ID: 1}},
+		map[string]string{"Z_ALIAS": "TARGET_ONE", "A_ALIAS": "TARGET_ONE", "OTHER": "TARGET_TWO"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"A_ALIAS", "Z_ALIAS", "OTHER"}
+	for i := range want {
+		if got[i].Name != want[i] {
+			t.Fatalf("alias order = %+v", got)
+		}
+	}
+}
+
+func TestReadLegacyFieldsCSVAdditionalErrors(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		contents string
+	}{
+		{name: "empty", contents: ""},
+		{name: "malformed row", contents: "name,id\n\"unterminated,1\n"},
+		{name: "too many columns", contents: "name,id\na,1,extra\n"},
+		{name: "empty name", contents: "name,id\n,1\n"},
+		{name: "empty id", contents: "name,id\na,\n"},
+		{name: "negative id", contents: "name,id\na,-1\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := readLegacyFieldsCSV(writeLegacyCSV(t, tt.contents)); err == nil {
+				t.Fatal("expected error")
+			}
+		})
+	}
+}

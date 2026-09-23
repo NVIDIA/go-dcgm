@@ -191,26 +191,25 @@ func healthCheckByGpuId(gpuID uint) (deviceHealth DeviceHealth, err error) {
 		return
 	}
 
-	status := healthStatus(result.OverallHealth)
+	deviceHealth = deviceHealthFromResponse(gpuID, result)
+	return
+}
 
-	// number of watches that encountered error/warning
-	incidents := len(result.Incidents)
-	watches := make([]SystemWatch, incidents)
-
-	for j := 0; j < incidents; j++ {
-		watches[j] = SystemWatch{
-			Type:   systemWatch(result.Incidents[j].System),
-			Status: healthStatus(result.Incidents[j].Health),
-			Error:  result.Incidents[j].Error.Message,
+func deviceHealthFromResponse(gpuID uint, result HealthResponse) DeviceHealth {
+	watches := make([]SystemWatch, len(result.Incidents))
+	for i := range result.Incidents {
+		watches[i] = SystemWatch{
+			Type:   systemWatch(result.Incidents[i].System),
+			Status: healthStatus(result.Incidents[i].Health),
+			Error:  result.Incidents[i].Error.Message,
 		}
 	}
 
-	deviceHealth = DeviceHealth{
+	return DeviceHealth{
 		GPU:     gpuID,
-		Status:  status,
+		Status:  healthStatus(result.OverallHealth),
 		Watches: watches,
 	}
-	return
 }
 
 func healthStatus(status HealthResult) string {

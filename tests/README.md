@@ -103,8 +103,9 @@ task test:integration -- --test_filter='TestDevice.*'
 
 ### Adaptive Testing
 
-- Optional GPU CI tests are skipped when no usable GPU is available; direct
-  Task execution requires the necessary runtime prerequisites
+- Integration and race tasks fail when a GPU is unavailable.
+  `task test:gpu:prereqs` checks that embedded DCGM starts and discovers a
+  physical GPU before either suite runs.
 - Different behavior for single vs. multi-GPU systems
 - Graceful handling of permission-restricted operations
 
@@ -185,7 +186,7 @@ These tests are designed to integrate well with continuous integration systems:
 - Use standard Go testing patterns
 - Provide detailed logging for troubleshooting
 - Support timeout and cancellation
-- Run only on qualified GPU/DCGM systems; GPU CI tests are manual and optional
+- Run GPU tests on a qualified GPU/DCGM system; the tasks fail without one
 
 ### Example GitHub Actions Integration
 
@@ -194,15 +195,15 @@ These tests are designed to integrate well with continuous integration systems:
   run: task test:integration -- --test_timeout=600
 ```
 
-GPU availability checks belong in CI setup; the test command itself
-must not turn a broken DCGM runtime green.
+`task test:integration` checks that embedded DCGM starts and discovers a
+physical GPU. A missing GPU or broken DCGM runtime fails the task.
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **No GPUs Found** - Optional GPU CI tests are skipped; direct Task execution
-   requires a qualified GPU/DCGM system
+1. **No GPUs Found** - Integration and race tasks fail; run them on a
+   qualified GPU/DCGM system
 2. **Permission Denied** - Some tests require root privileges
 3. **DCGM Not Available** - Ensure DCGM libraries are installed
 4. **Timeout Issues** - Increase test timeout for slow systems
@@ -226,6 +227,7 @@ When adding new tests:
 
 1. Follow the existing naming pattern (`*_test.go`)
 2. Include comprehensive documentation
-3. Add appropriate test skipping for missing hardware
+3. Keep the GPU preflight failure for missing hardware; skip only tests for
+   capabilities that are optional on an otherwise qualified system
 4. Include both positive and negative test cases
 5. Update this README with new test descriptions

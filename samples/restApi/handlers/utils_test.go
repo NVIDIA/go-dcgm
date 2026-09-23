@@ -29,21 +29,6 @@ func TestPrinterDiscardsPartialRenderOnError(t *testing.T) {
 	}
 }
 
-func TestPrinterPreservesSuccessfulOutput(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/status", http.NoBody)
-	resp := httptest.NewRecorder()
-
-	printer(resp, req, dcgm.Status{Memory: 1024, CPU: 1.5}, hostengineTemplate)
-
-	if resp.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", resp.Code)
-	}
-	const want = "Memory(KB)      : 1024\nCPU(%)          : 1.50\n"
-	if got := resp.Body.String(); got != want {
-		t.Fatalf("body = %q, want %q", got, want)
-	}
-}
-
 func TestProcessPrintRendersAllEntries(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/process/42", http.NoBody)
 	resp := httptest.NewRecorder()

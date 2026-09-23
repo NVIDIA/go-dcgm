@@ -1,58 +1,28 @@
 package dcgm
 
-import (
-	"testing"
-)
+import "testing"
 
-// TestCallbackLimitExceeded verifies that processValues correctly tracks when the limit is exceeded
 func TestCallbackLimitExceeded(t *testing.T) {
-	cb := &callback{}
-
-	// Add values up to the limit
-	// Each FieldValue_v2 is small, so we'll simulate many callback invocations
-	batchSize := 1000
-	numBatches := maxCallbackValues / batchSize
-
-	// Fill almost to the limit
-	mockValues := make([]FieldValue_v2, batchSize)
-	for i := 0; i < numBatches; i++ {
-		cb.Values = append(cb.Values, mockValues...)
+	tests := []struct {
+		name     string
+		current  int
+		incoming int
+		want     bool
+	}{
+		{name: "empty"},
+		{name: "one slot remains", current: maxCallbackValues - 1, incoming: 1},
+		{name: "exactly full", current: maxCallbackValues},
+		{name: "one over from full", current: maxCallbackValues, incoming: 1, want: true},
+		{name: "batch crosses limit", current: maxCallbackValues - 1, incoming: 2, want: true},
+		{name: "already over", current: maxCallbackValues + 1, want: true},
 	}
 
-	t.Logf("Values before limit: %d", len(cb.Values))
-
-	// Now try to add more - should trigger limit
-	cb.processValues(FE_GPU, 0, nil) // Empty slice shouldn't trigger
-	if cb.limitExceeded {
-		t.Errorf("Empty slice should not trigger limit")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := callbackLimitExceeded(tt.current, tt.incoming); got != tt.want {
+				t.Fatalf("callbackLimitExceeded(%d, %d) = %t, want %t",
+					tt.current, tt.incoming, got, tt.want)
+			}
+		})
 	}
-
-	// Add values that would exceed the limit
-	// We can't actually create C values here, but we can test the logic by
-	// directly checking the condition
-	if len(cb.Values)+batchSize > maxCallbackValues {
-		cb.limitExceeded = true
-	}
-
-	if !cb.limitExceeded {
-		t.Errorf("Expected limitExceeded to be true when adding %d values to %d (max: %d)",
-			batchSize, len(cb.Values), maxCallbackValues)
-	}
-
-	t.Logf("Limit correctly detected at %d values (max: %d)", len(cb.Values), maxCallbackValues)
-}
-
-// TestCallbackNoTruncation verifies normal operation doesn't set limitExceeded
-func TestCallbackNoTruncation(t *testing.T) {
-	cb := &callback{}
-
-	// Add a reasonable amount of values
-	mockValues := make([]FieldValue_v2, 100)
-	cb.Values = append(cb.Values, mockValues...)
-
-	if cb.limitExceeded {
-		t.Errorf("limitExceeded should be false for normal operations")
-	}
-
-	t.Logf("Normal operation: %d values, no limit exceeded", len(cb.Values))
 }

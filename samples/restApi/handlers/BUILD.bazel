@@ -20,6 +20,7 @@ go_test(
     name = "handlers_test",
     srcs = [
         "dcgm_test.go",
+        "device_test.go",
         "utils_test.go",
     ],
     embed = [":handlers"],

@@ -50,6 +50,28 @@ func TestDiagResultString(t *testing.T) {
 	}
 }
 
+func TestDiagLevel(t *testing.T) {
+	tests := []struct {
+		name  string
+		input DiagType
+		want  int
+	}{
+		{"quick", DiagQuick, int(testDiagLevelShort)},
+		{"medium", DiagMedium, int(testDiagLevelMedium)},
+		{"long", DiagLong, int(testDiagLevelLong)},
+		{"extended", DiagExtended, int(testDiagLevelXLong)},
+		{"invalid", DiagType(99), int(testDiagLevelInvalid)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := int(diagLevel(tt.input)); got != tt.want {
+				t.Fatalf("diagLevel(%d) = %d, want %d", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNewDiagResultsPreservesHierarchy(t *testing.T) {
 	response := createFullTestDiagResponse()
 

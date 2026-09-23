@@ -11,116 +11,124 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func getStatus(resp http.ResponseWriter, req *http.Request) (status *dcgm.Status) {
-	st, err := dcgm.Introspect()
+type deviceDeps struct {
+	introspect          func() (dcgm.Status, error)
+	getAllDeviceCount   func() (uint, error)
+	getSupportedDevices func() ([]uint, error)
+	getDeviceInfo       func(uint) (dcgm.Device, error)
+	getDeviceStatus     func(uint) (dcgm.DeviceStatus, error)
+	healthCheckByGPUID  func(uint) (dcgm.DeviceHealth, error)
+}
+
+func realDeviceDeps() deviceDeps {
+	return deviceDeps{
+		introspect:          dcgm.Introspect,
+		getAllDeviceCount:   dcgm.GetAllDeviceCount,
+		getSupportedDevices: dcgm.GetSupportedDevices,
+		getDeviceInfo:       dcgm.GetDeviceInfo,
+		getDeviceStatus:     dcgm.GetDeviceStatus,
+		healthCheckByGPUID:  dcgm.HealthCheckByGpuId,
+	}
+}
+
+func getStatus(resp http.ResponseWriter, req *http.Request) *dcgm.Status {
+	return getStatusWithDeps(resp, req, realDeviceDeps())
+}
+
+func getStatusWithDeps(resp http.ResponseWriter, req *http.Request, deps deviceDeps) *dcgm.Status {
+	status, err := deps.introspect()
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		logRequestError(req, err)
-
-		return
+		return nil
 	}
-
-	return &st
+	return &status
 }
 
-func getDeviceInfo(resp http.ResponseWriter, req *http.Request) (device *dcgm.Device) {
-	var id uint
+func getDeviceInfo(resp http.ResponseWriter, req *http.Request) *dcgm.Device {
+	return getDeviceInfoWithDeps(resp, req, realDeviceDeps())
+}
 
-	params := mux.Vars(req)
-	for k, v := range params {
-		switch k {
+func getDeviceInfoWithDeps(resp http.ResponseWriter, req *http.Request, deps deviceDeps) *dcgm.Device {
+	var id uint
+	for key, value := range mux.Vars(req) {
+		switch key {
 		case "id":
-			id = getId(resp, req, v)
+			id = getId(resp, req, value)
 		case "uuid":
-			id = getIdByUuid(resp, req, v)
+			id = getIdByUuid(resp, req, value)
 		}
 	}
 
-	if id == math.MaxUint32 {
-		return
+	if id == math.MaxUint32 || !isValidIdWithDeps(id, resp, req, deps) {
+		return nil
 	}
 
-	if !isValidId(id, resp, req) {
-		return
-	}
-
-	d, err := dcgm.GetDeviceInfo(id)
+	device, err := deps.getDeviceInfo(id)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		logRequestError(req, err)
-
-		return
+		return nil
 	}
-
-	return &d
+	return &device
 }
 
-func getDeviceStatus(resp http.ResponseWriter, req *http.Request) (status *dcgm.DeviceStatus) {
-	var id uint
+func getDeviceStatus(resp http.ResponseWriter, req *http.Request) *dcgm.DeviceStatus {
+	return getDeviceStatusWithDeps(resp, req, realDeviceDeps())
+}
 
-	params := mux.Vars(req)
-	for k, v := range params {
-		switch k {
+func getDeviceStatusWithDeps(resp http.ResponseWriter, req *http.Request, deps deviceDeps) *dcgm.DeviceStatus {
+	var id uint
+	for key, value := range mux.Vars(req) {
+		switch key {
 		case "id":
-			id = getId(resp, req, v)
+			id = getId(resp, req, value)
 		case "uuid":
-			id = getIdByUuid(resp, req, v)
+			id = getIdByUuid(resp, req, value)
 		}
 	}
 
-	if id == math.MaxUint32 {
-		return
+	if id == math.MaxUint32 ||
+		!isValidIdWithDeps(id, resp, req, deps) ||
+		!isDcgmSupportedWithDeps(id, resp, req, deps) {
+		return nil
 	}
 
-	if !isValidId(id, resp, req) {
-		return
-	}
-
-	if !isDcgmSupported(id, resp, req) {
-		return
-	}
-
-	st, err := dcgm.GetDeviceStatus(id)
+	status, err := deps.getDeviceStatus(id)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		logRequestError(req, err)
-
-		return
+		return nil
 	}
-
-	return &st
+	return &status
 }
 
-func getHealth(resp http.ResponseWriter, req *http.Request) (health *dcgm.DeviceHealth) {
-	var id uint
+func getHealth(resp http.ResponseWriter, req *http.Request) *dcgm.DeviceHealth {
+	return getHealthWithDeps(resp, req, realDeviceDeps())
+}
 
-	params := mux.Vars(req)
-	for k, v := range params {
-		switch k {
+func getHealthWithDeps(resp http.ResponseWriter, req *http.Request, deps deviceDeps) *dcgm.DeviceHealth {
+	var id uint
+	for key, value := range mux.Vars(req) {
+		switch key {
 		case "id":
-			id = getId(resp, req, v)
+			id = getId(resp, req, value)
 		case "uuid":
-			id = getIdByUuid(resp, req, v)
+			id = getIdByUuid(resp, req, value)
 		}
 	}
 
-	if id == math.MaxUint32 {
-		return
+	if id == math.MaxUint32 || !isValidIdWithDeps(id, resp, req, deps) {
+		return nil
 	}
 
-	if !isValidId(id, resp, req) {
-		return
-	}
-
-	h, err := dcgm.HealthCheckByGpuId(id)
+	health, err := deps.healthCheckByGPUID(id)
 	if err != nil {
 		http.Error(resp, err.Error(), http.StatusInternalServerError)
 		logRequestError(req, err)
-
-		return
+		return nil
 	}
-
-	return &h
+	return &health
 }
 
 type processInfoDeps struct {

@@ -1,5 +1,7 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# gazelle:exclude preflight_test.go
+
 go_library(
     name = "tests",
     srcs = ["nvsmi.go"],
@@ -31,4 +33,14 @@ go_test(
         "@com_github_gorilla_mux//:mux",
         "@com_github_stretchr_testify//assert",
     ],
+)
+
+go_test(
+    name = "integration_preflight_test",  # keep
+    srcs = ["preflight_test.go"],
+    tags = [
+        "manual",
+        "requires-dcgm",
+    ],
+    deps = ["//pkg/dcgm"],
 )
