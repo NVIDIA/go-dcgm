@@ -147,6 +147,7 @@ func watchPidFieldsForGroup(group GroupHandle, updateFreq, maxKeepAge time.Durat
 	if err := errorString(result); err != nil {
 		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
 	}
+
 	return nil
 }
 

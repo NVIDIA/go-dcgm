@@ -123,3 +123,95 @@ func TestWatchPidFields(t *testing.T) {
 	time.Sleep(1000 * time.Millisecond)
 	t.Log("PID field watches enabled successfully")
 }
+
+// TestWatchPidFieldsForGroup demonstrates the WatchPidFieldsForGroup functionality
+func TestWatchPidFieldsForGroup(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	defer cleanup()
+
+	// Create a group first
+	group, err := dcgm.CreateGroup("test-group")
+	if err != nil {
+		t.Fatalf("Failed to create group: %v", err)
+	}
+	defer func() {
+		if err := dcgm.DestroyGroup(group); err != nil {
+			t.Logf("Warning: failed to destroy group: %v", err)
+		}
+	}()
+
+	// Add at least one supported GPU to the group
+	gpus, err := dcgm.GetSupportedDevices()
+	if err != nil {
+		t.Fatalf("Failed to get supported devices: %v", err)
+	}
+	if len(gpus) == 0 {
+		t.Skip("No supported GPUs found")
+	}
+	err = dcgm.AddToGroup(group, gpus[0])
+	if err != nil {
+		t.Fatalf("Failed to add GPU to group: %v", err)
+	}
+
+	// Test WatchPidFieldsForGroup function
+	err = dcgm.WatchPidFieldsForGroup(group)
+	if err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
+		t.Fatalf("Failed to watch PID fields for group: %v", err)
+	}
+
+	t.Logf("Successfully created PID field watcher for group: %v", group)
+
+	// Wait a bit to ensure watches are properly set up
+	time.Sleep(1000 * time.Millisecond)
+	t.Log("PID field watches enabled successfully")
+}
+
+// TestWatchPidFieldsForGroupEx demonstrates the WatchPidFieldsForGroupEx functionality
+func TestWatchPidFieldsForGroupEx(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	defer cleanup()
+
+	// Create a group first
+	group, err := dcgm.CreateGroup("test-group-ex")
+	if err != nil {
+		t.Fatalf("Failed to create group: %v", err)
+	}
+	defer func() {
+		if err := dcgm.DestroyGroup(group); err != nil {
+			t.Logf("Warning: failed to destroy group: %v", err)
+		}
+	}()
+
+	// Add at least one supported GPU to the group
+	gpus, err := dcgm.GetSupportedDevices()
+	if err != nil {
+		t.Fatalf("Failed to get supported devices: %v", err)
+	}
+	if len(gpus) == 0 {
+		t.Skip("No supported GPUs found")
+	}
+	err = dcgm.AddToGroup(group, gpus[0])
+	if err != nil {
+		t.Fatalf("Failed to add GPU to group: %v", err)
+	}
+
+	// Test WatchPidFieldsForGroupEx function with custom parameters
+	err = dcgm.WatchPidFieldsForGroupEx(group, time.Microsecond*1000000, time.Second*60, 5)
+	if err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
+		t.Fatalf("Failed to watch PID fields for group with custom params: %v", err)
+	}
+
+	t.Logf("Successfully created PID field watcher for group with custom params: %v", group)
+
+	// Wait a bit to ensure watches are properly set up
+	time.Sleep(1000 * time.Millisecond)
+	t.Log("PID field watches enabled successfully with custom params")
+}
