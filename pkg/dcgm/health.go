@@ -52,6 +52,11 @@ type DeviceHealth struct {
 // HealthSet enables the DCGM health check system for the given systems.
 // It configures which health watch systems should be monitored for the specified group.
 func HealthSet(groupID GroupHandle, systems HealthSystem) (err error) {
+	return cgoAdapter{}.healthSet(groupID, systems)
+}
+
+// healthSet enables the requested native health watches for a GPU group.
+func (cgoAdapter) healthSet(groupID GroupHandle, systems HealthSystem) (err error) {
 	result := C.dcgmHealthSet(handle.handle, groupID.handle, C.dcgmHealthSystems_t(systems))
 	if err := errorString(result); err != nil {
 		return fmt.Errorf("error setting health watches: %w", err)
@@ -130,13 +135,18 @@ type HealthResponse struct {
 // about all of the enabled watches within a group is created but no error results are
 // provided. On subsequent calls, any error information will be returned.
 func HealthCheck(groupID GroupHandle) (HealthResponse, error) {
+	return cgoAdapter{}.healthCheck(groupID)
+}
+
+// healthCheck reads native group health and converts the reported incidents.
+func (cgoAdapter) healthCheck(groupID GroupHandle) (HealthResponse, error) {
 	var healthResults C.dcgmHealthResponse_v5
 	healthResults.version = makeVersion5(unsafe.Sizeof(healthResults))
 
 	result := C.dcgmHealthCheck(handle.handle, groupID.handle, (*C.dcgmHealthResponse_t)(unsafe.Pointer(&healthResults)))
 
 	if err := errorString(result); err != nil {
-		return HealthResponse{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return HealthResponse{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	response := HealthResponse{
@@ -167,26 +177,32 @@ func HealthCheck(groupID GroupHandle) (HealthResponse, error) {
 }
 
 func healthCheckByGpuId(gpuID uint) (deviceHealth DeviceHealth, err error) {
+	return healthCheckByGPUWithOps(cgoAdapter{}, gpuID)
+}
+
+// healthCheckByGPUWithOps checks one GPU using a temporary group.
+// It attempts to destroy the group before returning and ignores cleanup errors.
+func healthCheckByGPUWithOps(api healthGroupOps, gpuID uint) (deviceHealth DeviceHealth, err error) {
 	name := fmt.Sprintf("health%d", rand.Uint64())
-	groupID, err := CreateGroup(name)
+	groupID, err := api.createGroup(name, false)
 	if err != nil {
 		return
 	}
 	defer func() {
-		_ = DestroyGroup(groupID)
+		_ = api.destroyGroup(groupID)
 	}()
 
-	err = AddToGroup(groupID, gpuID)
+	err = api.addToGroup(groupID, gpuID)
 	if err != nil {
 		return
 	}
 
-	err = HealthSet(groupID, DCGM_HEALTH_WATCH_ALL)
+	err = api.healthSet(groupID, DCGM_HEALTH_WATCH_ALL)
 	if err != nil {
 		return
 	}
 
-	result, err := HealthCheck(groupID)
+	result, err := api.healthCheck(groupID)
 	if err != nil {
 		return
 	}

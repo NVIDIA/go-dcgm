@@ -18,10 +18,12 @@ package dcgm
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestValidateMultiNodeDiagnosticRequest(t *testing.T) {
@@ -74,6 +76,74 @@ func TestRunMultiNodeDiagnosticCancelledContext(t *testing.T) {
 	cancel()
 	_, err := RunMultiNodeDiagnostic(ctx, MultiNodeDiagnosticRequest{})
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+// TestRunMultiNodeDiagnosticWithCalls checks native results, errors, and cancellation cleanup.
+func TestRunMultiNodeDiagnosticWithCalls(t *testing.T) {
+	runErr := errors.New("run failed")
+	stopErr := errors.New("stop failed")
+	results := MultiNodeDiagnosticResults{Hosts: []MultiNodeDiagnosticHostResult{{Hostname: "host-a"}}}
+	request := MultiNodeDiagnosticRequest{Hosts: []MultiNodeDiagnosticHost{{Address: "host-a"}}, TestName: "mnubergemm"}
+	for _, tt := range []struct {
+		name      string
+		cancel    bool
+		runError  error
+		stopError error
+		wantError error
+	}{
+		{name: "success"},
+		{name: "native error", runError: runErr, wantError: runErr},
+		{name: "cancellation waits for native run", cancel: true, wantError: context.Canceled},
+		{name: "cancellation joins stop error", cancel: true, stopError: stopErr, wantError: context.Canceled},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := NewMockMultiNodeDiagnosticCalls(gomock.NewController(t))
+			if !tt.cancel {
+				mock.EXPECT().runMultiNodeDiagnosticNative(request).Return(results, tt.runError)
+				got, err := runMultiNodeDiagnosticWithCalls(mock, context.Background(), request)
+				if tt.wantError != nil {
+					require.ErrorIs(t, err, tt.wantError)
+				} else {
+					require.NoError(t, err)
+					require.Equal(t, results, got)
+				}
+				return
+			}
+
+			started := make(chan struct{})
+			release := make(chan struct{})
+			finished := make(chan struct{})
+			mock.EXPECT().runMultiNodeDiagnosticNative(request).DoAndReturn(func(MultiNodeDiagnosticRequest) (MultiNodeDiagnosticResults, error) {
+				close(started)
+				<-release
+				close(finished)
+				return results, nil
+			})
+			mock.EXPECT().stopMultiNodeDiagnosticNative().DoAndReturn(func() error {
+				close(release)
+				return tt.stopError
+			})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			completed := make(chan error, 1)
+			go func() {
+				_, err := runMultiNodeDiagnosticWithCalls(mock, ctx, request)
+				completed <- err
+			}()
+			<-started
+			cancel()
+			err := <-completed
+			require.ErrorIs(t, err, tt.wantError)
+			if tt.stopError != nil {
+				require.ErrorIs(t, err, tt.stopError)
+			}
+			select {
+			case <-finished:
+			default:
+				t.Fatal("returned before native run finished")
+			}
+		})
+	}
 }
 
 func TestStopMultiNodeDiagnosticAndWait(t *testing.T) {

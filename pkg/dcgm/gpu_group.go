@@ -50,27 +50,24 @@ func GroupAllGPUs() GroupHandle {
 //
 //	// Use the group...
 func CreateGroup(groupName string) (goGroupId GroupHandle, err error) {
-	var cGroupID C.dcgmGpuGrp_t
-	cname := C.CString(groupName)
-	defer freeCString(cname)
-
-	result := C.dcgmGroupCreate(handle.handle, C.DCGM_GROUP_EMPTY, cname, &cGroupID)
-	if err = errorString(result); err != nil {
-		return goGroupId, fmt.Errorf("error creating group: %s", err)
-	}
-
-	goGroupId = GroupHandle{cGroupID}
-	return
+	return cgoAdapter{}.createGroup(groupName, false)
 }
 
 // NewDefaultGroup creates a new group with default GPUs and the specified name
 func NewDefaultGroup(groupName string) (GroupHandle, error) {
-	var cGroupID C.dcgmGpuGrp_t
+	return cgoAdapter{}.createGroup(groupName, true)
+}
 
+// createGroup creates a native GPU group, either empty or populated with the default GPUs.
+func (cgoAdapter) createGroup(groupName string, defaultGroup bool) (GroupHandle, error) {
+	var cGroupID C.dcgmGpuGrp_t
 	cname := C.CString(groupName)
 	defer freeCString(cname)
-
-	result := C.dcgmGroupCreate(handle.handle, C.DCGM_GROUP_DEFAULT, cname, &cGroupID)
+	groupType := C.dcgmGroupType_t(C.DCGM_GROUP_EMPTY)
+	if defaultGroup {
+		groupType = C.DCGM_GROUP_DEFAULT
+	}
+	result := C.dcgmGroupCreate(handle.handle, groupType, cname, &cGroupID)
 	if err := errorString(result); err != nil {
 		return GroupHandle{}, fmt.Errorf("error creating group: %s", err)
 	}
@@ -80,6 +77,11 @@ func NewDefaultGroup(groupName string) (GroupHandle, error) {
 
 // AddToGroup adds a GPU to an existing group
 func AddToGroup(groupID GroupHandle, gpuID uint) (err error) {
+	return cgoAdapter{}.addToGroup(groupID, gpuID)
+}
+
+// addToGroup adds one GPU to a native group owned by the caller.
+func (cgoAdapter) addToGroup(groupID GroupHandle, gpuID uint) (err error) {
 	result := C.dcgmGroupAddDevice(handle.handle, groupID.handle, C.uint(gpuID))
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("error adding GPU %v to group: %s", gpuID, err)
@@ -126,6 +128,11 @@ func RemoveEntityFromGroup(groupID GroupHandle, entityGroupID Field_Entity_Group
 
 // DestroyGroup destroys an existing GPU group
 func DestroyGroup(groupID GroupHandle) (err error) {
+	return cgoAdapter{}.destroyGroup(groupID)
+}
+
+// destroyGroup releases a native GPU group owned by the caller.
+func (cgoAdapter) destroyGroup(groupID GroupHandle) (err error) {
 	result := C.dcgmGroupDestroy(handle.handle, groupID.handle)
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("error destroying group: %s", err)
@@ -143,6 +150,11 @@ type GroupInfo struct {
 
 // GetGroupInfo retrieves information about a DCGM group
 func GetGroupInfo(groupID GroupHandle) (*GroupInfo, error) {
+	return cgoAdapter{}.getGroupInfo(groupID)
+}
+
+// getGroupInfo reads native group metadata and converts its entity membership.
+func (cgoAdapter) getGroupInfo(groupID GroupHandle) (*GroupInfo, error) {
 	response := C.dcgmGroupInfo_v3{
 		version: C.dcgmGroupInfo_version3,
 	}

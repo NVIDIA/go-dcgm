@@ -17,12 +17,14 @@
 package dcgm
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestValidateFieldPolicySpec(t *testing.T) {
@@ -118,6 +120,92 @@ func TestFieldPolicyCountLimit(t *testing.T) {
 	assert.Error(t, validateFieldPolicyCount(MaxFieldPolicies+1))
 }
 
+// TestGetAllFieldPoliciesWithCalls checks list retrieval, capacity changes, and native read errors.
+func TestGetAllFieldPoliciesWithCalls(t *testing.T) {
+	callErr := errors.New("DCGM failed")
+	policy := FieldPolicy{PolicyID: 7}
+	for _, tt := range []struct {
+		name      string
+		count     int
+		countErr  error
+		list      []FieldPolicy
+		reported  int
+		listErr   error
+		wantError string
+	}{
+		{name: "count error", countErr: callErr, wantError: "DCGM failed"},
+		{name: "empty"},
+		{name: "count exceeds limit", count: MaxFieldPolicies + 1, wantError: "maximum supported"},
+		{name: "list error", count: 1, listErr: callErr, wantError: "DCGM failed"},
+		{name: "list grows", count: 1, reported: 2, wantError: "list grew"},
+		{name: "success", count: 1, reported: 1, list: []FieldPolicy{policy}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := NewMockFieldPolicyListCalls(gomock.NewController(t))
+			mock.EXPECT().fieldPolicyCount().Return(tt.count, tt.countErr)
+			if tt.count > 0 && tt.count <= MaxFieldPolicies && tt.countErr == nil {
+				mock.EXPECT().fieldPolicyList(tt.count).Return(tt.list, tt.reported, tt.listErr)
+			}
+			got, err := getAllFieldPoliciesWithCalls(mock)
+			if tt.wantError != "" {
+				require.ErrorContains(t, err, tt.wantError)
+				require.Nil(t, got)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.list, got)
+		})
+	}
+}
+
+// TestSubscribeFieldPolicyWithCallsRollsBack checks local cleanup after native registration fails.
+func TestSubscribeFieldPolicyWithCallsRollsBack(t *testing.T) {
+	registrationErr := errors.New("registration failed")
+	for _, tt := range []struct {
+		name      string
+		register  bool
+		wantError string
+	}{
+		{name: "registration failure", register: true, wantError: "registration failed"},
+		{name: "duplicate subscription", wantError: "already registered"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			registry := newFieldPolicySubscriptionRegistry()
+			if !tt.register {
+				_, err := registry.add(fieldPolicySubscriptionKey{fieldID: 203, policyID: 4}, 1)
+				require.NoError(t, err)
+			}
+			mock := NewMockFieldPolicyEventCalls(gomock.NewController(t))
+			if tt.register {
+				mock.EXPECT().registerFieldPolicyNative(Short(203), uint64(4), uint64(1)).Return(registrationErr)
+			}
+			_, err := subscribeFieldPolicyWithCalls(mock, registry, 203, 4, 1)
+			require.ErrorContains(t, err, tt.wantError)
+			if tt.register {
+				require.Empty(t, registry.subscriptions)
+				require.Empty(t, registry.byKey)
+			}
+		})
+	}
+}
+
+// TestSubscribeFieldPolicyWithCallsClosesThroughAPI checks that Close unregisters
+// the DCGM callback, removes the local subscription, and closes its channel.
+func TestSubscribeFieldPolicyWithCallsClosesThroughAPI(t *testing.T) {
+	registry := newFieldPolicySubscriptionRegistry()
+	m := NewMockFieldPolicyEventCalls(gomock.NewController(t))
+	m.EXPECT().registerFieldPolicyNative(Short(203), uint64(4), uint64(1)).Return(nil)
+	m.EXPECT().unregisterFieldPolicyNative(Short(203), uint64(4)).Return(nil)
+
+	subscription, err := subscribeFieldPolicyWithCalls(m, registry, 203, 4, 1)
+	require.NoError(t, err)
+	require.NoError(t, subscription.Close())
+	require.Empty(t, registry.subscriptions)
+	require.Empty(t, registry.byKey)
+	_, open := <-subscription.Violations
+	require.False(t, open)
+}
+
 func TestCopyGoStringToCCharsPreservesUTF8(t *testing.T) {
 	assert.Equal(t, "温度-policy", fieldPolicyNameForTest("温度-policy"))
 }
@@ -137,15 +225,13 @@ func TestFieldPolicySubscriptionClose(t *testing.T) {
 	require.Equal(t, violation, <-subscription.Violations)
 
 	unregisterCalls := 0
-	require.NoError(t, subscription.closeWith(func() error {
+	subscription.unregister = func() error {
 		unregisterCalls++
 		return nil
-	}))
+	}
+	require.NoError(t, subscription.Close())
 	require.Equal(t, 1, unregisterCalls)
-	require.NoError(t, subscription.closeWith(func() error {
-		unregisterCalls++
-		return nil
-	}))
+	require.NoError(t, subscription.Close())
 	require.Equal(t, 1, unregisterCalls)
 
 	_, open := <-subscription.Violations
@@ -159,7 +245,8 @@ func TestFieldPolicySubscriptionCloseClearsLocalStateAfterDCGMDisconnect(t *test
 	subscription, err := registry.add(key, 1)
 	require.NoError(t, err)
 
-	require.NoError(t, subscription.closeWith(fieldPolicyUninitializedErrorForTest))
+	subscription.unregister = fieldPolicyUninitializedErrorForTest
+	require.NoError(t, subscription.Close())
 	_, err = registry.add(key, 1)
 	require.NoError(t, err)
 }
@@ -205,7 +292,8 @@ func TestFieldPolicySubscriptionConcurrentCloseAndDelivery(t *testing.T) {
 			}
 		}()
 	}
-	require.NoError(t, subscription.closeWith(func() error { return nil }))
+	subscription.unregister = func() error { return nil }
+	require.NoError(t, subscription.Close())
 	workers.Wait()
 	for range subscription.Violations {
 	}

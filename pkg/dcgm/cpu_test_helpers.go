@@ -27,12 +27,35 @@ import "C"
 import "unsafe"
 
 const (
+	testCPUHierarchyVersion1       = C.dcgmCpuHierarchy_version1
 	testCPUHierarchyVersion2       = C.dcgmCpuHierarchy_version2
 	testDCGMStatusVersionMismatch  = C.DCGM_ST_VER_MISMATCH
 	testDCGMStatusFunctionNotFound = C.DCGM_ST_FUNCTION_NOT_FOUND
 )
 
 type testDCGMReturn = C.dcgmReturn_t
+
+// testCPUHierarchyV1CPU describes a CPU and its owned-core bitmasks for native conversion tests.
+type testCPUHierarchyV1CPU struct {
+	cpuID             uint
+	ownedCoreBitmasks map[int]uint64
+}
+
+// createTestCPUHierarchyV1 creates and converts a dcgmCpuHierarchy_v1 for testing.
+func createTestCPUHierarchyV1(cpus []testCPUHierarchyV1CPU) CPUHierarchy_v1 {
+	var hierarchy C.dcgmCpuHierarchy_v1
+	hierarchy.version = C.dcgmCpuHierarchy_version1
+	hierarchy.numCpus = C.uint(len(cpus))
+
+	for i, cpu := range cpus {
+		hierarchy.cpus[i].cpuId = C.uint(cpu.cpuID)
+		for bitmaskIndex, bitmask := range cpu.ownedCoreBitmasks {
+			hierarchy.cpus[i].ownedCores.bitmask[bitmaskIndex] = C.uint64_t(bitmask)
+		}
+	}
+
+	return toCpuHierarchy(hierarchy)
+}
 
 type testCPUHierarchyV2CPU struct {
 	cpuID             uint

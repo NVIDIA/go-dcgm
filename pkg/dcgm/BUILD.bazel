@@ -9,11 +9,13 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude const_test.go
 # gazelle:exclude cpu_test.go
 # gazelle:exclude cpu_test_helpers.go
+# gazelle:exclude device_info_unit_test.go
 # gazelle:exclude device_status_cleanup_unit_test.go
 # gazelle:exclude device_status_unit_test.go
 # gazelle:exclude diag_test.go
 # gazelle:exclude diag_test_helpers.go
 # gazelle:exclude field_policy_test.go
+# gazelle:exclude field_policy_runtime_test.go
 # gazelle:exclude field_policy_test_helpers.go
 # gazelle:exclude field_scope_test.go
 # gazelle:exclude field_values_callback_test.go
@@ -27,12 +29,16 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude mig_test.go
 # gazelle:exclude mndiag_test.go
 # gazelle:exclude mndiag_test_helpers.go
+# gazelle:exclude native_calls_generate_test.go
+# gazelle:exclude native_calls_mock_test.go
 # gazelle:exclude policy_dispatcher_test.go
+# gazelle:exclude policy_read_unit_test.go
 # gazelle:exclude process_info_unit_test.go
 # gazelle:exclude pure_helpers_test.go
 # gazelle:exclude test_utils.go
 # gazelle:exclude topology_test.go
 # gazelle:exclude utils_unit_test.go
+# gazelle:exclude watch_unit_test.go
 
 cc_library(
     name = "dcgm_headers",
@@ -94,6 +100,7 @@ go_library(
         "internal.go",
         "mig.go",
         "mndiag.go",
+        "native_calls.go",
         "nvml.h",
         "policy.go",
         "process_info.go",
@@ -121,7 +128,7 @@ go_library(
         ],
         "//conditions:default": [],
     }) + select({
-        ":link_dcgm_runtime": ["-Wl,--no-as-needed -ldcgm -Wl,--as-needed"],
+        ":link_dcgm_runtime": ["-Wl,--no-as-needed -l:libdcgm.so.4 -Wl,--as-needed"],
         "//conditions:default": [],
     }),
     importpath = "github.com/NVIDIA/go-dcgm/pkg/dcgm",
@@ -139,6 +146,7 @@ go_test(
         "bind_unbind_test.go",
         "error_runtime_test.go",
         "error_test.go",
+        "field_policy_runtime_test.go",  # keep: live adapter test belongs only in the runtime target.
         "field_summary_test.go",
         "field_values_test.go",
         "fields_test.go",
@@ -178,6 +186,7 @@ go_test(
         "const_test.go",
         "cpu_test.go",
         "cpu_test_helpers.go",
+        "device_info_unit_test.go",
         "device_status_cleanup_unit_test.go",  # keep
         "device_status_unit_test.go",
         "diag_test.go",
@@ -197,11 +206,14 @@ go_test(
         "mig_test.go",
         "mndiag_test.go",
         "mndiag_test_helpers.go",
+        "native_calls_mock_test.go",
         "policy_dispatcher_test.go",
+        "policy_read_unit_test.go",
         "process_info_unit_test.go",
         "pure_helpers_test.go",  # keep
         "topology_test.go",
         "utils_unit_test.go",
+        "watch_unit_test.go",
     ],
     data = [
         "dcgm_agent.h",
@@ -215,5 +227,6 @@ go_test(
     deps = [
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
+        "@org_uber_go_mock//gomock",
     ],
 )

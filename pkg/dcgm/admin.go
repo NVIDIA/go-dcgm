@@ -57,6 +57,31 @@ var (
 )
 
 func initDCGM(m mode, args ...string) (err error) {
+	return initDCGMWithCalls(cgoAdapter{}, m, args...)
+}
+
+// initDCGMWithCalls loads the DCGM library and starts or connects to a hostengine
+// according to the selected mode.
+func initDCGMWithCalls(api sessionCalls, m mode, args ...string) error {
+	if err := api.loadLibrary(); err != nil {
+		return err
+	}
+
+	stopMode = m
+	switch m {
+	case Embedded:
+		return api.startEmbedded()
+	case Standalone:
+		return api.connectStandalone(args...)
+	case StartHostengine:
+		return api.startHostengine()
+	default:
+		panic(ErrInvalidMode)
+	}
+}
+
+// loadLibrary opens libdcgm.so.4 and saves its handle for native symbol lookups.
+func (cgoAdapter) loadLibrary() error {
 	const (
 		dcgmLib = "libdcgm.so.4"
 	)
@@ -67,37 +92,35 @@ func initDCGM(m mode, args ...string) (err error) {
 	if dcgmLibHandle == nil {
 		return fmt.Errorf("%s not found", dcgmLib)
 	}
-
-	// set the stopMode for shutdown()
-	stopMode = m
-
-	switch m {
-	case Embedded:
-		return startEmbedded()
-	case Standalone:
-		return connectStandalone(args...)
-	case StartHostengine:
-		return startHostengine()
-	default:
-		panic(ErrInvalidMode)
-	}
+	return nil
 }
 
 func shutdown() (err error) {
+	return shutdownWithCalls(cgoAdapter{})
+}
+
+// shutdownWithCalls stops the active session and closes the library even if stopping fails.
+func shutdownWithCalls(api sessionCalls) (err error) {
 	switch stopMode {
 	case Embedded:
-		err = stopEmbedded()
+		err = api.stopEmbedded()
 	case Standalone:
-		err = disconnectStandalone()
+		err = api.disconnectStandalone()
 	case StartHostengine:
-		err = stopHostengine()
+		err = api.stopHostengine()
 	}
 
-	C.dlclose(dcgmLibHandle)
+	api.closeLibrary()
 	return
 }
 
-func startEmbedded() (err error) {
+// closeLibrary releases the library handle acquired by loadLibrary.
+func (cgoAdapter) closeLibrary() {
+	C.dlclose(dcgmLibHandle)
+}
+
+// startEmbedded initializes DCGM and starts an in-process hostengine.
+func (cgoAdapter) startEmbedded() (err error) {
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("error initializing DCGM: %s", err)
@@ -112,7 +135,8 @@ func startEmbedded() (err error) {
 	return
 }
 
-func stopEmbedded() (err error) {
+// stopEmbedded stops the in-process hostengine and shuts down DCGM.
+func (cgoAdapter) stopEmbedded() (err error) {
 	result := C.dcgmStopEmbedded(handle.handle)
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("error stopping nv-hostengine: %s", err)
@@ -157,7 +181,8 @@ func dcgmSymbolAvailable(symbol string) bool {
 	return C.dlsym(dcgmLibHandle, cSymbol) != nil
 }
 
-func connectStandalone(args ...string) (err error) {
+// connectStandalone initializes DCGM and connects to an external hostengine.
+func (api cgoAdapter) connectStandalone(args ...string) (err error) {
 	conn, err := standaloneConnectionArgs(args...)
 	if err != nil {
 		return err
@@ -227,7 +252,8 @@ func connectStandaloneV3(connectionString string) (err error) {
 	return nil
 }
 
-func disconnectStandalone() (err error) {
+// disconnectStandalone disconnects from the external hostengine and shuts down DCGM.
+func (cgoAdapter) disconnectStandalone() (err error) {
 	result := C.dcgmDisconnect(handle.handle)
 	if err = errorString(result); err != nil {
 		return fmt.Errorf("error disconnecting from nv-hostengine: %s", err)
@@ -240,7 +266,8 @@ func disconnectStandalone() (err error) {
 	return
 }
 
-func startHostengine() (err error) {
+// startHostengine launches a child nv-hostengine process and connects to it.
+func (cgoAdapter) startHostengine() (err error) {
 	var (
 		procAttr      syscall.ProcAttr
 		cHandle       C.dcgmHandle_t
@@ -298,7 +325,7 @@ func startHostengine() (err error) {
 func AttachDriver() error {
 	result := C.dcgmAttachDriver(handle.handle)
 	if result != C.DCGM_ST_OK {
-		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return &Error{msg: dcgmErrorText(result), Code: result}
 	}
 	return nil
 }
@@ -310,13 +337,14 @@ func AttachDriver() error {
 func DetachDriver() error {
 	result := C.dcgmDetachDriver(handle.handle)
 	if result != C.DCGM_ST_OK {
-		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return &Error{msg: dcgmErrorText(result), Code: result}
 	}
 	return nil
 }
 
-func stopHostengine() (err error) {
-	if err = disconnectStandalone(); err != nil {
+// stopHostengine disconnects the session and terminates the child hostengine process.
+func (api cgoAdapter) stopHostengine() (err error) {
+	if err = api.disconnectStandalone(); err != nil {
 		return
 	}
 

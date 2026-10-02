@@ -39,7 +39,7 @@ func versionInfo() (VersionInfo, error) {
 
 	result := C.dcgmVersionInfo(&cVersionInfo)
 	if err := errorString(result); err != nil {
-		return VersionInfo{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return VersionInfo{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	return VersionInfo{
@@ -53,7 +53,7 @@ func hostengineVersionInfo() (VersionInfo, error) {
 
 	result := C.dcgmHostengineVersionInfo(handle.handle, &cVersionInfo)
 	if err := errorString(result); err != nil {
-		return VersionInfo{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return VersionInfo{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	return VersionInfo{

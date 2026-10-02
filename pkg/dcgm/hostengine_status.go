@@ -26,7 +26,7 @@ func introspect() (engine Status, err error) {
 	result := C.dcgmIntrospectGetHostengineMemoryUsage(handle.handle, &memory, C.int(waitIfNoData))
 
 	if err = errorString(result); err != nil {
-		return engine, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return engine, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	var cpu C.dcgmIntrospectCpuUtil_t
@@ -35,7 +35,7 @@ func introspect() (engine Status, err error) {
 	result = C.dcgmIntrospectGetHostengineCpuUtilization(handle.handle, &cpu, C.int(waitIfNoData))
 
 	if err = errorString(result); err != nil {
-		return engine, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return engine, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	engine = Status{

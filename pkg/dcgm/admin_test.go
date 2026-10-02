@@ -17,10 +17,114 @@
 package dcgm
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
+
+// TestInitDCGMWithCalls checks session selection and initialization failures with mocked calls.
+func TestInitDCGMWithCalls(t *testing.T) {
+	loadErr := errors.New("load failed")
+	startErr := errors.New("start failed")
+	connectErr := errors.New("connect failed")
+	tests := []struct {
+		name  string
+		mode  mode
+		args  []string
+		setup func(*MockSessionCalls)
+		want  error
+	}{
+		{
+			name: "embedded success", mode: Embedded,
+			setup: func(m *MockSessionCalls) {
+				gomock.InOrder(
+					m.EXPECT().loadLibrary().Return(nil),
+					m.EXPECT().startEmbedded().Return(nil),
+				)
+			},
+		},
+		{
+			name: "load failure", mode: Embedded, want: loadErr,
+			setup: func(m *MockSessionCalls) { m.EXPECT().loadLibrary().Return(loadErr) },
+		},
+		{
+			name: "embedded startup failure", mode: Embedded, want: startErr,
+			setup: func(m *MockSessionCalls) {
+				gomock.InOrder(
+					m.EXPECT().loadLibrary().Return(nil),
+					m.EXPECT().startEmbedded().Return(startErr),
+				)
+			},
+		},
+		{
+			name: "standalone connection failure", mode: Standalone,
+			args: []string{"localhost", "0"}, want: connectErr,
+			setup: func(m *MockSessionCalls) {
+				gomock.InOrder(
+					m.EXPECT().loadLibrary().Return(nil),
+					m.EXPECT().connectStandalone("localhost", "0").Return(connectErr),
+				)
+			},
+		},
+		{
+			name: "hostengine startup failure", mode: StartHostengine, want: startErr,
+			setup: func(m *MockSessionCalls) {
+				gomock.InOrder(
+					m.EXPECT().loadLibrary().Return(nil),
+					m.EXPECT().startHostengine().Return(startErr),
+				)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldMode := stopMode
+			t.Cleanup(func() { stopMode = oldMode })
+			m := NewMockSessionCalls(gomock.NewController(t))
+			tt.setup(m)
+			err := initDCGMWithCalls(m, tt.mode, tt.args...)
+			require.ErrorIs(t, err, tt.want)
+			if tt.want == nil {
+				require.Equal(t, tt.mode, stopMode)
+			}
+		})
+	}
+}
+
+// TestShutdownWithCallsClosesLibraryAfterStop checks library cleanup after each session stop.
+func TestShutdownWithCallsClosesLibraryAfterStop(t *testing.T) {
+	stopErr := errors.New("stop failed")
+	for _, tt := range []struct {
+		name string
+		mode mode
+		err  error
+	}{
+		{name: "embedded success", mode: Embedded},
+		{name: "embedded stop failure", mode: Embedded, err: stopErr},
+		{name: "standalone success", mode: Standalone},
+		{name: "hostengine success", mode: StartHostengine},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			oldMode := stopMode
+			stopMode = tt.mode
+			t.Cleanup(func() { stopMode = oldMode })
+			m := NewMockSessionCalls(gomock.NewController(t))
+			var stop *gomock.Call
+			switch tt.mode {
+			case Embedded:
+				stop = m.EXPECT().stopEmbedded().Return(tt.err)
+			case Standalone:
+				stop = m.EXPECT().disconnectStandalone().Return(tt.err)
+			case StartHostengine:
+				stop = m.EXPECT().stopHostengine().Return(tt.err)
+			}
+			m.EXPECT().closeLibrary().After(stop)
+			require.ErrorIs(t, shutdownWithCalls(m), tt.err)
+		})
+	}
+}
 
 func TestStandaloneConnectionArgsUsesV3ForSupportedConnectionStrings(t *testing.T) {
 	tests := []struct {

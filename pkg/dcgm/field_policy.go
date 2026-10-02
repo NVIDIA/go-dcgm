@@ -153,7 +153,7 @@ func requireFieldPolicySymbol(symbol string) error {
 }
 
 func fieldPolicyResult(symbol string, result C.dcgmReturn_t) error {
-	return dcgmFeatureResult(fieldPolicyFeature, symbol, result, C.GoString(C.errorString(result)))
+	return dcgmFeatureResult(fieldPolicyFeature, symbol, result, dcgmErrorText(result))
 }
 
 func dcgmFeatureResult(feature, symbol string, result C.dcgmReturn_t, message string) error {
@@ -267,20 +267,21 @@ func ModifyFieldPolicy(policy FieldPolicy) error {
 
 // DeleteFieldPolicy deletes one field-policy.
 func DeleteFieldPolicy(fieldID Short, policyID uint64) error {
+	return deleteFieldPolicy(fieldID, policyID, false)
+}
+
+// deleteFieldPolicy calls the native deletion API for one policy or all policies.
+func deleteFieldPolicy(fieldID Short, policyID uint64, all bool) error {
 	const symbol = "dcgmPolicyDelete"
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return err
 	}
-	return fieldPolicyResult(symbol, C.dcgmPolicyDelete(handle.handle, C.ushort(fieldID), C.uint64_t(policyID), 0))
+	return fieldPolicyResult(symbol, C.dcgmPolicyDelete(handle.handle, C.ushort(fieldID), C.uint64_t(policyID), C.uint(boolToUint(all))))
 }
 
 // DeleteAllFieldPolicies deletes every field-policy registered with DCGM.
 func DeleteAllFieldPolicies() error {
-	const symbol = "dcgmPolicyDelete"
-	if err := requireFieldPolicySymbol(symbol); err != nil {
-		return err
-	}
-	return fieldPolicyResult(symbol, C.dcgmPolicyDelete(handle.handle, 0, 0, 1))
+	return deleteFieldPolicy(0, 0, true)
 }
 
 // EnableFieldPolicy enables one field-policy.
@@ -323,37 +324,67 @@ func GetAllFieldPolicies() ([]FieldPolicy, error) {
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return nil, err
 	}
+	return getAllFieldPoliciesWithCalls(cgoAdapter{})
+}
 
-	var count C.uint
-	result := C.dcgmPolicyGetAll(handle.handle, nil, &count)
-	if result != C.DCGM_ST_OK && result != C.DCGM_ST_INSUFFICIENT_SIZE {
-		return nil, fieldPolicyResult(symbol, result)
+// getAllFieldPoliciesWithCalls retrieves field policies using a count query followed by a list query.
+// It returns an error if the count exceeds the supported limit or the list grows between queries.
+func getAllFieldPoliciesWithCalls(api fieldPolicyListCalls) ([]FieldPolicy, error) {
+	count, err := api.fieldPolicyCount()
+	if err != nil {
+		return nil, err
 	}
 	if count == 0 {
 		return nil, nil
 	}
-	if err := validateFieldPolicyCount(int(count)); err != nil {
+	if countErr := validateFieldPolicyCount(count); countErr != nil {
+		return nil, countErr
+	}
+	policies, reported, err := api.fieldPolicyList(count)
+	if err != nil {
 		return nil, err
 	}
+	if reported > count {
+		return nil, fmt.Errorf("DCGM field-policy list grew from %d to %d entries; retry the request", count, reported)
+	}
+	return policies, nil
+}
 
-	cPolicies := make([]C.dcgmPolicyInfo_t, int(count))
+// fieldPolicyCount queries the native list capacity without allocating policy entries.
+func (cgoAdapter) fieldPolicyCount() (int, error) {
+	const symbol = "dcgmPolicyGetAll"
+	var count C.uint
+	result := C.dcgmPolicyGetAll(handle.handle, nil, &count)
+	if result != C.DCGM_ST_OK && result != C.DCGM_ST_INSUFFICIENT_SIZE {
+		return 0, fieldPolicyResult(symbol, result)
+	}
+	return int(count), nil
+}
+
+// fieldPolicyList reads up to count native policies and reports the required capacity if the list grows.
+func (cgoAdapter) fieldPolicyList(count int) ([]FieldPolicy, int, error) {
+	const symbol = "dcgmPolicyGetAll"
+	cPolicies := make([]C.dcgmPolicyInfo_t, count)
 	for i := range cPolicies {
 		cPolicies[i].version = C.dcgmPolicyInfo_version
 	}
-	capacity := count
-	result = C.dcgmPolicyGetAll(handle.handle, &cPolicies[0], &capacity)
+	capacity := C.uint(count)
+	result := C.dcgmPolicyGetAll(handle.handle, &cPolicies[0], &capacity)
+	if result == C.DCGM_ST_INSUFFICIENT_SIZE {
+		return nil, int(capacity), nil
+	}
 	if err := fieldPolicyResult(symbol, result); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if int(capacity) > len(cPolicies) {
-		return nil, fmt.Errorf("DCGM field-policy list grew from %d to %d entries; retry the request", len(cPolicies), capacity)
+		return nil, int(capacity), nil
 	}
 
 	policies := make([]FieldPolicy, int(capacity))
 	for i := range policies {
 		policies[i] = fieldPolicyFromC(cPolicies[i])
 	}
-	return policies, nil
+	return policies, int(capacity), nil
 }
 
 // ImportFieldPolicies imports field-policies from a DCGM YAML policy file.
@@ -531,12 +562,13 @@ func newFieldPolicySubscriptionRegistry() *fieldPolicySubscriptionRegistry {
 type FieldPolicySubscription struct {
 	Violations <-chan FieldPolicyViolation
 
-	registry *fieldPolicySubscriptionRegistry
-	id       uint64
-	key      fieldPolicySubscriptionKey
-	ch       chan FieldPolicyViolation
-	closeMu  sync.Mutex
-	closed   bool
+	registry   *fieldPolicySubscriptionRegistry
+	id         uint64
+	key        fieldPolicySubscriptionKey
+	ch         chan FieldPolicyViolation
+	unregister func() error
+	closeMu    sync.Mutex
+	closed     bool
 }
 
 func (r *fieldPolicySubscriptionRegistry) add(key fieldPolicySubscriptionKey, buffer int) (*FieldPolicySubscription, error) {
@@ -598,38 +630,40 @@ func SubscribeFieldPolicyViolations(fieldID Short, policyID uint64, buffer int) 
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return nil, err
 	}
+	return subscribeFieldPolicyWithCalls(cgoAdapter{}, fieldPolicyCallbacks, fieldID, policyID, buffer)
+}
 
-	subscription, err := fieldPolicyCallbacks.add(fieldPolicySubscriptionKey{fieldID: fieldID, policyID: policyID}, buffer)
+// subscribeFieldPolicyWithCalls registers a listener and captures the native calls needed to close it.
+func subscribeFieldPolicyWithCalls(api fieldPolicyEventCalls, registry *fieldPolicySubscriptionRegistry, fieldID Short, policyID uint64, buffer int) (*FieldPolicySubscription, error) {
+	subscription, err := registry.add(fieldPolicySubscriptionKey{fieldID: fieldID, policyID: policyID}, buffer)
 	if err != nil {
 		return nil, err
 	}
+	if err := api.registerFieldPolicyNative(fieldID, policyID, subscription.id); err != nil {
+		registry.remove(subscription.id)
+		return nil, err
+	}
+	subscription.unregister = func() error {
+		return api.unregisterFieldPolicyNative(fieldID, policyID)
+	}
+	return subscription, nil
+}
+
+// registerFieldPolicyNative registers native callbacks using a local field-policy subscription ID.
+func (cgoAdapter) registerFieldPolicyNative(fieldID Short, policyID, registrationID uint64) error {
+	const symbol = "dcgmPolicyRegister_v3"
 	result := C.dcgmPolicyRegister_v3(
 		handle.handle,
 		C.ushort(fieldID),
 		C.uint64_t(policyID),
 		C.fpRecvPolicyViolation(C.fieldPolicyViolationNotify),
-		C.uint64_t(subscription.id),
+		C.uint64_t(registrationID),
 	)
-	if err := fieldPolicyResult(symbol, result); err != nil {
-		fieldPolicyCallbacks.remove(subscription.id)
-		return nil, err
-	}
-	return subscription, nil
+	return fieldPolicyResult(symbol, result)
 }
 
 // Close unregisters this DCGM v3 callback. It is safe to call more than once.
 func (s *FieldPolicySubscription) Close() error {
-	return s.closeWith(func() error {
-		const symbol = "dcgmPolicyUnregister_v3"
-		if err := requireFieldPolicySymbol(symbol); err != nil {
-			return err
-		}
-		result := C.dcgmPolicyUnregister_v3(handle.handle, C.ushort(s.key.fieldID), C.uint64_t(s.key.policyID))
-		return fieldPolicyResult(symbol, result)
-	})
-}
-
-func (s *FieldPolicySubscription) closeWith(unregister func() error) error {
 	if s == nil {
 		return nil
 	}
@@ -639,12 +673,22 @@ func (s *FieldPolicySubscription) closeWith(unregister func() error) error {
 		return nil
 	}
 
-	if err := unregister(); err != nil && !unregisterErrorClearsLocalState(err) {
+	if err := s.unregister(); err != nil && !unregisterErrorClearsLocalState(err) {
 		return err
 	}
 	s.registry.remove(s.id)
 	s.closed = true
 	return nil
+}
+
+// unregisterFieldPolicyNative removes native callbacks for the specified field and policy.
+func (cgoAdapter) unregisterFieldPolicyNative(fieldID Short, policyID uint64) error {
+	const symbol = "dcgmPolicyUnregister_v3"
+	if err := requireFieldPolicySymbol(symbol); err != nil {
+		return err
+	}
+	result := C.dcgmPolicyUnregister_v3(handle.handle, C.ushort(fieldID), C.uint64_t(policyID))
+	return fieldPolicyResult(symbol, result)
 }
 
 // FieldPolicyViolationRegistration copies a DCGM callback event into Go and delivers it without blocking the DCGM thread.

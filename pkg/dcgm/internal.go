@@ -82,7 +82,7 @@ func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
 	result := C.dcgmCreateFakeEntities(handle.handle, &ccfe)
 
 	if err := errorString(result); err != nil {
-		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 	entityIDs := make([]uint, ccfe.numToCreate)
 	for i := 0; i < int(ccfe.numToCreate); i++ {
@@ -142,7 +142,7 @@ func InjectFieldValue(gpu uint, fieldID Short, fieldType uint, status int, ts in
 	result := C.dcgmInjectFieldValue(handle.handle, C.uint(gpu), &field)
 
 	if err := errorString(result); err != nil {
-		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	return nil

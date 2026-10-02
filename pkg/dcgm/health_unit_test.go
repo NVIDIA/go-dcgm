@@ -19,10 +19,65 @@
 package dcgm
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
+
+// TestHealthCheckByGPUWithOpsCleansUp checks temporary group cleanup on success and failure.
+func TestHealthCheckByGPUWithOpsCleansUp(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		fail string
+	}{
+		{name: "create failure", fail: "create"},
+		{name: "add failure", fail: "add"},
+		{name: "watch setup failure", fail: "set"},
+		{name: "check failure", fail: "check"},
+		{name: "success"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewMockHealthGroupOps(gomock.NewController(t))
+			var group GroupHandle
+			group.SetHandle(11)
+			stageErr := errors.New(tt.fail + " failed")
+			create := m.EXPECT().createGroup(gomock.Any(), false)
+			if tt.fail == "create" {
+				create.Return(GroupHandle{}, stageErr)
+			} else {
+				create.Return(group, nil)
+				add := m.EXPECT().addToGroup(group, uint(5)).After(create)
+				if tt.fail == "add" {
+					add.Return(stageErr)
+				} else {
+					add.Return(nil)
+					set := m.EXPECT().healthSet(group, DCGM_HEALTH_WATCH_ALL).After(add)
+					if tt.fail == "set" {
+						set.Return(stageErr)
+					} else {
+						set.Return(nil)
+						check := m.EXPECT().healthCheck(group).After(set)
+						if tt.fail == "check" {
+							check.Return(HealthResponse{}, stageErr)
+						} else {
+							check.Return(HealthResponse{}, nil)
+						}
+					}
+				}
+				m.EXPECT().destroyGroup(group).After(create)
+			}
+			got, err := healthCheckByGPUWithOps(m, 5)
+			if tt.fail == "" {
+				require.NoError(t, err)
+				require.Equal(t, uint(5), got.GPU)
+			} else {
+				require.ErrorIs(t, err, stageErr)
+			}
+		})
+	}
+}
 
 func TestIMEXHealthWatchConstant(t *testing.T) {
 	const want HealthSystem = 0x2000

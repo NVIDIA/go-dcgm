@@ -59,8 +59,13 @@ func errorString(result C.dcgmReturn_t) error {
 	if result == C.DCGM_ST_OK {
 		return nil
 	}
-	err := C.GoString(C.errorString(result))
+	err := dcgmErrorText(result)
 	return fmt.Errorf("%v", err)
+}
+
+// dcgmErrorText converts DCGM's native status message into the error text used by Go callers.
+func dcgmErrorText(result C.dcgmReturn_t) string {
+	return C.GoString(C.errorString(result))
 }
 
 func freeCString(cStr *C.char) {

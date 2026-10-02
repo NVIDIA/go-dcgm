@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"slices"
 	"unsafe"
 
 	"github.com/bits-and-blooms/bitset"
@@ -87,12 +88,17 @@ func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 
 // getSupportedDevices returns DCGM supported GPUs
 func getSupportedDevices() (gpus []uint, err error) {
+	return cgoAdapter{}.getSupportedDevices()
+}
+
+// getSupportedDevices queries DCGM for GPU IDs supported by the current session.
+func (cgoAdapter) getSupportedDevices() (gpus []uint, err error) {
 	var gpuIDList [C.DCGM_MAX_NUM_DEVICES]C.uint
 	var count C.int
 
 	result := C.dcgmGetAllSupportedDevices(handle.handle, &gpuIDList[0], &count)
 	if err = errorString(result); err != nil {
-		return gpus, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return gpus, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	numGpus := int(count)
@@ -142,6 +148,11 @@ func getPciBandwidth(gpuID uint) (int64, error) {
 	_ = DestroyGroup(groupID)
 
 	return pcieBandwidth(gen, width), nil
+}
+
+// getPciBandwidth uses the existing field reads to calculate a GPU's PCIe bandwidth.
+func (cgoAdapter) getPciBandwidth(gpuID uint) (int64, error) {
+	return getPciBandwidth(gpuID)
 }
 
 func pcieBandwidth(generation, width int64) int64 {
@@ -212,89 +223,102 @@ func getCPUAffinity(gpuID uint) (string, error) {
 	return b.String(), nil
 }
 
-func getDeviceInfo(gpuID uint) (deviceInfo Device, err error) {
+// getCPUAffinity uses the existing field reads to format a GPU's CPU affinity.
+func (cgoAdapter) getCPUAffinity(gpuID uint) (string, error) {
+	return getCPUAffinity(gpuID)
+}
+
+// getDeviceInfo assembles GPU details using the production native adapter.
+func getDeviceInfo(gpuID uint) (Device, error) {
+	return getDeviceInfoWithOps(cgoAdapter{}, gpuID)
+}
+
+// readDeviceAttributes converts native GPU attributes into values used to build a Device.
+func (cgoAdapter) readDeviceAttributes(gpuID uint) (deviceAttributes, error) {
 	var device C.dcgmDeviceAttributes_t
 	device.version = makeVersion3(unsafe.Sizeof(device))
 
 	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), &device)
-	if err = errorString(result); err != nil {
-		return deviceInfo, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+	if err := errorString(result); err != nil {
+		return deviceAttributes{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
-	// check if the given GPU is DCGM supported
-	gpus, err := getSupportedDevices()
+	return deviceAttributes{
+		busID:   *stringPtr(&device.identifiers.pciBusId[0]),
+		uuid:    *stringPtr(&device.identifiers.uuid[0]),
+		power:   *uintPtr(device.powerLimits.defaultPowerLimit),
+		bar1:    *uintPtr(device.memoryUsage.bar1Total),
+		fbTotal: *uintPtr(device.memoryUsage.fbTotal),
+		identifiers: DeviceIdentifiers{
+			Brand:               *stringPtr(&device.identifiers.brandName[0]),
+			Model:               *stringPtr(&device.identifiers.deviceName[0]),
+			Serial:              *stringPtr(&device.identifiers.serial[0]),
+			Vbios:               *stringPtr(&device.identifiers.vbios[0]),
+			InforomImageVersion: *stringPtr(&device.identifiers.inforomImageVersion[0]),
+			DriverVersion:       *stringPtr(&device.identifiers.driverVersion[0]),
+		},
+	}, nil
+}
+
+// getDeviceInfoWithOps builds a Device from GPU attributes.
+// It reads CPU affinity, topology, and PCIe bandwidth only for supported GPUs with EntityStatusOk.
+// Errors from these additional reads are returned.
+func getDeviceInfoWithOps(api deviceInfoOps, gpuID uint) (Device, error) {
+	attrs, err := api.readDeviceAttributes(gpuID)
 	if err != nil {
-		return
+		return Device{}, err
 	}
 
-	supported := "No"
-
-	for _, gpu := range gpus {
-		if gpuID == gpu {
-			supported = "Yes"
-			break
-		}
-	}
-	status := getGPUStatus(gpuID)
-	if status != EntityStatusOk {
-		supported = "No"
+	gpus, err := api.getSupportedDevices()
+	if err != nil {
+		return Device{}, err
 	}
 
-	busid := *stringPtr(&device.identifiers.pciBusId[0])
+	supported := slices.Contains(gpus, gpuID)
+	if api.getGPUStatus(gpuID) != EntityStatusOk {
+		supported = false
+	}
 
 	var (
+		cpuAffinity string
 		topology    []P2PLink
 		bandwidth   int64
-		cpuAffinity string
 	)
-
-	// get device topology and bandwidth only if its a DCGM supported device
-	if supported == "Yes" {
-		cpuAffinity, err = getCPUAffinity(gpuID)
+	if supported {
+		cpuAffinity, err = api.getCPUAffinity(gpuID)
 		if err != nil {
-			return
+			return Device{}, err
 		}
-
-		topology, err = getDeviceTopology(gpuID)
+		topology, err = api.getDeviceTopology(gpuID)
 		if err != nil {
-			return
+			return Device{}, err
 		}
-		bandwidth, err = getPciBandwidth(gpuID)
+		bandwidth, err = api.getPciBandwidth(gpuID)
 		if err != nil {
-			return
+			return Device{}, err
 		}
 	}
 
-	uuid := *stringPtr(&device.identifiers.uuid[0])
-	power := *uintPtr(device.powerLimits.defaultPowerLimit)
-
-	pci := PCIInfo{
-		BusID:     busid,
-		BAR1:      *uintPtr(device.memoryUsage.bar1Total),
-		FBTotal:   *uintPtr(device.memoryUsage.fbTotal),
-		Bandwidth: bandwidth,
+	supportedText := "No"
+	if supported {
+		supportedText = "Yes"
 	}
 
-	identifiers := DeviceIdentifiers{
-		Brand:               *stringPtr(&device.identifiers.brandName[0]),
-		Model:               *stringPtr(&device.identifiers.deviceName[0]),
-		Serial:              *stringPtr(&device.identifiers.serial[0]),
-		Vbios:               *stringPtr(&device.identifiers.vbios[0]),
-		InforomImageVersion: *stringPtr(&device.identifiers.inforomImageVersion[0]),
-		DriverVersion:       *stringPtr(&device.identifiers.driverVersion[0]),
-	}
-
-	deviceInfo = Device{
+	return Device{
 		GPU:           gpuID,
-		DCGMSupported: supported,
-		UUID:          uuid,
-		Power:         power,
-		PCI:           pci,
-		Identifiers:   identifiers,
-		Topology:      topology,
-		CPUAffinity:   cpuAffinity,
-	}
-	return
+		DCGMSupported: supportedText,
+		UUID:          attrs.uuid,
+		Power:         attrs.power,
+		PCI: PCIInfo{
+			BusID:     attrs.busID,
+			BAR1:      attrs.bar1,
+			FBTotal:   attrs.fbTotal,
+			Bandwidth: bandwidth,
+		},
+		Identifiers: attrs.identifiers,
+		Topology:    topology,
+		CPUAffinity: cpuAffinity,
+	}, nil
 }
 
 func getNvLinkP2PStatus() (NvLinkP2PStatus, error) {
@@ -307,7 +331,7 @@ func getNvLinkP2PStatus() (NvLinkP2PStatus, error) {
 	}
 
 	if result != C.DCGM_ST_OK {
-		return NvLinkP2PStatus{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return NvLinkP2PStatus{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	links := make([][]Link_State, linkStatus.numGpus)

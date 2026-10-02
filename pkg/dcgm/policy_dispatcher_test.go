@@ -3,13 +3,76 @@
 package dcgm
 
 import (
+	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
+
+// TestSubscribePolicyWithCallsRollsBack checks listener rollback after setup or registration fails.
+func TestSubscribePolicyWithCallsRollsBack(t *testing.T) {
+	setupErr := errors.New("setup failed")
+	registerErr := errors.New("register failed")
+	condition, ok := policyConditionMask(XidPolicy)
+	require.True(t, ok)
+	for _, tt := range []struct {
+		name       string
+		setupError error
+		regError   error
+	}{
+		{name: "setup failure", setupError: setupErr},
+		{name: "register failure", regError: registerErr},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dispatcher := newPolicyDispatcher()
+			m := NewMockPolicyRegistrationCalls(gomock.NewController(t))
+			group := policyTestGroupHandle(55)
+			if tt.regError != nil {
+				m.EXPECT().registerPolicyNative(group, uint32(condition), gomock.Any()).Return(tt.regError)
+			}
+			_, err := subscribePolicyWithCalls(m, dispatcher, context.Background(), group, condition, 1, func() error {
+				return tt.setupError
+			})
+			want := tt.setupError
+			if want == nil {
+				want = tt.regError
+			}
+			require.ErrorIs(t, err, want)
+			require.Empty(t, dispatcher.subscriptions)
+			require.Empty(t, dispatcher.registrations)
+		})
+	}
+}
+
+// TestSubscribePolicyWithCallsUnregistersOnCancel checks that cancellation
+// unregisters the DCGM callback and closes the subscription channel.
+func TestSubscribePolicyWithCallsUnregistersOnCancel(t *testing.T) {
+	dispatcher := newPolicyDispatcher()
+	m := NewMockPolicyRegistrationCalls(gomock.NewController(t))
+	group := policyTestGroupHandle(55)
+	condition, ok := policyConditionMask(XidPolicy)
+	require.True(t, ok)
+	m.EXPECT().registerPolicyNative(group, uint32(condition), gomock.Any()).Return(nil)
+	m.EXPECT().unregisterPolicyNative(group, uint32(condition)).Return(nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	violations, err := subscribePolicyWithCalls(m, dispatcher, ctx, group, condition, 1, nil)
+	require.NoError(t, err)
+	cancel()
+
+	require.Eventually(t, func() bool {
+		dispatcher.mu.Lock()
+		defer dispatcher.mu.Unlock()
+		return len(dispatcher.registrations) == 0
+	}, time.Second, time.Millisecond)
+	_, open := <-violations
+	require.False(t, open)
+}
 
 func TestRegisterUnknownConditionErrors(t *testing.T) {
 	_, err := translateConditions(nil)
