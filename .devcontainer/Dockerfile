@@ -1,6 +1,6 @@
-# syntax=docker/dockerfile:1.19
+# syntax=docker/dockerfile:1.27.1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 
-FROM nvcr.io/nvidia/cuda:13.4.1-base-ubuntu26.04@sha256:9b091bbc3e1481238346e90d93f63684af509c08ab32218f98793141fc540fd9
+FROM nvcr.io/nvidia/cuda:13.4.2-base-ubuntu26.04@sha256:ac2289b83fba0b38cddf6513f3703d132135ae070cc1b7c63234b90dca4c60f2
 
 ARG DCGM_VERSION=4.7.0-1
 

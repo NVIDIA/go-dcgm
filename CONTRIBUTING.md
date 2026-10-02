@@ -5,8 +5,8 @@ section below explains how.
 
 ## Build tool prerequisites
 
-The repository uses Go 1.27.1, Task 3.53.1, Bazelisk 1.29.0, gofumpt 0.12.0,
-and golangci-lint 2.13.2. Install those versions using your platform package
+The repository uses Go 1.27.1, Task 3.54.0, Bazelisk 1.29.0, gofumpt 0.12.0,
+and golangci-lint 2.14.0. Install those versions using your platform package
 manager or their upstream installation instructions. Bazelisk reads the
 repository's `.bazelversion` file.
 
