@@ -382,7 +382,7 @@ func (d *policyDispatcher) rollbackSubscription(subID uint64, registration *poli
 }
 
 // unsubscribe closes one listener and unregisters conditions no remaining listener needs.
-func (d *policyDispatcher) unsubscribe(subID uint64) {
+func (d *policyDispatcher) unsubscribe(subID uint64, unregisterPolicy func(GroupHandle, uint32) error) {
 	d.registerMu.Lock()
 	defer d.registerMu.Unlock()
 
@@ -394,7 +394,7 @@ func (d *policyDispatcher) unsubscribe(subID uint64) {
 
 	succeeded := make([]policyUnregister, 0, len(unregisters))
 	for _, unregister := range unregisters {
-		if err := unregisterPolicy(unregister.group, unregister.condition); err != nil {
+		if err := unregisterPolicy(unregister.group, uint32(unregister.condition)); err != nil {
 			if unregisterErrorClearsLocalState(err) {
 				log.Printf("policy unregister found no live DCGM registration for group %d condition %d: %v",
 					unregister.group.GetHandle(), unregister.condition, err)
@@ -404,7 +404,7 @@ func (d *policyDispatcher) unsubscribe(subID uint64) {
 
 			log.Printf("error unregistering policy for group %d condition %d: %v; retrying once",
 				unregister.group.GetHandle(), unregister.condition, err)
-			if retryErr := unregisterPolicy(unregister.group, unregister.condition); retryErr != nil {
+			if retryErr := unregisterPolicy(unregister.group, uint32(unregister.condition)); retryErr != nil {
 				if unregisterErrorClearsLocalState(retryErr) {
 					log.Printf("policy unregister retry found no live DCGM registration for group %d condition %d: %v",
 						unregister.group.GetHandle(), unregister.condition, retryErr)
@@ -773,6 +773,15 @@ type policyConfigInternal struct {
 	param policyConditionParam
 }
 
+// policySnapshot holds converted native policy data used to build a PolicyStatus.
+type policySnapshot struct {
+	mode       uint32
+	action     PolicyAction
+	validation PolicyValidation
+	condition  uint32
+	params     [xidPolicyIndex + 1]policyConditionParam
+}
+
 // PolicyStatus represents the current policy configuration for a group
 type PolicyStatus struct {
 	// Mode indicates the operation mode (automatic or manual)
@@ -791,7 +800,45 @@ type PolicyStatus struct {
 
 // getPolicyForGroup returns current policy config while preserving DCGM error codes.
 func getPolicyForGroup(groupID GroupHandle) (*PolicyStatus, error) {
-	groupInfo, err := GetGroupInfo(groupID)
+	return getPolicyForGroupWithOps(cgoAdapter{}, groupID)
+}
+
+// readPolicy reads and converts the first GPU's policy in a group with at least one GPU.
+func (cgoAdapter) readPolicy(groupID GroupHandle, gpuCount int) (policySnapshot, error) {
+	policies := make([]C.dcgmPolicy_t, gpuCount)
+	for i := range policies {
+		policies[i].version = makeVersion1(unsafe.Sizeof(policies[i]))
+	}
+
+	var statusHandle C.dcgmStatus_t
+
+	result := C.dcgmPolicyGet(handle.handle, groupID.handle, C.int(gpuCount), &policies[0], statusHandle)
+	if err := errorString(result); err != nil {
+		return policySnapshot{}, &Error{msg: fmt.Sprintf("error getting policy: %s", err), Code: result}
+	}
+
+	policy := policies[0]
+	snapshot := policySnapshot{
+		mode:       uint32(policy.mode),
+		action:     PolicyAction(policy.action),
+		validation: PolicyValidation(policy.validation),
+		condition:  uint32(policy.condition),
+	}
+	for _, index := range []policyIndex{maxRtPgPolicyIndex, thermalPolicyIndex, powerPolicyIndex} {
+		param := policy.parms[index]
+		snapshot.params[index] = policyConditionParam{
+			typ:   param.tag,
+			value: binary.LittleEndian.Uint32(param.val[:]),
+		}
+	}
+
+	return snapshot, nil
+}
+
+// getPolicyForGroupWithOps counts GPUs in the group and builds a PolicyStatus
+// from the first GPU's policy, returning an error if the group has no GPUs.
+func getPolicyForGroupWithOps(api policyReadOps, groupID GroupHandle) (*PolicyStatus, error) {
+	groupInfo, err := api.getGroupInfo(groupID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting group info: %w", err)
 	}
@@ -806,69 +853,40 @@ func getPolicyForGroup(groupID GroupHandle) (*PolicyStatus, error) {
 		return nil, errors.New("cannot get policy for a group with no GPUs")
 	}
 
-	policies := make([]C.dcgmPolicy_t, gpuCount)
-	for i := range policies {
-		policies[i].version = makeVersion1(unsafe.Sizeof(policies[i]))
+	snapshot, err := api.readPolicy(groupID, gpuCount)
+	if err != nil {
+		return nil, err
 	}
-
-	var statusHandle C.dcgmStatus_t
-
-	result := C.dcgmPolicyGet(handle.handle, groupID.handle, C.int(gpuCount), &policies[0], statusHandle)
-	if err := errorString(result); err != nil {
-		return nil, &Error{msg: fmt.Sprintf("error getting policy: %s", err), Code: result}
-	}
-	// SetPolicyForGroup applies one policy to the whole group, so the first
-	// per-GPU result represents that uniform group policy.
-	policy := policies[0]
 
 	status := &PolicyStatus{
-		Mode:       uint32(policy.mode),
-		Action:     PolicyAction(policy.action),
-		Validation: PolicyValidation(policy.validation),
+		Mode:       snapshot.mode,
+		Action:     snapshot.action,
+		Validation: snapshot.validation,
 		Conditions: make(map[PolicyCondition]interface{}),
 	}
 
-	condition := policy.condition
-
-	// Check each condition bit and extract its parameters
-	if condition&C.DCGM_POLICY_COND_DBE != 0 {
-		status.Conditions[DbePolicy] = true
-	}
-
-	if condition&C.DCGM_POLICY_COND_PCI != 0 {
-		status.Conditions[PCIePolicy] = true
-	}
-
-	if condition&C.DCGM_POLICY_COND_MAX_PAGES_RETIRED != 0 {
-		param := policy.parms[maxRtPgPolicyIndex]
-		if param.tag == 1 { // LLONG type
-			threshold := binary.LittleEndian.Uint32(param.val[:])
-			status.Conditions[MaxRtPgPolicy] = threshold
+	for _, condition := range policyConditionOrder {
+		mask, _ := policyConditionMask(condition)
+		if snapshot.condition&uint32(mask) == 0 {
+			continue
 		}
-	}
 
-	if condition&C.DCGM_POLICY_COND_THERMAL != 0 {
-		param := policy.parms[thermalPolicyIndex]
-		if param.tag == 1 { // LLONG type
-			threshold := binary.LittleEndian.Uint32(param.val[:])
-			status.Conditions[ThermalPolicy] = threshold
+		var index policyIndex
+		switch condition {
+		case MaxRtPgPolicy:
+			index = maxRtPgPolicyIndex
+		case ThermalPolicy:
+			index = thermalPolicyIndex
+		case PowerPolicy:
+			index = powerPolicyIndex
+		default:
+			status.Conditions[condition] = true
+			continue
 		}
-	}
 
-	if condition&C.DCGM_POLICY_COND_POWER != 0 {
-		param := policy.parms[powerPolicyIndex]
-		if param.tag == 1 { // LLONG type
-			threshold := binary.LittleEndian.Uint32(param.val[:])
-			status.Conditions[PowerPolicy] = threshold
+		if param := snapshot.params[index]; param.typ == 1 {
+			status.Conditions[condition] = param.value
 		}
-	}
-
-	if condition&C.DCGM_POLICY_COND_NVLINK != 0 {
-		status.Conditions[NvlinkPolicy] = true
-	}
-
-	if condition&C.DCGM_POLICY_COND_XID != 0 {
-		status.Conditions[XidPolicy] = true
 	}
 
 	return status, nil
@@ -1045,12 +1063,25 @@ func subscribePolicy(
 	buffer int,
 	setup func() error,
 ) (<-chan PolicyViolation, error) {
+	return subscribePolicyWithCalls(cgoAdapter{}, policyCallbacks, ctx, groupID, condition, buffer, setup)
+}
+
+// subscribePolicyWithCalls registers a listener and uses the same native calls for cancellation cleanup.
+func subscribePolicyWithCalls(
+	api policyRegistrationCalls,
+	dispatcher *policyDispatcher,
+	ctx context.Context,
+	groupID GroupHandle,
+	condition C.dcgmPolicyCondition_t,
+	buffer int,
+	setup func() error,
+) (<-chan PolicyViolation, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	policyCallbacks.registerMu.Lock()
-	defer policyCallbacks.registerMu.Unlock()
+	dispatcher.registerMu.Lock()
+	defer dispatcher.registerMu.Unlock()
 
 	if setup != nil {
 		if err := setup(); err != nil {
@@ -1058,23 +1089,16 @@ func subscribePolicy(
 		}
 	}
 
-	subID, violation, registration := policyCallbacks.addSubscription(groupID, condition, buffer)
+	subID, violation, registration := dispatcher.addSubscription(groupID, condition, buffer)
 	if registration != nil {
-		result := C.dcgmPolicyRegister_v2(
-			handle.handle,
-			groupID.handle,
-			registration.conditions,
-			C.fpRecvUpdates(C.violationNotify),
-			C.uint64_t(registration.id),
-		)
-		if err := errorString(result); err != nil {
-			policyCallbacks.rollbackSubscription(subID, registration)
-			return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		if err := api.registerPolicyNative(groupID, uint32(registration.conditions), registration.id); err != nil {
+			dispatcher.rollbackSubscription(subID, registration)
+			return nil, err
 		}
 	}
 
 	context.AfterFunc(ctx, func() {
-		policyCallbacks.unsubscribe(subID)
+		dispatcher.unsubscribe(subID, api.unregisterPolicyNative)
 	})
 
 	log.Println("Listening for violations...")
@@ -1082,9 +1106,24 @@ func subscribePolicy(
 	return violation, nil
 }
 
-// unregisterPolicy unregisters DCGM callbacks for a group condition mask.
-func unregisterPolicy(groupID GroupHandle, condition C.dcgmPolicyCondition_t) error {
-	result := C.dcgmPolicyUnregister(handle.handle, groupID.handle, condition)
+// registerPolicyNative registers native policy callbacks using a local registration ID.
+func (cgoAdapter) registerPolicyNative(groupID GroupHandle, conditions uint32, registrationID uint64) error {
+	result := C.dcgmPolicyRegister_v2(
+		handle.handle,
+		groupID.handle,
+		C.dcgmPolicyCondition_t(conditions),
+		C.fpRecvUpdates(C.violationNotify),
+		C.uint64_t(registrationID),
+	)
+	if err := errorString(result); err != nil {
+		return &Error{msg: dcgmErrorText(result), Code: result}
+	}
+	return nil
+}
+
+// unregisterPolicyNative removes native callbacks for the specified group and conditions.
+func (cgoAdapter) unregisterPolicyNative(groupID GroupHandle, condition uint32) error {
+	result := C.dcgmPolicyUnregister(handle.handle, groupID.handle, C.dcgmPolicyCondition_t(condition))
 
 	if err := errorString(result); err != nil {
 		return &Error{msg: fmt.Sprintf("error unregistering policy: %s", err), Code: result}

@@ -31,7 +31,7 @@ func getSupportedMetricGroups(gpuID uint) ([]MetricGroup, error) {
 	result := C.dcgmProfGetSupportedMetricGroups(handle.handle, &groupInfo)
 
 	if err = errorString(result); err != nil {
-		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	count := uint(groupInfo.numMetricGroups)

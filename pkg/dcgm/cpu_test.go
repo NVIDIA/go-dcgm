@@ -23,6 +23,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCPUHierarchyV1Conversion checks CPU IDs and owned-core bitmasks in native hierarchy conversion.
+func TestCPUHierarchyV1Conversion(t *testing.T) {
+	lastBitmaskIndex := int(MAX_CPU_CORE_BITMASK_COUNT - 1)
+	tests := []struct {
+		name      string
+		cpus      []testCPUHierarchyV1CPU
+		wantIDs   []uint
+		wantMasks []map[int]uint64
+	}{
+		{name: "empty"},
+		{
+			name: "multiple CPUs and boundary masks",
+			cpus: []testCPUHierarchyV1CPU{
+				{cpuID: 7, ownedCoreBitmasks: map[int]uint64{0: 0b101, lastBitmaskIndex: 0b10}},
+				{cpuID: 8, ownedCoreBitmasks: map[int]uint64{0: 0b10000}},
+			},
+			wantIDs: []uint{7, 8},
+			wantMasks: []map[int]uint64{
+				{0: 0b101, lastBitmaskIndex: 0b10},
+				{0: 0b10000},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hierarchy := createTestCPUHierarchyV1(tt.cpus)
+
+			assert.Equal(t, uint(testCPUHierarchyVersion1), hierarchy.Version)
+			assert.Equal(t, uint(len(tt.wantIDs)), hierarchy.NumCPUs)
+			if len(tt.wantIDs) == 0 {
+				assert.Equal(t, CPUHierarchyCPU_v1{}, hierarchy.CPUs[0])
+				return
+			}
+
+			for i, wantID := range tt.wantIDs {
+				assert.Equal(t, wantID, hierarchy.CPUs[i].CPUID)
+				require.Len(t, hierarchy.CPUs[i].OwnedCores, int(MAX_CPU_CORE_BITMASK_COUNT))
+				for index, wantMask := range tt.wantMasks[i] {
+					assert.Equal(t, wantMask, hierarchy.CPUs[i].OwnedCores[index])
+				}
+				assert.Zero(t, hierarchy.CPUs[i].OwnedCores[1])
+			}
+		})
+	}
+}
+
 func TestCPUHierarchyV2IncludesSerial(t *testing.T) {
 	lastBitmaskIndex := int(MAX_CPU_CORE_BITMASK_COUNT - 1)
 	hierarchy := createTestCPUHierarchyV2([]testCPUHierarchyV2CPU{

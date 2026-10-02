@@ -1,0 +1,4 @@
+package dcgm
+
+// Regenerate package-local test mocks from the private native interfaces.
+//go:generate go run go.uber.org/mock/mockgen -source=native_calls.go -destination=native_calls_mock_test.go -package=dcgm -mock_names=sessionCalls=MockSessionCalls,watchGroupOps=MockWatchGroupOps,pidWatchOps=MockPIDWatchOps,deviceStatusOps=MockDeviceStatusOps,healthGroupOps=MockHealthGroupOps,policyRegistrationCalls=MockPolicyRegistrationCalls,fieldPolicyListCalls=MockFieldPolicyListCalls,fieldPolicyEventCalls=MockFieldPolicyEventCalls,multiNodeDiagnosticCalls=MockMultiNodeDiagnosticCalls,deviceInfoOps=MockDeviceInfoOps,policyReadOps=MockPolicyReadOps,topologyOps=MockTopologyOps

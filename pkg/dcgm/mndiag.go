@@ -117,7 +117,8 @@ type MultiNodeDiagnosticResults struct {
 const multiNodeDiagnosticFeature = "DCGM multi-node diagnostic API"
 
 type multiNodeDiagnosticCallResult struct {
-	result C.dcgmReturn_t
+	results MultiNodeDiagnosticResults
+	err     error
 }
 
 // DCGM allows one active multi-node diagnostic for this handle.
@@ -131,7 +132,7 @@ func requireMultiNodeDiagnosticSymbol(symbol string) error {
 }
 
 func multiNodeDiagnosticResult(symbol string, result C.dcgmReturn_t) error {
-	return dcgmFeatureResult(multiNodeDiagnosticFeature, symbol, result, C.GoString(C.errorString(result)))
+	return dcgmFeatureResult(multiNodeDiagnosticFeature, symbol, result, dcgmErrorText(result))
 }
 
 func validateMultiNodeDiagnosticRequest(request MultiNodeDiagnosticRequest) error {
@@ -193,35 +194,51 @@ func RunMultiNodeDiagnostic(ctx context.Context, request MultiNodeDiagnosticRequ
 	if err := requireMultiNodeDiagnosticSymbol(symbol); err != nil {
 		return MultiNodeDiagnosticResults{}, err
 	}
-	cRequest, err := newCMultiNodeDiagnosticRequest(request)
-	if err != nil {
+	if err := validateMultiNodeDiagnosticRequest(request); err != nil {
 		return MultiNodeDiagnosticResults{}, err
 	}
+	return runMultiNodeDiagnosticWithCalls(cgoAdapter{}, ctx, request)
+}
+
+// runMultiNodeDiagnosticWithCalls serializes native runs and stops the active run on cancellation.
+func runMultiNodeDiagnosticWithCalls(api multiNodeDiagnosticCalls, ctx context.Context, request MultiNodeDiagnosticRequest) (MultiNodeDiagnosticResults, error) {
 	multiNodeDiagnosticMu.Lock()
 	defer multiNodeDiagnosticMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return MultiNodeDiagnosticResults{}, err
 	}
 
-	cResponse := new(C.dcgmMnDiagResponse_v2)
-	cResponse.version = C.dcgmMnDiagResponse_version2
 	done := make(chan multiNodeDiagnosticCallResult, 1)
 	go func() {
-		done <- multiNodeDiagnosticCallResult{result: C.dcgmRunMnDiagnostic(handle.handle, &cRequest, cResponse)}
+		results, err := api.runMultiNodeDiagnosticNative(request)
+		done <- multiNodeDiagnosticCallResult{results: results, err: err}
 	}()
 
 	select {
 	case call := <-done:
-		if err := multiNodeDiagnosticResult(symbol, call.result); err != nil {
-			return MultiNodeDiagnosticResults{}, err
-		}
-		return multiNodeDiagnosticResultsFromC(cResponse), nil
+		return call.results, call.err
 	case <-ctx.Done():
-		if err := stopMultiNodeDiagnosticAndWait(done, StopMultiNodeDiagnostic); err != nil {
+		if err := stopMultiNodeDiagnosticAndWait(done, api.stopMultiNodeDiagnosticNative); err != nil {
 			return MultiNodeDiagnosticResults{}, errors.Join(ctx.Err(), err)
 		}
 		return MultiNodeDiagnosticResults{}, ctx.Err()
 	}
+}
+
+// runMultiNodeDiagnosticNative converts the request, runs DCGM diagnostics, and converts the results.
+func (cgoAdapter) runMultiNodeDiagnosticNative(request MultiNodeDiagnosticRequest) (MultiNodeDiagnosticResults, error) {
+	const symbol = "dcgmRunMnDiagnostic"
+	cRequest, err := newCMultiNodeDiagnosticRequest(request)
+	if err != nil {
+		return MultiNodeDiagnosticResults{}, err
+	}
+	cResponse := new(C.dcgmMnDiagResponse_v2)
+	cResponse.version = C.dcgmMnDiagResponse_version2
+	result := C.dcgmRunMnDiagnostic(handle.handle, &cRequest, cResponse)
+	if err := multiNodeDiagnosticResult(symbol, result); err != nil {
+		return MultiNodeDiagnosticResults{}, err
+	}
+	return multiNodeDiagnosticResultsFromC(cResponse), nil
 }
 
 func stopMultiNodeDiagnosticAndWait(done <-chan multiNodeDiagnosticCallResult, stop func() error) error {
@@ -232,6 +249,11 @@ func stopMultiNodeDiagnosticAndWait(done <-chan multiNodeDiagnosticCallResult, s
 
 // StopMultiNodeDiagnostic asks DCGM to stop the active multi-node diagnostic.
 func StopMultiNodeDiagnostic() error {
+	return cgoAdapter{}.stopMultiNodeDiagnosticNative()
+}
+
+// stopMultiNodeDiagnosticNative requests native diagnostic cancellation and preserves DCGM errors.
+func (cgoAdapter) stopMultiNodeDiagnosticNative() error {
 	const symbol = "dcgmStopMnDiagnostic"
 	if err := requireMultiNodeDiagnosticSymbol(symbol); err != nil {
 		return err

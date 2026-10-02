@@ -287,7 +287,7 @@ func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
 
 	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), diagResults)
 	if err := errorString(result); err != nil {
-		return DiagResults{}, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return DiagResults{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	return newDiagResults(diagResults), nil

@@ -96,56 +96,57 @@ func WatchPidFieldsEx(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, 
 	return watchPidFields(updateFreq, maxKeepAge, maxKeepSamples, gpus...)
 }
 
-type watchPidFieldsFunc func(GroupHandle, time.Duration, time.Duration, int) error
-
 func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
-	return watchPidFieldsWithWatcher(watchPidFieldsForGroup, UpdateAllFields, updateFreq, maxKeepAge, maxKeepSamples, gpus...)
+	return watchPidFieldsWithOps(cgoAdapter{}, updateFreq, maxKeepAge, maxKeepSamples, gpus...)
 }
 
-func watchPidFieldsWithWatcher(watch watchPidFieldsFunc, update func() error, updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
+// watchPidFieldsWithOps creates and refreshes PID watches, destroying the GPU group on failure.
+func watchPidFieldsWithOps(api pidWatchOps, updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
 	groupName := fmt.Sprintf("watchPids%d", rand.Uint64())
-	group, err := CreateGroup(groupName)
+	group, err := api.createGroup(groupName, false)
 	if err != nil {
 		return
 	}
 	defer func() {
 		if err != nil {
-			_ = DestroyGroup(group)
+			_ = api.destroyGroup(group)
 		}
 	}()
 
 	numGpus := len(gpus)
 
 	if numGpus == 0 {
-		gpus, err = getSupportedDevices()
+		gpus, err = api.getSupportedDevices()
 		if err != nil {
 			return
 		}
 	}
 
 	for _, gpu := range gpus {
-		err = AddToGroup(group, gpu)
+		err = api.addToGroup(group, gpu)
 		if err != nil {
 			return
 		}
 	}
 
-	err = watch(group, updateFreq, maxKeepAge, maxKeepSamples)
+	err = api.watchPidFieldsNative(group, updateFreq, maxKeepAge, maxKeepSamples)
 	if err != nil {
 		return groupId, err
 	}
-	err = update()
+	err = api.updateAllFields()
 	if err != nil {
 		return groupId, err
 	}
 	return group, nil
 }
 
-func watchPidFieldsForGroup(group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
+// watchPidFieldsNative starts DCGM PID watches, converting updateFreq to microseconds
+// and maxKeepAge to seconds.
+func (cgoAdapter) watchPidFieldsNative(group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
 	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(updateFreq.Microseconds()), C.double(maxKeepAge.Seconds()), C.int(maxKeepSamples))
 
 	if err := errorString(result); err != nil {
-		return &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return &Error{msg: dcgmErrorText(result), Code: result}
 	}
 	return nil
 }
@@ -158,7 +159,7 @@ func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, e
 	result := C.dcgmGetPidInfo(handle.handle, groupID.handle, &pidInfo)
 
 	if err = errorString(result); err != nil {
-		return processInfo, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return processInfo, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	name, err := processName(pid)

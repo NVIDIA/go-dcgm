@@ -1,6 +1,6 @@
 module(name = "go_dcgm")
 
-bazel_dep(name = "rules_go", version = "0.63.0")
+bazel_dep(name = "rules_go", version = "0.64.1")
 bazel_dep(name = "gazelle", version = "0.54.0")
 bazel_dep(name = "rules_cc", version = "0.2.25")
 
@@ -14,4 +14,5 @@ use_repo(
     "com_github_bits_and_blooms_bitset",
     "com_github_gorilla_mux",
     "com_github_stretchr_testify",
+    "org_uber_go_mock",
 )

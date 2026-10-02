@@ -78,7 +78,7 @@ tasks:
       - task: test:gpu:prereqs
       - |
         set +e
-        bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^TestPolicyErrors$'
+        bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle)$'
         policy_status=$?
         bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //tests:tests_test {{.CLI_ARGS}}
         suite_status=$?
@@ -94,7 +94,7 @@ tasks:
       - task: test:gpu:prereqs
       - |
         set +e
-        bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^TestPolicyErrors$'
+        bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle)$'
         policy_status=$?
         bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no //tests:tests_test {{.CLI_ARGS}}
         suite_status=$?
@@ -135,13 +135,14 @@ tasks:
         fi
 
   generate:
-    desc: Regenerate checked-in DCGM field constants
+    desc: Regenerate checked-in code
     cmds:
       - bazel run //cmd/gen-fields:gen-fields -- --legacy-fields {{.ROOT_DIR}}/pkg/dcgm/legacy_fields.csv {{.ROOT_DIR}}/pkg/dcgm/dcgm_fields.h {{.ROOT_DIR}}/pkg/dcgm/const_fields.go
       - gofumpt -w {{.ROOT_DIR}}/pkg/dcgm/const_fields.go
+      - go generate ./pkg/dcgm
 
   generate:check:
-    desc: Check generated DCGM field constants without modifying the source tree
+    desc: Check generated code without modifying the source tree
     cmds:
       - |
         output="$(mktemp)"
@@ -154,6 +155,13 @@ tasks:
           diff -u {{.ROOT_DIR}}/pkg/dcgm/const_fields.go "${output}" || true
           exit 1
         fi
+      - |
+        generated={{.ROOT_DIR}}/pkg/dcgm/native_calls_mock_test.go
+        original="$(mktemp)"
+        cp "${generated}" "${original}"
+        trap 'cp "${original}" "${generated}"; rm -f -- "${original}"' EXIT
+        go generate ./pkg/dcgm
+        cmp -s "${original}" "${generated}" || diff -u "${original}" "${generated}"
 
   pre-commit:install:
     desc: Install repository pre-commit hooks

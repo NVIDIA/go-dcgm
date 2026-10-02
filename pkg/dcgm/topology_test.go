@@ -1,13 +1,115 @@
 package dcgm
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
+
+// TestGetDeviceTopologyWithOps checks peer GPU bus ID lookup and errors from DCGM reads.
+func TestGetDeviceTopologyWithOps(t *testing.T) {
+	stageErr := errors.New("stage failed")
+
+	tests := []struct {
+		name         string
+		links        []P2PLink
+		readErr      error
+		lookup       bool
+		wantEntities []GroupEntityPair
+		values       []FieldValue_v2
+		lookupErr    error
+		want         []P2PLink
+		wantErrIs    error
+		wantErrText  string
+	}{
+		{
+			name:      "returns native read error",
+			readErr:   stageErr,
+			wantErrIs: stageErr,
+		},
+		{
+			name: "skips lookup for nil links",
+		},
+		{
+			name:  "skips lookup for empty links",
+			links: []P2PLink{},
+			want:  []P2PLink{},
+		},
+		{
+			name:   "wraps peer lookup error",
+			links:  []P2PLink{{GPU: 2, Link: P2PLinkSingleSwitch}, {GPU: 7, Link: TwoNVLINKLinks}},
+			lookup: true,
+			wantEntities: []GroupEntityPair{
+				{EntityGroupId: FE_GPU, EntityId: 2},
+				{EntityGroupId: FE_GPU, EntityId: 7},
+			},
+			lookupErr:   stageErr,
+			wantErrIs:   stageErr,
+			wantErrText: "get peer GPU bus IDs",
+		},
+		{
+			name:         "returns missing peer error",
+			links:        []P2PLink{{GPU: 2, Link: P2PLinkSingleSwitch}},
+			lookup:       true,
+			wantEntities: []GroupEntityPair{{EntityGroupId: FE_GPU, EntityId: 2}},
+			wantErrText:  "get bus ID for peer GPU 2: not returned by DCGM",
+		},
+		{
+			name:   "enriches every peer from out-of-order values",
+			links:  []P2PLink{{GPU: 2, Link: P2PLinkSingleSwitch}, {GPU: 7, Link: TwoNVLINKLinks}},
+			lookup: true,
+			wantEntities: []GroupEntityPair{
+				{EntityGroupId: FE_GPU, EntityId: 2},
+				{EntityGroupId: FE_GPU, EntityId: 7},
+			},
+			values: []FieldValue_v2{
+				fieldValueV2String(FE_GPU, 7, DCGM_FI_DEV_PCI_BUS_ID, "0000:07:00.0"),
+				fieldValueV2String(FE_GPU, 2, DCGM_FI_DEV_PCI_BUS_ID, "0000:02:00.0"),
+			},
+			want: []P2PLink{
+				{GPU: 2, BusID: "0000:02:00.0", Link: P2PLinkSingleSwitch},
+				{GPU: 7, BusID: "0000:07:00.0", Link: TwoNVLINKLinks},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			api := NewMockTopologyOps(gomock.NewController(t))
+			api.EXPECT().readDeviceTopology(uint(3)).Return(tt.links, tt.readErr)
+			if tt.lookup {
+				api.EXPECT().entitiesGetLatestValues(
+					tt.wantEntities,
+					[]Short{DCGM_FI_DEV_PCI_BUS_ID},
+					DCGM_FV_FLAG_LIVE_DATA,
+				).Return(tt.values, tt.lookupErr)
+			}
+
+			got, err := getDeviceTopologyWithOps(api, 3)
+			if tt.wantErrText != "" || tt.wantErrIs != nil {
+				require.Error(t, err)
+				require.Nil(t, got)
+				if tt.wantErrText != "" {
+					require.ErrorContains(t, err, tt.wantErrText)
+				}
+				if tt.wantErrIs != nil {
+					require.ErrorIs(t, err, tt.wantErrIs)
+				}
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
 
 func TestSelectedPopulatePeerBusIDs(t *testing.T) {
 	tests := []struct {
@@ -157,7 +259,7 @@ func TestTopologyUsesLatestStructVersions(t *testing.T) {
 
 	source := readTopologyTestFile(t, "topology.go")
 	assertRegexp(t, source,
-		`(?s)func getDeviceTopology\(gpuID uint\).*var topology C\.dcgmDeviceTopology_v2.*topology\.version = makeVersion2\(unsafe\.Sizeof\(topology\)\)`)
+		`(?s)func \(cgoAdapter\) readDeviceTopology\(gpuID uint\).*var topology C\.dcgmDeviceTopology_v2.*topology\.version = makeVersion2\(unsafe\.Sizeof\(topology\)\)`)
 	assertRegexp(t, source,
 		`(?s)func getNvLinkLinkStatus\(\).*var linkStatus C\.dcgmNvLinkStatus_v5.*linkStatus\.version = makeVersion5\(unsafe\.Sizeof\(linkStatus\)\)`)
 }

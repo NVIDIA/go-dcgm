@@ -90,6 +90,11 @@ func (f *FieldHandle) GetHandle() uintptr {
 //
 //	// Use the field group...
 func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHandle, err error) {
+	return cgoAdapter{}.fieldGroupCreate(fieldsGroupName, fields)
+}
+
+// fieldGroupCreate creates a native field group from a non-empty list of field IDs.
+func (cgoAdapter) fieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHandle, err error) {
 	if len(fields) == 0 {
 		return fieldsId, errors.New("at least one field must be provided")
 	}
@@ -115,6 +120,11 @@ func FieldGroupCreate(fieldsGroupName string, fields []Short) (fieldsId FieldHan
 // FieldGroupDestroy destroys a previously created field group.
 // Returns an error if the group cannot be destroyed.
 func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
+	return cgoAdapter{}.fieldGroupDestroy(fieldsGroup)
+}
+
+// fieldGroupDestroy releases a native field group owned by the caller.
+func (cgoAdapter) fieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 	result := C.dcgmFieldGroupDestroy(handle.handle, fieldsGroup.handle)
 	if err = errorString(result); err != nil {
 		err = fmt.Errorf("error destroying DCGM fields group: %s", err)
@@ -129,32 +139,37 @@ func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 // groupName is a name for the watch group.
 // Returns a group handle and any error encountered.
 func WatchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId GroupHandle, err error) {
-	return watchFieldsWithUpdater(UpdateAllFields, gpuID, fieldsGroup, groupName)
+	return cgoAdapter{}.watchFields(gpuID, fieldsGroup, groupName)
 }
 
-func watchFieldsWithUpdater(update func() error, gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId GroupHandle, err error) {
-	group, err := CreateGroup(groupName)
+// watchFields sets up a GPU field watch using the production native adapter.
+func (api cgoAdapter) watchFields(gpuID uint, fieldsGroup FieldHandle, groupName string) (GroupHandle, error) {
+	return watchFieldsWithOps(api, gpuID, fieldsGroup, groupName)
+}
+
+// watchFieldsWithOps creates and refreshes a field watch, destroying its GPU group on failure.
+func watchFieldsWithOps(api watchGroupOps, gpuID uint, fieldsGroup FieldHandle, groupName string) (groupId GroupHandle, err error) {
+	group, err := api.createGroup(groupName, false)
 	if err != nil {
 		return groupId, err
 	}
 	defer func() {
 		if err != nil {
-			_ = DestroyGroup(group)
+			_ = api.destroyGroup(group)
 		}
 	}()
 
-	err = AddToGroup(group, gpuID)
+	err = api.addToGroup(group, gpuID)
 	if err != nil {
 		return groupId, err
 	}
 
-	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle, C.longlong(defaultUpdateFreq),
-		C.double(defaultMaxKeepAge), C.int(defaultMaxKeepSamples))
-	if err = errorString(result); err != nil {
-		return groupId, fmt.Errorf("error watching fields: %s", err)
+	err = api.watchFieldsNative(fieldsGroup, group, defaultUpdateFreq, defaultMaxKeepAge, defaultMaxKeepSamples)
+	if err != nil {
+		return groupId, err
 	}
 
-	err = update()
+	err = api.updateAllFields()
 	if err != nil {
 		return groupId, err
 	}
@@ -171,17 +186,20 @@ func watchFieldsWithUpdater(update func() error, gpuID uint, fieldsGroup FieldHa
 func WatchFieldsWithGroupEx(
 	fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
 ) error {
+	if err := (cgoAdapter{}).watchFieldsNative(fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
+		return err
+	}
+	return UpdateAllFields()
+}
+
+// watchFieldsNative configures a native field watch; the caller refreshes the values afterward.
+func (cgoAdapter) watchFieldsNative(fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) error {
 	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
 		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
 
 	if err := errorString(result); err != nil {
 		return fmt.Errorf("error watching fields: %s", err)
 	}
-
-	if err := UpdateAllFields(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -370,6 +388,11 @@ func newBadParameterError() *Error {
 // An empty fields slice is rejected before querying DCGM.
 // Returns a slice of field values and any error encountered.
 func GetLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error) {
+	return cgoAdapter{}.getLatestValuesForFields(gpu, fields)
+}
+
+// getLatestValuesForFields reads and converts the latest native field values for one GPU.
+func (cgoAdapter) getLatestValuesForFields(gpu uint, fields []Short) ([]FieldValue_v1, error) {
 	if len(fields) == 0 {
 		return nil, newBadParameterError()
 	}
@@ -421,7 +444,7 @@ func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields
 		fieldIDPointer(fields), C.uint(len(fields)), &values.values[0])
 	runtime.KeepAlive(fields)
 	if result != C.DCGM_ST_OK {
-		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	return toFieldValue(values.values), nil
@@ -434,6 +457,11 @@ func EntityGetLatestValues(entityGroup Field_Entity_Group, entityId uint, fields
 // An empty entities or fields slice is rejected before querying DCGM.
 // Returns a slice of field values and any error encountered.
 func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags uint) ([]FieldValue_v2, error) {
+	return cgoAdapter{}.entitiesGetLatestValues(entities, fields, flags)
+}
+
+// entitiesGetLatestValues reads and converts native field values for the requested entities.
+func (cgoAdapter) entitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags uint) ([]FieldValue_v2, error) {
 	if len(fields) == 0 || len(entities) == 0 {
 		return nil, newBadParameterError()
 	}
@@ -454,7 +482,7 @@ func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags u
 		fieldIDPointer(fields), C.uint(len(fields)), C.uint(flags), &values.values[0])
 	runtime.KeepAlive(fields)
 	if err := errorString(result); err != nil {
-		return nil, &Error{msg: C.GoString(C.errorString(result)), Code: result}
+		return nil, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
 	return toFieldValue_v2(values.values), nil
@@ -463,6 +491,11 @@ func EntitiesGetLatestValues(entities []GroupEntityPair, fields []Short, flags u
 // UpdateAllFields forces an update of all field values.
 // Returns an error if the update fails.
 func UpdateAllFields() error {
+	return cgoAdapter{}.updateAllFields()
+}
+
+// updateAllFields asks DCGM to refresh all watched fields and waits for completion.
+func (cgoAdapter) updateAllFields() error {
 	waitForUpdate := C.int(1)
 	result := C.dcgmUpdateAllFields(handle.handle, waitForUpdate)
 

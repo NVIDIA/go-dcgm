@@ -186,6 +186,11 @@ func deviceStatusFromValues(values []FieldValue_v1) DeviceStatus {
 }
 
 func getGPUStatus(gpuID uint) EntityStatus {
+	return cgoAdapter{}.getGPUStatus(gpuID)
+}
+
+// getGPUStatus reads native GPU status, returning unknown when the query fails.
+func (cgoAdapter) getGPUStatus(gpuID uint) EntityStatus {
 	var status C.DcgmEntityStatus_t
 	result := C.dcgmGetGpuStatus(handle.handle, C.uint(gpuID), &status)
 	if result != C.DCGM_ST_OK {
@@ -194,22 +199,8 @@ func getGPUStatus(gpuID uint) EntityStatus {
 	return EntityStatus(status)
 }
 
-type deviceStatusOps struct {
-	createFieldGroup  func(string, []Short) (FieldHandle, error)
-	watchFields       func(uint, FieldHandle, string) (GroupHandle, error)
-	getLatestValues   func(uint, []Short) ([]FieldValue_v1, error)
-	destroyFieldGroup func(FieldHandle) error
-	destroyGroup      func(GroupHandle) error
-}
-
 func latestValuesForDevice(gpuId uint) (DeviceStatus, error) {
-	return latestValuesForDeviceWithOps(gpuId, deviceStatusOps{
-		createFieldGroup:  FieldGroupCreate,
-		watchFields:       WatchFields,
-		getLatestValues:   GetLatestValuesForFields,
-		destroyFieldGroup: FieldGroupDestroy,
-		destroyGroup:      DestroyGroup,
-	})
+	return latestValuesForDeviceWithOps(gpuId, cgoAdapter{})
 }
 
 func latestValuesForDeviceWithOps(gpuId uint, ops deviceStatusOps) (status DeviceStatus, err error) {
@@ -233,7 +224,7 @@ func latestValuesForDeviceWithOps(gpuId uint, ops deviceStatusOps) (status Devic
 	deviceFields[deviceFanSpeed] = C.DCGM_FI_DEV_FAN_SPEED
 
 	fieldsName := fmt.Sprintf("devStatusFields%d", rand.Uint64())
-	fieldsId, err := ops.createFieldGroup(fieldsName, deviceFields)
+	fieldsId, err := ops.fieldGroupCreate(fieldsName, deviceFields)
 	if err != nil {
 		return
 	}
@@ -241,14 +232,14 @@ func latestValuesForDeviceWithOps(gpuId uint, ops deviceStatusOps) (status Devic
 	groupName := fmt.Sprintf("devStatus%d", rand.Uint64())
 	groupId, err := ops.watchFields(gpuId, fieldsId, groupName)
 	if err != nil {
-		err = errors.Join(err, ops.destroyFieldGroup(fieldsId))
+		err = errors.Join(err, ops.fieldGroupDestroy(fieldsId))
 		return
 	}
 	defer func() {
-		err = errors.Join(err, ops.destroyFieldGroup(fieldsId), ops.destroyGroup(groupId))
+		err = errors.Join(err, ops.fieldGroupDestroy(fieldsId), ops.destroyGroup(groupId))
 	}()
 
-	values, err := ops.getLatestValues(gpuId, deviceFields)
+	values, err := ops.getLatestValuesForFields(gpuId, deviceFields)
 	if err != nil {
 		return status, err
 	}
