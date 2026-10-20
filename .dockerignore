@@ -1,4 +1,13 @@
-.git
-bazel-*
-dist
-test-reports
+# The CI devcontainer copies only its pinned toolchain and module inputs.
+*
+!.bazelrc
+!.bazelversion
+!.dockerignore
+!BUILD.bazel
+!MODULE.bazel
+!MODULE.bazel.lock
+!go.mod
+!go.sum
+!hack/
+hack/*
+!hack/versions.env

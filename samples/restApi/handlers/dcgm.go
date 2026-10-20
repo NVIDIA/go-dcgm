@@ -38,8 +38,7 @@ func getStatus(resp http.ResponseWriter, req *http.Request) *dcgm.Status {
 func getStatusWithDeps(resp http.ResponseWriter, req *http.Request, deps deviceDeps) *dcgm.Status {
 	status, err := deps.introspect()
 	if err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 		return nil
 	}
 	return &status
@@ -66,8 +65,7 @@ func getDeviceInfoWithDeps(resp http.ResponseWriter, req *http.Request, deps dev
 
 	device, err := deps.getDeviceInfo(id)
 	if err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 		return nil
 	}
 	return &device
@@ -96,8 +94,7 @@ func getDeviceStatusWithDeps(resp http.ResponseWriter, req *http.Request, deps d
 
 	status, err := deps.getDeviceStatus(id)
 	if err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 		return nil
 	}
 	return &status
@@ -124,8 +121,7 @@ func getHealthWithDeps(resp http.ResponseWriter, req *http.Request, deps deviceD
 
 	health, err := deps.healthCheckByGPUID(id)
 	if err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 		return nil
 	}
 	return &health
@@ -157,8 +153,7 @@ func getProcessInfoWithDeps(resp http.ResponseWriter, req *http.Request, deps pr
 
 	group, err := deps.watchPidFields()
 	if err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 
 		return
 	}
@@ -174,8 +169,7 @@ func getProcessInfoWithDeps(resp http.ResponseWriter, req *http.Request, deps pr
 
 	pInfo, err = deps.getProcessInfo(group, pid)
 	if err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 	}
 
 	return

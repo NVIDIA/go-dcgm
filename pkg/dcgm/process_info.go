@@ -151,6 +151,8 @@ func (cgoAdapter) watchPidFieldsNative(group GroupHandle, updateFreq, maxKeepAge
 	return nil
 }
 
+// getProcessInfo asks DCGM for one process, looks up its operating-system name,
+// and converts the per-GPU response into Go values.
 func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, err error) {
 	var pidInfo C.dcgmPidInfo_t
 	pidInfo.version = makeVersion2(unsafe.Sizeof(pidInfo))
@@ -167,9 +169,20 @@ func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, e
 		return processInfo, fmt.Errorf("error getting process name: %s", err)
 	}
 
-	processInfo = make([]ProcessInfo, pidInfo.numGpus)
+	return processInfoFromResponse(&pidInfo, name)
+}
 
-	for i := 0; i < int(pidInfo.numGpus); i++ {
+// processInfoFromResponse validates a native process response and copies each
+// GPU's utilization, health, and error data into Go-owned ProcessInfo values.
+func processInfoFromResponse(pidInfo *C.dcgmPidInfo_t, name string) ([]ProcessInfo, error) {
+	gpuCount := int(pidInfo.numGpus)
+	maxGPUCount := len(pidInfo.gpus)
+	if gpuCount < 0 || gpuCount > maxGPUCount {
+		return nil, fmt.Errorf("process info response contains %d GPUs, expected between 0 and %d", gpuCount, maxGPUCount)
+	}
+
+	processInfo := make([]ProcessInfo, gpuCount)
+	for i := 0; i < gpuCount; i++ {
 		var energy uint64
 		e := *uint64Ptr(pidInfo.gpus[i].energyConsumed)
 		if !IsInt64Blank(int64(e)) {
@@ -221,6 +234,15 @@ func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, e
 		}
 
 		numErrs := int(pidInfo.gpus[i].numXidCriticalErrors)
+		maxXIDCount := len(pidInfo.gpus[i].xidCriticalErrorsTs)
+		if numErrs < 0 || numErrs > maxXIDCount {
+			return nil, fmt.Errorf(
+				"process info response for GPU index %d contains %d XID errors, expected between 0 and %d",
+				i,
+				numErrs,
+				maxXIDCount,
+			)
+		}
 		ts := make([]uint64, numErrs)
 		for j := 0; j < numErrs; j++ {
 			ts[j] = uint64(pidInfo.gpus[i].xidCriticalErrorsTs[j])
@@ -241,9 +263,11 @@ func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, e
 		processInfo[i].Violations = violations
 		processInfo[i].XIDErrors = xidErrs
 	}
-	return
+	return processInfo, nil
 }
 
+// processName reads a process name from Linux procfs. A process that exits
+// before the lookup is treated as missing and returns an empty name.
 func processName(pid uint) (string, error) {
 	f := fmt.Sprintf("/proc/%d/comm", pid)
 	b, err := os.ReadFile(f)

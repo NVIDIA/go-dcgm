@@ -2,9 +2,15 @@
 
 A sample REST API is provided, demonstrating various endpoints for getting GPU metrics via DCGM.
 
+> [!WARNING]
+> This server is an unauthenticated demonstration and is not intended for
+> production use. It listens only on `127.0.0.1` by default. Do not expose it
+> to untrusted networks without adding appropriate authentication,
+> authorization, transport security, and rate limiting.
+
 ```bash
 # Start the http server
-# By default the http server is started at localhost:8070
+# By default the http server is started at 127.0.0.1:8070
 # Run these commands from the repository root.
 
 $ bazel run //samples/restApi
