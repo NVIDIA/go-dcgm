@@ -60,7 +60,12 @@ tasks:
   test:unit:
     desc: Run prerequisite-free tests
     cmds:
-      - bazel test --config=ci //cmd/gen-fields:gen-fields_test //pkg/dcgm:dcgm_unit_test //samples/restApi/handlers:handlers_test {{.CLI_ARGS}}
+      - bazel test --config=ci //cmd/gen-fields:gen-fields_test //pkg/dcgm:dcgm_unit_test //samples/restApi/handlers:handlers_test //samples/restApi:restApi_test {{.CLI_ARGS}}
+
+  test:unit:coverage:
+    desc: Run prerequisite-free tests and publish coverage artifacts
+    cmds:
+      - bash hack/ci/unit-coverage.sh
 
   test:error-metadata:
     desc: Run DCGM runtime error metadata tests
@@ -80,7 +85,7 @@ tasks:
         set +e
         bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle)$'
         policy_status=$?
-        bazel test --config=ci --config=dcgm-runtime --cache_test_results=no //tests:tests_test {{.CLI_ARGS}}
+        bazel test --config=ci --config=dcgm-runtime --cache_test_results=no --test_env=DCGM_SKIP_DIAGNOSTICS //tests:tests_test {{.CLI_ARGS}}
         suite_status=$?
         set -e
         if [ "${policy_status}" -ne 0 ]; then
@@ -96,7 +101,7 @@ tasks:
         set +e
         bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle)$'
         policy_status=$?
-        bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no //tests:tests_test {{.CLI_ARGS}}
+        bazel test --config=ci --config=dcgm-runtime --config=race --cache_test_results=no --test_env=DCGM_SKIP_DIAGNOSTICS //tests:tests_test {{.CLI_ARGS}}
         suite_status=$?
         set -e
         if [ "${policy_status}" -ne 0 ]; then

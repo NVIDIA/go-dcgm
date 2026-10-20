@@ -20,6 +20,8 @@ package dcgm
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -172,6 +174,59 @@ func TestDeviceHealthFromResponse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, deviceHealthFromResponse(tt.gpuID, tt.response))
+		})
+	}
+}
+
+// TestHealthResponseFromNative checks the empty, single, and full native arrays,
+// including every incident field and the aggregate health result.
+func TestHealthResponseFromNative(t *testing.T) {
+	capacity := healthIncidentCapacityForTest()
+	for _, count := range []uint32{0, 1, capacity} {
+		t.Run(fmt.Sprintf("count %d", count), func(t *testing.T) {
+			incidents := make([]Incident, count)
+			for i := range incidents {
+				incidents[i] = Incident{
+					System: DCGM_HEALTH_WATCH_PCIE,
+					Health: HealthResult(10),
+					Error: DiagErrorDetail{
+						Message: fmt.Sprintf("incident %d", i),
+						Code:    HealthCheckErrorCode(i + 1),
+					},
+					EntityInfo: GroupEntityPair{EntityGroupId: FE_GPU, EntityId: uint(i + 7)},
+				}
+			}
+
+			response, err := healthResponseFromValuesForTest(HealthResult(20), incidents, count)
+
+			require.NoError(t, err)
+			require.Equal(t, HealthResponse{OverallHealth: HealthResult(20), Incidents: incidents}, response)
+		})
+	}
+}
+
+// TestHealthResponseFromNativeRejectsInvalidCounts exercises the actual native
+// decoder repeatedly, with a valid response after each rejected count.
+func TestHealthResponseFromNativeRejectsInvalidCounts(t *testing.T) {
+	capacity := healthIncidentCapacityForTest()
+	for _, count := range []uint32{capacity + 1, math.MaxUint32} {
+		t.Run(fmt.Sprintf("count %d", count), func(t *testing.T) {
+			for range 3 {
+				response, err := healthResponseFromValuesForTest(HealthResult(20), nil, count)
+
+				require.EqualError(t, err, fmt.Sprintf("health response contains %d incidents, maximum %d", count, capacity))
+				require.Equal(t, HealthResponse{}, response)
+
+				valid := []Incident{{
+					System: DCGM_HEALTH_WATCH_MEM,
+					Health: HealthResult(10),
+					Error:  DiagErrorDetail{Message: "recovered", Code: 42},
+				}}
+				response, err = healthResponseFromValuesForTest(HealthResult(10), valid, 1)
+
+				require.NoError(t, err)
+				require.Equal(t, HealthResponse{OverallHealth: HealthResult(10), Incidents: valid}, response)
+			}
 		})
 	}
 }

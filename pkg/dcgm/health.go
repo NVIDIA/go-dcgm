@@ -134,6 +134,7 @@ type HealthResponse struct {
 // since the last time this check was invoked. On the first call, stateful information
 // about all of the enabled watches within a group is created but no error results are
 // provided. On subsequent calls, any error information will be returned.
+// A response with more incidents than the native array can hold returns an error.
 func HealthCheck(groupID GroupHandle) (HealthResponse, error) {
 	return cgoAdapter{}.healthCheck(groupID)
 }
@@ -149,12 +150,21 @@ func (cgoAdapter) healthCheck(groupID GroupHandle) (HealthResponse, error) {
 		return HealthResponse{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
+	return healthResponseFromNative(&healthResults)
+}
+
+// healthResponseFromNative validates the native incident count before copying
+// incidents into Go-owned values.
+func healthResponseFromNative(healthResults *C.dcgmHealthResponse_v5) (HealthResponse, error) {
+	incidents := uint(healthResults.incidentCount)
+	maxIncidents := uint(len(healthResults.incidents))
+	if incidents > maxIncidents {
+		return HealthResponse{}, fmt.Errorf("health response contains %d incidents, maximum %d", incidents, maxIncidents)
+	}
+
 	response := HealthResponse{
 		OverallHealth: HealthResult(healthResults.overallHealth),
 	}
-
-	// number of watches that encountered error/warning
-	incidents := uint(healthResults.incidentCount)
 
 	response.Incidents = make([]Incident, incidents)
 

@@ -21,6 +21,8 @@ expect_literal() {
 
 expect_literal go.mod "go ${GO_VERSION}"
 expect_literal .devcontainer/Dockerfile "COPY hack/versions.env"
+expect_literal .devcontainer/Dockerfile "gocover-cobertura@v\${GOCOVER_COBERTURA_VERSION}"
+expect_literal .devcontainer/Dockerfile "go-junit-report/v2@v\${GO_JUNIT_REPORT_VERSION}"
 expect_literal .github/workflows/go.yml "go-version: ${GO_VERSION}"
 expect_literal .pre-commit-config.yaml "golang.org/x/tools/cmd/goimports@v${GOIMPORTS_VERSION}"
 expect_literal Taskfile.yml "hack/versions.env"

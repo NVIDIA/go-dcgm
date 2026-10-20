@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -94,7 +93,7 @@ func TestDeviceInfo(t *testing.T) {
 		"pci.bus_id",
 		"vbios_version",
 		"inforom.img",
-		"power.limit",
+		"power.default_limit",
 	}
 
 	gpus, err := dcgm.GetSupportedDevices()
@@ -113,6 +112,8 @@ func TestDeviceInfo(t *testing.T) {
 			if res == "[N/A]" {
 				continue
 			}
+
+			rawReference := res
 
 			switch val {
 			case "driver_version":
@@ -136,13 +137,15 @@ func TestDeviceInfo(t *testing.T) {
 			case "inforom.img":
 				msg = "Device inforom image"
 				output = info.Identifiers.InforomImageVersion
-			case "power.limit":
-				msg = "Device power limit"
+			case "power.default_limit":
+				msg = "Device default power limit"
 				output = strconv.FormatUint(uint64(info.Power), 10)
 				power, err := strconv.ParseFloat(res, 64)
 				check(t, err)
 
-				res = strconv.FormatUint(uint64(math.Round(power)), 10)
+				// DCGM exposes the boot default as whole watts, discarding the fraction.
+				res = strconv.FormatUint(uint64(power), 10)
+				t.Logf("GPU %s default power: nvidia-smi=%q W, DCGM=%s W", id, rawReference, output)
 			}
 
 			if strings.Compare(res, output) != 0 {
@@ -150,7 +153,7 @@ func TestDeviceInfo(t *testing.T) {
 					continue
 				}
 
-				t.Errorf("%v from dcgm is wrong, got: %v, want: %v", msg, output, res)
+				t.Errorf("%v from dcgm is wrong, got: %v, want: %v (nvidia-smi %s=%q)", msg, output, res, val, rawReference)
 			}
 		}
 	}

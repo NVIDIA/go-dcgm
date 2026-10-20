@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	base    = 10
-	bitsize = 32
+	base                       = 10
+	bitsize                    = 32
+	internalServerErrorMessage = "internal server error"
 
 	// DeviceInfo is the template for formatting device information output
 	deviceInfo = `Driver Version         : {{.Identifiers.DriverVersion}}
@@ -111,6 +112,11 @@ func logRequestError(req *http.Request, err error) {
 	}
 }
 
+func writeInternalError(resp http.ResponseWriter, req *http.Request, err error) {
+	logRequestError(req, err)
+	http.Error(resp, internalServerErrorMessage, http.StatusInternalServerError)
+}
+
 func logRequestStatus(req *http.Request, status int) {
 	logRequestMessage(req, http.StatusText(status))
 }
@@ -164,8 +170,7 @@ func getIdByUuid(resp http.ResponseWriter, req *http.Request, key string) uint {
 func isValidIdWithDeps(id uint, resp http.ResponseWriter, req *http.Request, deps deviceDeps) bool {
 	count, err := deps.getAllDeviceCount()
 	if err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 		return false
 	}
 
@@ -181,8 +186,7 @@ func isValidIdWithDeps(id uint, resp http.ResponseWriter, req *http.Request, dep
 func isDcgmSupportedWithDeps(gpuID uint, resp http.ResponseWriter, req *http.Request, deps deviceDeps) bool {
 	gpus, err := deps.getSupportedDevices()
 	if err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 		return false
 	}
 
@@ -193,8 +197,7 @@ func isDcgmSupportedWithDeps(gpuID uint, resp http.ResponseWriter, req *http.Req
 	}
 
 	err = fmt.Errorf("error adding gpu %d to group: This gpu is not supported by dcgm", gpuID)
-	http.Error(resp, err.Error(), http.StatusInternalServerError)
-	logRequestError(req, err)
+	writeInternalError(resp, req, err)
 	return false
 }
 
@@ -210,8 +213,7 @@ func printer(resp http.ResponseWriter, req *http.Request, stats any, t *template
 	var output bytes.Buffer
 	// #nosec G708 -- t is parsed from package-local templates at startup.
 	if err := t.Execute(&output, stats); err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 		return
 	}
 
@@ -225,8 +227,7 @@ func encode(resp http.ResponseWriter, req *http.Request, stats any) {
 	resp.Header().Set("Content-Type", "application/json")
 
 	if err := json.NewEncoder(resp).Encode(stats); err != nil {
-		http.Error(resp, err.Error(), http.StatusInternalServerError)
-		logRequestError(req, err)
+		writeInternalError(resp, req, err)
 	}
 }
 
@@ -237,8 +238,7 @@ func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.Proc
 	for i := range pInfo {
 		// #nosec G708 -- processInfoTemplate is parsed from a package-local template at startup.
 		if err := processInfoTemplate.Execute(&output, pInfo[i]); err != nil {
-			http.Error(resp, err.Error(), http.StatusInternalServerError)
-			logRequestError(req, err)
+			writeInternalError(resp, req, err)
 			return
 		}
 	}

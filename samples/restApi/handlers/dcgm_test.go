@@ -39,6 +39,36 @@ func TestLogRequestErrorIncludesSanitizedContext(t *testing.T) {
 	}
 }
 
+func TestWriteInternalErrorHidesDetailsFromClient(t *testing.T) {
+	var output bytes.Buffer
+	previousOutput, previousFlags := log.Writer(), log.Flags()
+	log.SetOutput(&output)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(previousOutput)
+		log.SetFlags(previousFlags)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/dcgm/status", http.NoBody)
+	resp := httptest.NewRecorder()
+	detail := "DCGM internal detail"
+
+	writeInternalError(resp, req, errors.New(detail))
+
+	if resp.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", resp.Code, http.StatusInternalServerError)
+	}
+	if got, want := resp.Body.String(), internalServerErrorMessage+"\n"; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
+	}
+	if strings.Contains(resp.Body.String(), detail) {
+		t.Fatalf("response exposes internal error detail: %q", resp.Body.String())
+	}
+	if !strings.Contains(output.String(), detail) {
+		t.Fatalf("log %q does not contain internal error detail", output.String())
+	}
+}
+
 func TestGetProcessInfoDestroysWatchedGroup(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/process/123", http.NoBody)
 	req = mux.SetURLVars(req, map[string]string{"pid": "123"})
@@ -120,6 +150,9 @@ func TestGetProcessInfoDestroysGroupWhenGetProcessInfoFails(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
+	if got, want := rr.Body.String(), internalServerErrorMessage+"\n"; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
+	}
 }
 
 func TestGetProcessInfoDoesNotDestroyGroupWhenWatchFails(t *testing.T) {
@@ -150,6 +183,9 @@ func TestGetProcessInfoDoesNotDestroyGroupWhenWatchFails(t *testing.T) {
 	}
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
+	}
+	if got, want := rr.Body.String(), internalServerErrorMessage+"\n"; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
 	}
 }
 
@@ -259,8 +295,8 @@ func TestResponseFormattingErrors(t *testing.T) {
 			if resp.Code != http.StatusInternalServerError {
 				t.Fatalf("status = %d, want %d", resp.Code, http.StatusInternalServerError)
 			}
-			if resp.Body.Len() == 0 {
-				t.Fatal("body is empty, want formatting error")
+			if got, want := resp.Body.String(), internalServerErrorMessage+"\n"; got != want {
+				t.Fatalf("body = %q, want %q", got, want)
 			}
 		})
 	}

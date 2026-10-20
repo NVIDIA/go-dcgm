@@ -34,7 +34,7 @@ repos:
         description: run goimports
         entry: goimports -w -local nvidia.com/NVIDIA/go-dcgm
         language: golang
-        additional_dependencies: [golang.org/x/tools/cmd/goimports@v0.50.0]
+        additional_dependencies: [golang.org/x/tools/cmd/goimports@v0.52.0]
         types: [go]
         exclude: '(\.pb|\.sql|mock_.*)\.go'
       - id: go-mod-tidy

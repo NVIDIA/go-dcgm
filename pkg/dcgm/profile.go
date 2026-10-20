@@ -7,6 +7,7 @@ package dcgm
 import "C"
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -17,11 +18,12 @@ type MetricGroup struct {
 	FieldIds []uint
 }
 
+// getSupportedMetricGroups asks DCGM which profiling metric groups are
+// available for one GPU and converts the native response into Go values.
 func getSupportedMetricGroups(gpuID uint) ([]MetricGroup, error) {
 	var (
 		groupInfo C.dcgmProfGetMetricGroups_t
 		err       error
-		groups    []MetricGroup
 	)
 
 	groupInfo.version = makeVersion3(unsafe.Sizeof(groupInfo))
@@ -34,18 +36,33 @@ func getSupportedMetricGroups(gpuID uint) ([]MetricGroup, error) {
 		return nil, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
-	count := uint(groupInfo.numMetricGroups)
+	return metricGroupsFromResponse(&groupInfo)
+}
 
-	groups = make([]MetricGroup, count)
-	for i := uint(0); i < count; i++ {
-		groups[i].Major = uint(groupInfo.metricGroups[i].majorId)
-		groups[i].Minor = uint(groupInfo.metricGroups[i].minorId)
+// metricGroupsFromResponse validates a native metric-group response and copies
+// its groups and field IDs into Go-owned values.
+func metricGroupsFromResponse(groupInfo *C.dcgmProfGetMetricGroups_t) ([]MetricGroup, error) {
+	groupCount := uint(groupInfo.numMetricGroups)
+	maxGroupCount := uint(len(groupInfo.metricGroups))
+	if groupCount > maxGroupCount {
+		return nil, fmt.Errorf("metric group response contains %d groups, maximum %d", groupCount, maxGroupCount)
+	}
 
-		fieldCount := uint(groupInfo.metricGroups[i].numFieldIds)
+	groups := make([]MetricGroup, groupCount)
+	for i := uint(0); i < groupCount; i++ {
+		metricGroup := &groupInfo.metricGroups[i]
+		groups[i].Major = uint(metricGroup.majorId)
+		groups[i].Minor = uint(metricGroup.minorId)
+
+		fieldCount := uint(metricGroup.numFieldIds)
+		maxFieldCount := uint(len(metricGroup.fieldIds))
+		if fieldCount > maxFieldCount {
+			return nil, fmt.Errorf("metric group %d contains %d field IDs, maximum %d", i, fieldCount, maxFieldCount)
+		}
 
 		groups[i].FieldIds = make([]uint, fieldCount)
 		for j := uint(0); j < fieldCount; j++ {
-			groups[i].FieldIds[j] = uint(groupInfo.metricGroups[i].fieldIds[j])
+			groups[i].FieldIds[j] = uint(metricGroup.fieldIds[j])
 		}
 	}
 

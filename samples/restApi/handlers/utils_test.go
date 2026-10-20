@@ -21,11 +21,11 @@ func TestPrinterDiscardsPartialRenderOnError(t *testing.T) {
 		t.Fatalf("status = %d, want 500", resp.Code)
 	}
 	body := resp.Body.String()
-	if !strings.Contains(body, "can't evaluate field Missing") {
-		t.Fatalf("response does not explain the rendering error: %q", body)
+	if got, want := body, internalServerErrorMessage+"\n"; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
 	}
-	if strings.Contains(body, "prefix") || strings.Contains(body, "rendered") {
-		t.Fatalf("response contains partially rendered output: %q", body)
+	if strings.Contains(body, "can't evaluate field Missing") || strings.Contains(body, "prefix") || strings.Contains(body, "rendered") {
+		t.Fatalf("response exposes rendering details: %q", body)
 	}
 }
 

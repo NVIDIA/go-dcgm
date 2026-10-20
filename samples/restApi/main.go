@@ -9,6 +9,8 @@ import (
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
 
+const defaultListenAddress = "127.0.0.1:8070"
+
 // res: curl localhost:8070/dcgm/device/info/id/0
 
 func main() {
@@ -21,11 +23,11 @@ func main() {
 	}
 	defer cleanup()
 
-	addr := ":8070"
+	addr := defaultListenAddress
 	server := newHttpServer(addr)
 
 	go func() {
-		log.Printf("Running http server on localhost%s", addr)
+		log.Printf("Running http server on %s", addr)
 		server.serve()
 	}()
 

@@ -63,11 +63,14 @@ func getAllDeviceCount() (gpuCount uint, err error) {
 	if err = errorString(result); err != nil {
 		return gpuCount, fmt.Errorf("error getting devices count: %s", err)
 	}
+	if err = validateNativeCount(int(count), len(gpuIDList), "device"); err != nil {
+		return gpuCount, fmt.Errorf("error getting devices count: %w", err)
+	}
 	gpuCount = uint(count)
 	return
 }
 
-// getAllDeviceCount counts all GPUs on the system
+// getEntityGroupEntities returns the entity IDs in one native entity group.
 func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 	var err error
 	var pEntities [C.DCGM_GROUP_MAX_ENTITIES_V2]C.uint
@@ -78,9 +81,18 @@ func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 		return nil, fmt.Errorf("error getting entity count: %s", err)
 	}
 
-	entities := make([]uint, count)
+	return entityGroupEntitiesFromNative(&pEntities, count)
+}
 
-	for i := 0; i < int(count); i++ {
+// entityGroupEntitiesFromNative validates and copies native entity IDs into Go-owned memory.
+func entityGroupEntitiesFromNative(pEntities *[C.DCGM_GROUP_MAX_ENTITIES_V2]C.uint, count C.int) ([]uint, error) {
+	entityCount := int(count)
+	if err := validateNativeCount(entityCount, len(pEntities), "entity"); err != nil {
+		return nil, err
+	}
+
+	entities := make([]uint, entityCount)
+	for i := 0; i < entityCount; i++ {
 		entities[i] = uint(pEntities[i])
 	}
 	return entities, nil
@@ -101,15 +113,38 @@ func (cgoAdapter) getSupportedDevices() (gpus []uint, err error) {
 		return gpus, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
-	numGpus := int(count)
-	gpus = make([]uint, numGpus)
-	for i := 0; i < numGpus; i++ {
-		gpus[i] = uint(gpuIDList[i])
-	}
-	return
+	return supportedDevicesFromNative(&gpuIDList, count)
 }
 
+// supportedDevicesFromNative validates and copies supported GPU IDs into Go-owned memory.
+func supportedDevicesFromNative(gpuIDList *[C.DCGM_MAX_NUM_DEVICES]C.uint, count C.int) ([]uint, error) {
+	numGPUs := int(count)
+	if err := validateNativeCount(numGPUs, len(gpuIDList), "supported GPU"); err != nil {
+		return nil, err
+	}
+
+	gpus := make([]uint, numGPUs)
+	for i := 0; i < numGPUs; i++ {
+		gpus[i] = uint(gpuIDList[i])
+	}
+	return gpus, nil
+}
+
+// validateNativeCount rejects negative counts and counts larger than a native fixed array.
+func validateNativeCount(count, capacity int, description string) error {
+	if count < 0 || count > capacity {
+		return fmt.Errorf("invalid %s count %d, expected 0 through %d", description, count, capacity)
+	}
+	return nil
+}
+
+// getPciBandwidth calculates a GPU's PCIe bandwidth using the production native adapter.
 func getPciBandwidth(gpuID uint) (int64, error) {
+	return getPciBandwidthWithOps(cgoAdapter{}, gpuID)
+}
+
+// getPciBandwidthWithOps reads the PCIe generation and width through injectable operations.
+func getPciBandwidthWithOps(api deviceStatusOps, gpuID uint) (int64, error) {
 	const (
 		maxLinkGen int = iota
 		maxLinkWidth
@@ -122,30 +157,30 @@ func getPciBandwidth(gpuID uint) (int64, error) {
 
 	fieldsName := fmt.Sprintf("pciBandwidthFields%d", rand.Uint64())
 
-	fieldsID, err := FieldGroupCreate(fieldsName, pciFields)
+	fieldsID, err := api.fieldGroupCreate(fieldsName, pciFields)
 	if err != nil {
 		return 0, err
 	}
 
 	groupName := fmt.Sprintf("pciBandwidth%d", rand.Uint64())
-	groupID, err := WatchFields(gpuID, fieldsID, groupName)
+	groupID, err := api.watchFields(gpuID, fieldsID, groupName)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsID)
+		_ = api.fieldGroupDestroy(fieldsID)
 		return 0, err
 	}
 
-	values, err := GetLatestValuesForFields(gpuID, pciFields)
+	values, err := api.getLatestValuesForFields(gpuID, pciFields)
 	if err != nil {
-		_ = FieldGroupDestroy(fieldsID)
-		_ = DestroyGroup(groupID)
+		_ = api.fieldGroupDestroy(fieldsID)
+		_ = api.destroyGroup(groupID)
 		return 0, fmt.Errorf("error getting Pcie bandwidth: %s", err)
 	}
 
 	gen := values[maxLinkGen].Int64()
 	width := values[maxLinkWidth].Int64()
 
-	_ = FieldGroupDestroy(fieldsID)
-	_ = DestroyGroup(groupID)
+	_ = api.fieldGroupDestroy(fieldsID)
+	_ = api.destroyGroup(groupID)
 
 	return pcieBandwidth(gen, width), nil
 }
@@ -155,6 +190,7 @@ func (cgoAdapter) getPciBandwidth(gpuID uint) (int64, error) {
 	return getPciBandwidth(gpuID)
 }
 
+// pcieBandwidth converts a PCIe generation and lane width into megabytes per second.
 func pcieBandwidth(generation, width int64) int64 {
 	perLane := map[int64]int64{
 		1: 250, // MB/s
@@ -165,7 +201,13 @@ func pcieBandwidth(generation, width int64) int64 {
 	return perLane[generation] * width
 }
 
+// getCPUAffinity formats a GPU's CPU affinity using the production native adapter.
 func getCPUAffinity(gpuID uint) (string, error) {
+	return getCPUAffinityWithOps(cgoAdapter{}, gpuID)
+}
+
+// getCPUAffinityWithOps reads and formats CPU-affinity bitmasks through injectable operations.
+func getCPUAffinityWithOps(api deviceStatusOps, gpuID uint) (string, error) {
 	const (
 		affinity0 int = iota
 		affinity1
@@ -182,12 +224,12 @@ func getCPUAffinity(gpuID uint) (string, error) {
 
 	fieldsName := fmt.Sprintf("cpuAffFields%d", rand.Uint64())
 
-	fieldsId, err := FieldGroupCreate(fieldsName, affFields)
+	fieldsId, err := api.fieldGroupCreate(fieldsName, affFields)
 	if err != nil {
 		return "N/A", err
 	}
 	defer func() {
-		ret := FieldGroupDestroy(fieldsId)
+		ret := api.fieldGroupDestroy(fieldsId)
 
 		if ret != nil {
 			log.Printf("error destroying field group: %v", ret)
@@ -195,19 +237,19 @@ func getCPUAffinity(gpuID uint) (string, error) {
 	}()
 
 	groupName := fmt.Sprintf("cpuAff%d", rand.Uint64())
-	groupID, err := WatchFields(gpuID, fieldsId, groupName)
+	groupID, err := api.watchFields(gpuID, fieldsId, groupName)
 	if err != nil {
 		return "N/A", err
 	}
 	defer func() {
-		ret := DestroyGroup(groupID)
+		ret := api.destroyGroup(groupID)
 
 		if ret != nil {
 			log.Printf("error destroying group: %v", ret)
 		}
 	}()
 
-	values, err := GetLatestValuesForFields(gpuID, affFields)
+	values, err := api.getLatestValuesForFields(gpuID, affFields)
 	if err != nil {
 		return "N/A", fmt.Errorf("error getting cpu affinity: %s", err)
 	}
@@ -243,6 +285,11 @@ func (cgoAdapter) readDeviceAttributes(gpuID uint) (deviceAttributes, error) {
 		return deviceAttributes{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
+	return deviceAttributesFromNative(&device), nil
+}
+
+// deviceAttributesFromNative converts native GPU attributes into Go-owned values.
+func deviceAttributesFromNative(device *C.dcgmDeviceAttributes_t) deviceAttributes {
 	return deviceAttributes{
 		busID:   *stringPtr(&device.identifiers.pciBusId[0]),
 		uuid:    *stringPtr(&device.identifiers.uuid[0]),
@@ -257,7 +304,7 @@ func (cgoAdapter) readDeviceAttributes(gpuID uint) (deviceAttributes, error) {
 			InforomImageVersion: *stringPtr(&device.identifiers.inforomImageVersion[0]),
 			DriverVersion:       *stringPtr(&device.identifiers.driverVersion[0]),
 		},
-	}, nil
+	}
 }
 
 // getDeviceInfoWithOps builds a Device from GPU attributes.
@@ -321,6 +368,7 @@ func getDeviceInfoWithOps(api deviceInfoOps, gpuID uint) (Device, error) {
 	}, nil
 }
 
+// getNvLinkP2PStatus reads and converts the native GPU-to-GPU link matrix.
 func getNvLinkP2PStatus() (NvLinkP2PStatus, error) {
 	var linkStatus C.dcgmNvLinkP2PStatus_v1
 	linkStatus.version = makeVersion1(unsafe.Sizeof(linkStatus))
@@ -334,19 +382,29 @@ func getNvLinkP2PStatus() (NvLinkP2PStatus, error) {
 		return NvLinkP2PStatus{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
-	links := make([][]Link_State, linkStatus.numGpus)
-	for i := range links {
-		links[i] = make([]Link_State, linkStatus.numGpus)
+	return nvLinkP2PStatusFromNative(&linkStatus)
+}
+
+// nvLinkP2PStatusFromNative validates and converts a native GPU-to-GPU link matrix.
+func nvLinkP2PStatusFromNative(linkStatus *C.dcgmNvLinkP2PStatus_v1) (NvLinkP2PStatus, error) {
+	numGPUs := int(linkStatus.numGpus)
+	if err := validateNativeCount(numGPUs, len(linkStatus.gpus), "NVLink GPU"); err != nil {
+		return NvLinkP2PStatus{}, err
 	}
 
-	for i := uint(0); i < uint(linkStatus.numGpus); i++ {
-		for j := 0; j < int(linkStatus.numGpus); j++ {
+	links := make([][]Link_State, numGPUs)
+	for i := range links {
+		links[i] = make([]Link_State, numGPUs)
+	}
+
+	for i := 0; i < numGPUs; i++ {
+		for j := 0; j < numGPUs; j++ {
 			links[i][j] = Link_State(linkStatus.gpus[i].linkStatus[j])
 		}
 	}
 
 	return NvLinkP2PStatus{
-		numGpus: uint(linkStatus.numGpus),
+		numGpus: uint(numGPUs),
 		Gpus:    links,
 	}, nil
 }

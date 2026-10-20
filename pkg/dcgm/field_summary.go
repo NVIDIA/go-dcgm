@@ -24,6 +24,7 @@ import "C"
 
 import (
 	"fmt"
+	"math"
 	"math/bits"
 	"unsafe"
 )
@@ -76,6 +77,14 @@ type FieldSummary struct {
 	Float64Values map[FieldSummaryType]float64
 }
 
+// fieldSummaryResponse copies the native field-summary data into Go values so
+// the response validation and decoding logic can be tested without calling DCGM.
+type fieldSummaryResponse struct {
+	fieldType    uint
+	summaryCount uint
+	values       [len(orderedFieldSummaryTypes)]uint64
+}
+
 // GetFieldSummary returns summary statistics for a watched GPU field.
 // startTime and endTime are Unix timestamps in microseconds. Zero means the
 // corresponding end of the time range is unbounded.
@@ -119,16 +128,33 @@ func EntityGetFieldSummary(
 		return FieldSummary{}, fmt.Errorf("error getting field summary: %w", err)
 	}
 
+	response := fieldSummaryResponse{
+		fieldType:    uint(request.response.fieldType),
+		summaryCount: uint(request.response.summaryCount),
+	}
+	for i := range response.values {
+		response.values[i] = uint64(*(*C.uint64_t)(unsafe.Pointer(&request.response.values[i])))
+	}
+
+	return fieldSummaryFromResponse(summaryTypes, response)
+}
+
+// fieldSummaryFromResponse validates a copied DCGM response and maps its packed
+// values to the summary types requested by the caller.
+func fieldSummaryFromResponse(
+	summaryTypes FieldSummaryType,
+	response fieldSummaryResponse,
+) (FieldSummary, error) {
 	requestedCount := bits.OnesCount32(uint32(summaryTypes))
-	if int(request.response.summaryCount) != requestedCount {
+	if int(response.summaryCount) != requestedCount {
 		return FieldSummary{}, fmt.Errorf(
 			"field summary returned %d values, expected %d",
-			request.response.summaryCount,
+			response.summaryCount,
 			requestedCount,
 		)
 	}
 
-	summary := FieldSummary{FieldType: uint(request.response.fieldType)}
+	summary := FieldSummary{FieldType: response.fieldType}
 	switch summary.FieldType {
 	case DCGM_FT_INT64:
 		summary.Int64Values = make(map[FieldSummaryType]int64, requestedCount)
@@ -144,11 +170,10 @@ func EntityGetFieldSummary(
 			continue
 		}
 
-		value := unsafe.Pointer(&request.response.values[responseIndex])
 		if summary.FieldType == DCGM_FT_INT64 {
-			summary.Int64Values[summaryType] = int64(*(*C.int64_t)(value))
+			summary.Int64Values[summaryType] = int64(response.values[responseIndex])
 		} else {
-			summary.Float64Values[summaryType] = float64(*(*C.double)(value))
+			summary.Float64Values[summaryType] = math.Float64frombits(response.values[responseIndex])
 		}
 		responseIndex++
 	}

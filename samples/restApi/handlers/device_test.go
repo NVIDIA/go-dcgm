@@ -41,6 +41,17 @@ func deviceRequest(vars map[string]string) (*httptest.ResponseRecorder, *http.Re
 	return resp, mux.SetURLVars(req, vars)
 }
 
+func assertInternalServerErrorBody(t *testing.T, resp *httptest.ResponseRecorder) {
+	t.Helper()
+	if resp.Code != http.StatusInternalServerError {
+		return
+	}
+
+	if got, want := resp.Body.String(), internalServerErrorMessage+"\n"; got != want {
+		t.Fatalf("body = %q, want exactly %q", got, want)
+	}
+}
+
 func TestGetStatusWithDeps(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -48,10 +59,9 @@ func TestGetStatusWithDeps(t *testing.T) {
 		err        error
 		wantNil    bool
 		wantStatus int
-		wantText   string
 	}{
 		{name: "success", status: dcgm.Status{Memory: 42}, wantStatus: http.StatusOK},
-		{name: "error", err: errors.New("introspection failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantText: "introspection failed"},
+		{name: "error", err: errors.New("introspection failed"), wantNil: true, wantStatus: http.StatusInternalServerError},
 	}
 
 	for _, tt := range tests {
@@ -73,9 +83,7 @@ func TestGetStatusWithDeps(t *testing.T) {
 			if resp.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d", resp.Code, tt.wantStatus)
 			}
-			if !strings.Contains(resp.Body.String(), tt.wantText) {
-				t.Fatalf("body %q does not contain %q", resp.Body.String(), tt.wantText)
-			}
+			assertInternalServerErrorBody(t, resp)
 		})
 	}
 }
@@ -98,16 +106,15 @@ func TestGetDeviceInfoWithDeps(t *testing.T) {
 		wantID         uint
 		wantCountCalls int
 		wantInfoCalls  int
-		wantText       string
 	}{
 		{name: "numeric ID", vars: map[string]string{"id": "0"}, count: 2, wantStatus: http.StatusOK, wantID: 0, wantCountCalls: 1, wantInfoCalls: 1},
 		{name: "invalid numeric ID", vars: map[string]string{"id": "not-a-number"}, wantNil: true, wantStatus: http.StatusBadRequest},
 		{name: "overflowing numeric ID", vars: map[string]string{"id": "4294967296"}, wantNil: true, wantStatus: http.StatusBadRequest},
 		{name: "known UUID", vars: map[string]string{"uuid": "GPU-known"}, uuidMap: map[string]uint{"GPU-known": 1}, count: 2, wantStatus: http.StatusOK, wantID: 1, wantCountCalls: 1, wantInfoCalls: 1},
 		{name: "missing UUID", vars: map[string]string{"uuid": "GPU-missing"}, uuidMap: map[string]uint{}, wantNil: true, wantStatus: http.StatusNotFound},
-		{name: "count error", vars: map[string]string{"id": "0"}, countErr: errors.New("count failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantCountCalls: 1, wantText: "count failed"},
+		{name: "count error", vars: map[string]string{"id": "0"}, countErr: errors.New("count failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantCountCalls: 1},
 		{name: "out of range", vars: map[string]string{"id": "2"}, count: 2, wantNil: true, wantStatus: http.StatusNotFound, wantCountCalls: 1},
-		{name: "device info error", vars: map[string]string{"id": "0"}, count: 2, infoErr: errors.New("device info failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantCountCalls: 1, wantInfoCalls: 1, wantText: "device info failed"},
+		{name: "device info error", vars: map[string]string{"id": "0"}, count: 2, infoErr: errors.New("device info failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantCountCalls: 1, wantInfoCalls: 1},
 	}
 
 	for _, tt := range tests {
@@ -143,9 +150,7 @@ func TestGetDeviceInfoWithDeps(t *testing.T) {
 			if resp.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d", resp.Code, tt.wantStatus)
 			}
-			if !strings.Contains(resp.Body.String(), tt.wantText) {
-				t.Fatalf("body %q does not contain %q", resp.Body.String(), tt.wantText)
-			}
+			assertInternalServerErrorBody(t, resp)
 		})
 	}
 }
@@ -159,12 +164,11 @@ func TestGetDeviceStatusWithDeps(t *testing.T) {
 		wantNil      bool
 		wantStatus   int
 		wantCalls    int
-		wantText     string
 	}{
 		{name: "success", supported: []uint{0}, wantStatus: http.StatusOK, wantCalls: 1},
-		{name: "supported devices error", supportedErr: errors.New("supported failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantText: "supported failed"},
-		{name: "unsupported GPU", supported: []uint{1}, wantNil: true, wantStatus: http.StatusInternalServerError, wantText: "not supported by dcgm"},
-		{name: "device status error", supported: []uint{0}, statusErr: errors.New("status failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantCalls: 1, wantText: "status failed"},
+		{name: "supported devices error", supportedErr: errors.New("supported failed"), wantNil: true, wantStatus: http.StatusInternalServerError},
+		{name: "unsupported GPU", supported: []uint{1}, wantNil: true, wantStatus: http.StatusInternalServerError},
+		{name: "device status error", supported: []uint{0}, statusErr: errors.New("status failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantCalls: 1},
 	}
 
 	for _, tt := range tests {
@@ -194,9 +198,7 @@ func TestGetDeviceStatusWithDeps(t *testing.T) {
 			if resp.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d", resp.Code, tt.wantStatus)
 			}
-			if !strings.Contains(resp.Body.String(), tt.wantText) {
-				t.Fatalf("body %q does not contain %q", resp.Body.String(), tt.wantText)
-			}
+			assertInternalServerErrorBody(t, resp)
 		})
 	}
 }
@@ -207,10 +209,9 @@ func TestGetHealthWithDeps(t *testing.T) {
 		err        error
 		wantNil    bool
 		wantStatus int
-		wantText   string
 	}{
 		{name: "success", wantStatus: http.StatusOK},
-		{name: "error", err: errors.New("health failed"), wantNil: true, wantStatus: http.StatusInternalServerError, wantText: "health failed"},
+		{name: "error", err: errors.New("health failed"), wantNil: true, wantStatus: http.StatusInternalServerError},
 	}
 
 	for _, tt := range tests {
@@ -232,9 +233,7 @@ func TestGetHealthWithDeps(t *testing.T) {
 			if resp.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d", resp.Code, tt.wantStatus)
 			}
-			if !strings.Contains(resp.Body.String(), tt.wantText) {
-				t.Fatalf("body %q does not contain %q", resp.Body.String(), tt.wantText)
-			}
+			assertInternalServerErrorBody(t, resp)
 		})
 	}
 }
