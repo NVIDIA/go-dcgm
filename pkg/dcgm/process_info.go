@@ -148,6 +148,7 @@ func (cgoAdapter) watchPidFieldsNative(group GroupHandle, updateFreq, maxKeepAge
 	if err := errorString(result); err != nil {
 		return &Error{msg: dcgmErrorText(result), Code: result}
 	}
+
 	return nil
 }
 

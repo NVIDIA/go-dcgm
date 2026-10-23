@@ -119,6 +119,49 @@ func WatchPidFields() (GroupHandle, error) {
 	return watchPidFields(time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
 }
 
+// WatchPidFieldsForGroup configures DCGM to start recording stats for GPU processes
+// using a pre-created group. The group must already exist.
+// Must be called before GetProcessInfo.
+//
+// Important: The group must be cleaned up by calling DestroyGroup
+// when monitoring is no longer needed to prevent resource leaks.
+//
+// Example:
+//
+//	group, err := dcgm.CreateGroup("myGroup")
+//	if err != nil {
+//	    return err
+//	}
+//	defer dcgm.DestroyGroup(group)
+//
+//	err = dcgm.AddToGroup(group, gpuID)
+//	if err != nil {
+//	    return err
+//	}
+//
+//	err = dcgm.WatchPidFieldsForGroup(group)
+//	if err != nil {
+//	    return err
+//	}
+//
+//	// Use GetProcessInfo with the group...
+func WatchPidFieldsForGroup(group GroupHandle) error {
+	return WatchPidFieldsForGroupEx(group, time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
+}
+
+// WatchPidFieldsForGroupEx configures DCGM to start recording stats for GPU processes
+// using a pre-created group with custom parameters. The group must already exist.
+// Must be called before GetProcessInfo.
+//
+// Important: The group must be cleaned up by calling DestroyGroup
+// when monitoring is no longer needed to prevent resource leaks.
+func WatchPidFieldsForGroupEx(group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
+	if err := watchPidFieldsForGroup(group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
+		return err
+	}
+	return UpdateAllFields()
+}
+
 // GetProcessInfo returns detailed per-GPU statistics for the specified process
 func GetProcessInfo(group GroupHandle, pid uint) ([]ProcessInfo, error) {
 	return getProcessInfo(group, pid)
