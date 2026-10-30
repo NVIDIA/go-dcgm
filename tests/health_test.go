@@ -1,6 +1,10 @@
 package tests
 
 import (
+	"errors"
+	"fmt"
+	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
@@ -164,4 +168,183 @@ func TestHealthCheckAllGPUs(t *testing.T) {
 	if healthyGPUs == 0 && unhealthyGPUs == 0 {
 		t.Error("No GPU health status could be determined")
 	}
+}
+
+var dcgmVersionPattern = regexp.MustCompile(`version:\s*(\d+)\.(\d+)\.(\d+)`)
+
+// requireHealthV3API stops the test when the DCGM 4.7.1 health APIs are unavailable.
+// DCGM 4.7.1 and later must provide them, so the test fails there; older DCGM skips.
+func requireHealthV3API(t *testing.T, err error) {
+	t.Helper()
+
+	if !dcgm.IsFeatureUnavailable(err) {
+		return
+	}
+
+	version := hostengineVersion(t, err)
+	if version[0] > 4 || (version[0] == 4 && (version[1] > 7 || (version[1] == 7 && version[2] >= 1))) {
+		t.Fatalf("DCGM %d.%d.%d must provide the health API: %v", version[0], version[1], version[2], err)
+	}
+
+	t.Skipf("DCGM %d.%d.%d does not provide the health API: %v", version[0], version[1], version[2], err)
+}
+
+// hostengineVersion returns the connected host engine's major, minor and patch
+// version from its build info. It fails the test if the version can't be read;
+// apiErr is the unavailable-API error, included in that failure message.
+func hostengineVersion(t *testing.T, apiErr error) [3]int {
+	t.Helper()
+
+	info, err := dcgm.GetHostengineVersionInfo()
+	if err != nil {
+		t.Fatalf("health API unavailable (%v) and the host engine version is unknown: %v", apiErr, err)
+	}
+
+	match := dcgmVersionPattern.FindStringSubmatch(info.RawBuildInfoString)
+	if match == nil {
+		t.Fatalf("health API unavailable (%v) and no version in build info %q", apiErr, info.RawBuildInfoString)
+	}
+
+	var version [3]int
+	for i := range version {
+		version[i], _ = strconv.Atoi(match[i+1])
+	}
+
+	return version
+}
+
+// newHealthTestGroup returns a group holding the first supported GPU.
+func newHealthTestGroup(t *testing.T) dcgm.GroupHandle {
+	t.Helper()
+
+	gpus, err := dcgm.GetSupportedDevices()
+	if err != nil {
+		t.Fatalf("Failed to get supported devices: %v", err)
+	}
+	if len(gpus) == 0 {
+		t.Skip("No supported GPUs found for health checking")
+	}
+
+	group, err := dcgm.CreateGroup(fmt.Sprintf("health-v3-%d", time.Now().UnixNano()))
+	if err != nil {
+		t.Fatalf("Failed to create group: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := dcgm.DestroyGroup(group); err != nil {
+			t.Errorf("Failed to destroy group: %v", err)
+		}
+	})
+
+	if err := dcgm.AddToGroup(group, gpus[0]); err != nil {
+		t.Fatalf("Failed to add GPU %d to group: %v", gpus[0], err)
+	}
+
+	return group
+}
+
+// TestHealthSetWithParamsStrict checks that the host engine reports some supported
+// health systems and that DCGM_HEALTH_WATCH_ALL enables exactly those.
+func TestHealthSetWithParamsStrict(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	t.Cleanup(cleanup) // runs after the group cleanup registered later
+
+	supported, err := dcgm.HealthGetSupportedSystems()
+	requireHealthV3API(t, err)
+	if err != nil {
+		t.Fatalf("HealthGetSupportedSystems failed: %v", err)
+	}
+	if supported == 0 {
+		t.Fatal("HealthGetSupportedSystems returned an empty mask")
+	}
+
+	group := newHealthTestGroup(t)
+
+	err = dcgm.HealthSetWithParamsStrict(group, dcgm.DCGM_HEALTH_WATCH_ALL, time.Second, time.Minute)
+	requireHealthV3API(t, err)
+	if err != nil {
+		t.Fatalf("HealthSetWithParamsStrict(ALL) failed: %v", err)
+	}
+
+	enabled, err := dcgm.HealthGet(group)
+	if err != nil {
+		t.Fatalf("HealthGet failed: %v", err)
+	}
+	if enabled != supported {
+		t.Fatalf("enabled systems %#x, want supported systems %#x", uint(enabled), uint(supported))
+	}
+}
+
+// TestHealthSetWithParamsStrictRejectsUnsupported checks that a system the host engine
+// does not support is rejected and the group's watches stay unchanged.
+func TestHealthSetWithParamsStrictRejectsUnsupported(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	t.Cleanup(cleanup) // runs after the group cleanup registered later
+
+	supported, err := dcgm.HealthGetSupportedSystems()
+	requireHealthV3API(t, err)
+	if err != nil {
+		t.Fatalf("HealthGetSupportedSystems failed: %v", err)
+	}
+
+	known, unsupported := pickSupportedAndUnsupported(supported)
+	if known == 0 {
+		t.Fatalf("no defined health system is supported (mask %#x)", uint(supported))
+	}
+	if unsupported == 0 {
+		t.Skipf("every defined health system is supported (mask %#x)", uint(supported))
+	}
+
+	// Start from a known state: one supported system enabled.
+	group := newHealthTestGroup(t)
+	if err = dcgm.HealthSetWithParamsStrict(group, known, time.Second, time.Minute); err != nil {
+		t.Fatalf("HealthSetWithParamsStrict(%#x) failed: %v", uint(known), err)
+	}
+
+	// Adding an unsupported system must fail with DCGM_ST_NOT_SUPPORTED.
+	err = dcgm.HealthSetWithParamsStrict(group, known|unsupported, time.Second, time.Minute)
+
+	var dcgmErr *dcgm.Error
+	if !errors.As(err, &dcgmErr) || dcgmErr.Code != dcgm.DCGM_ST_NOT_SUPPORTED {
+		t.Fatalf("HealthSetWithParamsStrict(%#x) = %v, want *dcgm.Error with DCGM_ST_NOT_SUPPORTED", uint(known|unsupported), err)
+	}
+	if dcgm.IsFeatureUnavailable(err) {
+		t.Fatalf("a rejected system must not be reported as an unavailable feature: %v", err)
+	}
+
+	enabled, err := dcgm.HealthGet(group)
+	if err != nil {
+		t.Fatalf("HealthGet failed: %v", err)
+	}
+	if enabled != known {
+		t.Fatalf("enabled systems %#x after a rejected call, want %#x", uint(enabled), uint(known))
+	}
+}
+
+// pickSupportedAndUnsupported returns the first defined health system that is in
+// the supported mask and the first one that is not. Either is 0 when none exists.
+func pickSupportedAndUnsupported(supported dcgm.HealthSystem) (known, unsupported dcgm.HealthSystem) {
+	defined := []dcgm.HealthSystem{
+		dcgm.DCGM_HEALTH_WATCH_PCIE, dcgm.DCGM_HEALTH_WATCH_NVLINK, dcgm.DCGM_HEALTH_WATCH_PMU,
+		dcgm.DCGM_HEALTH_WATCH_MCU, dcgm.DCGM_HEALTH_WATCH_MEM, dcgm.DCGM_HEALTH_WATCH_SM,
+		dcgm.DCGM_HEALTH_WATCH_INFOROM, dcgm.DCGM_HEALTH_WATCH_THERMAL, dcgm.DCGM_HEALTH_WATCH_POWER,
+		dcgm.DCGM_HEALTH_WATCH_DRIVER, dcgm.DCGM_HEALTH_WATCH_NVSWITCH_NONFATAL,
+		dcgm.DCGM_HEALTH_WATCH_NVSWITCH_FATAL, dcgm.DCGM_HEALTH_WATCH_CONNECTX, dcgm.DCGM_HEALTH_WATCH_IMEX,
+	}
+
+	for _, bit := range defined {
+		switch {
+		case supported&bit != 0 && known == 0:
+			known = bit
+		case supported&bit == 0 && unsupported == 0:
+			unsupported = bit
+		}
+	}
+
+	return known, unsupported
 }

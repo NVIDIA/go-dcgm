@@ -156,3 +156,7 @@ func TestGetPolicyForGroupWithOps(t *testing.T) {
 		})
 	}
 }
+
+func TestViolationRegistrationIgnoresNilData(t *testing.T) {
+	require.Zero(t, ViolationRegistration(nil, 0))
+}

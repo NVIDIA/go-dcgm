@@ -5,10 +5,10 @@ section below explains how.
 
 ## Build tool prerequisites
 
-The repository uses Go 1.27.2, Task 3.54.0, Bazelisk 1.29.0, gofumpt 0.12.0,
-and golangci-lint 2.15.0. Install those versions using your platform package
-manager or their upstream installation instructions. Bazelisk reads the
-repository's `.bazelversion` file.
+The repository needs Go, Task, Bazelisk, gofumpt and golangci-lint. Their
+pinned versions are in [`hack/versions.env`](hack/versions.env). Install those
+versions using your platform package manager or their upstream installation
+instructions. Bazelisk reads the repository's `.bazelversion` file.
 
 You can instead open the repository in a
 [Dev Containers](https://containers.dev/) compatible editor. The checked-in

@@ -31,6 +31,8 @@ const (
 	testCPUHierarchyVersion2       = C.dcgmCpuHierarchy_version2
 	testDCGMStatusVersionMismatch  = C.DCGM_ST_VER_MISMATCH
 	testDCGMStatusFunctionNotFound = C.DCGM_ST_FUNCTION_NOT_FOUND
+	testDCGMStatusNotSupported     = C.DCGM_ST_NOT_SUPPORTED
+	testDCGMStatusBadParam         = C.DCGM_ST_BADPARAM
 )
 
 type testDCGMReturn = C.dcgmReturn_t

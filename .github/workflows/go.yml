@@ -16,28 +16,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+      # Run the repository tasks in the development container, so local and CI
+      # runs share one toolchain and one coverage path.
+      - name: Build and test in the devcontainer
+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca  # v0.3.1900000450
         with:
-          go-version: 1.27.2
-          cache: true
-      - name: Install pinned build tools
-        shell: bash
-        run: |
-          source hack/versions.env
-          mkdir -p "${RUNNER_TEMP}/bin"
-          export GOBIN="${RUNNER_TEMP}/bin"
-          go install "github.com/go-task/task/v3/cmd/task@v${TASK_VERSION}"
-          go install "github.com/bazelbuild/bazelisk@v${BAZELISK_VERSION}"
-          go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}"
-          go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}"
-          ln -s "${RUNNER_TEMP}/bin/bazelisk" "${RUNNER_TEMP}/bin/bazel"
-          echo "${RUNNER_TEMP}/bin" >>"${GITHUB_PATH}"
-      - name: Build
-        run: task build
-      - name: Test
-        run: task test:unit
-      - name: Check formatting
-        run: task fmt:check
-      - name: Lint
-        run: task lint
+          configFile: .devcontainer/devcontainer.json
+          runCmd: |
+            set -e
+            task build
+            task test:unit:coverage
+            task fmt:check
+            task lint
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5  # v7.1.1
+        with:
+          disable_search: true
+          files: ./tests.cov
+          token: ${{ secrets.CODECOV_TOKEN }}

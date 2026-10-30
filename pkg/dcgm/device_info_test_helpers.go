@@ -40,7 +40,7 @@ func supportedDeviceCapacityForTest() int {
 // entityGroupEntitiesFromValuesForTest builds a native entity response and
 // passes it through the production response converter.
 func entityGroupEntitiesFromValuesForTest(entityIDs []uint, reportedCount int) ([]uint, error) {
-	var nativeIDs [C.DCGM_GROUP_MAX_ENTITIES_V2]C.uint
+	var nativeIDs [C.DCGM_ENTITY_GROUP_ENTITIES_MAX]C.uint
 	for i := 0; i < min(len(entityIDs), len(nativeIDs)); i++ {
 		nativeIDs[i] = C.uint(entityIDs[i])
 	}
@@ -49,7 +49,7 @@ func entityGroupEntitiesFromValuesForTest(entityIDs []uint, reportedCount int) (
 
 // entityGroupCapacityForTest reports the fixed native entity-group capacity.
 func entityGroupCapacityForTest() int {
-	var nativeIDs [C.DCGM_GROUP_MAX_ENTITIES_V2]C.uint
+	var nativeIDs [C.DCGM_ENTITY_GROUP_ENTITIES_MAX]C.uint
 	return len(nativeIDs)
 }
 

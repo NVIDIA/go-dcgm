@@ -21,8 +21,25 @@ package dcgm
 #cgo darwin LDFLAGS: -ldl -Wl,-undefined,dynamic_lookup
 
 #include <dlfcn.h>
+#include <stdio.h>
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
+
+// openLibraryWithReason loads a shared library with its symbols made global.
+// On failure it copies the dynamic loader's message into reason. dlopen and
+// dlerror must run on the same thread, so both happen here in one C call.
+static void *openLibraryWithReason(const char *name, char *reason, size_t reasonSize) {
+	void *library = dlopen(name, RTLD_LAZY | RTLD_GLOBAL);
+	if (library == NULL) {
+		const char *loaderError = dlerror();
+		if (loaderError == NULL) {
+			loaderError = "unknown dynamic loader error";
+		}
+		snprintf(reason, reasonSize, "%s", loaderError);
+	}
+
+	return library;
+}
 */
 import "C"
 
@@ -32,6 +49,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -80,18 +98,44 @@ func initDCGMWithCalls(api sessionCalls, m mode, args ...string) error {
 	}
 }
 
+// dcgmLibraryName is the DCGM 4 client library that Init loads.
+const dcgmLibraryName = "libdcgm.so.4"
+
+// LibraryLoadError reports that Init could not load the DCGM library, for
+// example because it is not installed, is not on the library search path, or
+// needs another library that is missing. go-dcgm only supports DCGM 4.
+type LibraryLoadError struct {
+	// Library is the file name go-dcgm tried to load.
+	Library string
+	// Reason is the dynamic loader's explanation of the failure.
+	Reason string
+}
+
+// Error describes the failure. It starts with "<library> not found", which
+// callers have matched on in earlier releases.
+func (e *LibraryLoadError) Error() string {
+	return fmt.Sprintf("%s not found or could not be loaded: %s; go-dcgm requires DCGM 4", e.Library, e.Reason)
+}
+
 // loadLibrary opens libdcgm.so.4 and saves its handle for native symbol lookups.
 func (cgoAdapter) loadLibrary() error {
-	const (
-		dcgmLib = "libdcgm.so.4"
-	)
-	lib := C.CString(dcgmLib)
-	defer freeCString(lib)
+	return loadLibraryFile(dcgmLibraryName)
+}
 
-	dcgmLibHandle = C.dlopen(lib, C.RTLD_LAZY|C.RTLD_GLOBAL)
+// loadLibraryFile loads the named shared library with its symbols made global,
+// so later cgo calls resolve against it, and saves its handle in dcgmLibHandle.
+// On failure it clears the handle and returns a *LibraryLoadError with the
+// loader's reason.
+func loadLibraryFile(name string) error {
+	cName := C.CString(name)
+	defer freeCString(cName)
+
+	var reason [512]C.char
+	dcgmLibHandle = C.openLibraryWithReason(cName, &reason[0], C.size_t(len(reason)))
 	if dcgmLibHandle == nil {
-		return fmt.Errorf("%s not found", dcgmLib)
+		return &LibraryLoadError{Library: name, Reason: C.GoString(&reason[0])}
 	}
+
 	return nil
 }
 
@@ -114,9 +158,16 @@ func shutdownWithCalls(api sessionCalls) (err error) {
 	return
 }
 
-// closeLibrary releases the library handle acquired by loadLibrary.
+// closeLibrary releases the library handle acquired by loadLibrary and clears
+// it. Later symbol checks then report every symbol as unavailable instead of
+// looking it up through a closed handle. Calling it again does nothing.
 func (cgoAdapter) closeLibrary() {
+	if dcgmLibHandle == nil {
+		return
+	}
+
 	C.dlclose(dcgmLibHandle)
+	dcgmLibHandle = nil
 }
 
 // startEmbedded initializes DCGM and starts an in-process hostengine.
@@ -172,10 +223,14 @@ func isDCGMConnectionString(address string) bool {
 		strings.HasPrefix(lower, "vsock://")
 }
 
+// dcgmSymbolAvailable reports whether the loaded libdcgm exports the named C
+// function. Callers use it before calling an API that older DCGM releases lack.
+// It returns false when no library is loaded.
 func dcgmSymbolAvailable(symbol string) bool {
 	if dcgmLibHandle == nil {
 		return false
 	}
+
 	cSymbol := C.CString(symbol)
 	defer freeCString(cSymbol)
 	return C.dlsym(dcgmLibHandle, cSymbol) != nil
@@ -226,7 +281,7 @@ func connectStandaloneV2(address, socketFlag string) (err error) {
 func connectStandaloneV3(connectionString string) (err error) {
 	const dcgmConnectV3Symbol = "dcgmConnect_v3"
 	if !dcgmSymbolAvailable(dcgmConnectV3Symbol) {
-		return fmt.Errorf("%s is not available in libdcgm.so.4; DCGM connection strings require DCGM 4.5.0 or newer", dcgmConnectV3Symbol)
+		return fmt.Errorf("%s is not available in %s; DCGM connection strings require DCGM 4.5.0 or newer", dcgmConnectV3Symbol, dcgmLibraryName)
 	}
 
 	var (
@@ -266,6 +321,43 @@ func (cgoAdapter) disconnectStandalone() (err error) {
 	return
 }
 
+const (
+	// maxUnixSocketPathBytes is the size of sun_path in Linux struct sockaddr_un,
+	// including the terminating NUL.
+	maxUnixSocketPathBytes = 108
+
+	hostengineSocketName = "hostengine.sock"
+)
+
+// checkSocketPathLength returns an error if the path, plus the terminating NUL,
+// does not fit in the sun_path field of a Unix socket address.
+func checkSocketPathLength(socketPath string) error {
+	if len(socketPath) >= maxUnixSocketPathBytes {
+		return fmt.Errorf(
+			"nv-hostengine socket path %q is %d bytes, longer than the %d-byte limit; set TMPDIR to a shorter directory",
+			socketPath, len(socketPath), maxUnixSocketPathBytes-1,
+		)
+	}
+	return nil
+}
+
+// createHostengineSocketDir makes a private directory (mode 0700) and returns
+// it with the socket path inside it. It removes the directory and returns an
+// error if the socket path does not fit in a Unix socket address.
+func createHostengineSocketDir() (dir, socketPath string, err error) {
+	dir, err = os.MkdirTemp("", "dcgm-hostengine-")
+	if err != nil {
+		return "", "", fmt.Errorf("error creating socket directory: %w", err)
+	}
+
+	socketPath = filepath.Join(dir, hostengineSocketName)
+	if err = checkSocketPathLength(socketPath); err != nil {
+		_ = os.RemoveAll(dir)
+		return "", "", err
+	}
+	return dir, socketPath, nil
+}
+
 // startHostengine launches a child nv-hostengine process and connects to it.
 func (cgoAdapter) startHostengine() (err error) {
 	var (
@@ -285,13 +377,11 @@ func (cgoAdapter) startHostengine() (err error) {
 	}
 	procAttr.Sys = &syscall.SysProcAttr{Setpgid: true}
 
-	dir := "/tmp"
-	tmpfile, err := os.CreateTemp(dir, "dcgm")
+	socketDir, socketPath, err := createHostengineSocketDir()
 	if err != nil {
-		return fmt.Errorf("error creating temporary file in %s directory: %s", dir, err)
+		return err
 	}
-	socketPath := tmpfile.Name()
-	defer os.Remove(socketPath)
+	defer os.RemoveAll(socketDir)
 
 	connectArg := "--domain-socket"
 	hostengineAsChildPid, err = syscall.ForkExec(bin, []string{bin, connectArg, socketPath}, &procAttr)

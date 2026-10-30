@@ -246,3 +246,27 @@ func TestTimestampUSECToTime(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckFieldValueCount(t *testing.T) {
+	const maxSamples = 4
+	tests := []struct {
+		name    string
+		count   int
+		wantErr bool
+	}{
+		{name: "negative", count: -1, wantErr: true},
+		{name: "zero", count: 0},
+		{name: "max", count: maxSamples},
+		{name: "above max", count: maxSamples + 1, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkFieldValueCount(tt.count, maxSamples)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}

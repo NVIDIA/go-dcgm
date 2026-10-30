@@ -19,6 +19,7 @@ package dcgm
 import (
 	"errors"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -205,4 +206,65 @@ func TestConnectStandaloneV3ReturnsErrorWhenSymbolUnavailable(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "dcgmConnect_v3 is not available in libdcgm.so.4")
 	require.Contains(t, err.Error(), "DCGM connection strings require DCGM 4.5.0 or newer")
+}
+
+// TestLoadLibraryFileReportsLoaderReason checks that a library that can't be
+// loaded clears the saved handle and gives a *LibraryLoadError carrying the
+// dynamic loader's own reason.
+func TestLoadLibraryFileReportsLoaderReason(t *testing.T) {
+	const missing = "libdcgm-missing-for-test.so.4"
+
+	oldLibHandle := dcgmLibHandle
+	t.Cleanup(func() { dcgmLibHandle = oldLibHandle })
+	dcgmLibHandle = unsafe.Pointer(&oldLibHandle) // any non-nil value
+
+	err := loadLibraryFile(missing)
+
+	require.Nil(t, dcgmLibHandle)
+
+	var loadErr *LibraryLoadError
+	require.ErrorAs(t, err, &loadErr)
+	require.Equal(t, missing, loadErr.Library)
+
+	// Every common loader names the file it could not open; the fallback text
+	// would mean dlerror gave no reason.
+	require.Contains(t, loadErr.Reason, missing)
+	require.NotEqual(t, "unknown dynamic loader error", loadErr.Reason)
+}
+
+// TestLibraryLoadErrorMessage checks the message keeps the "libdcgm.so.4 not
+// found" text earlier releases returned, and adds the loader's reason and a
+// note that go-dcgm requires DCGM 4.
+func TestLibraryLoadErrorMessage(t *testing.T) {
+	err := &LibraryLoadError{Library: dcgmLibraryName, Reason: "missing dependency libfoo.so"}
+
+	require.Equal(t,
+		"libdcgm.so.4 not found or could not be loaded: missing dependency libfoo.so; go-dcgm requires DCGM 4",
+		err.Error(),
+	)
+}
+
+// TestCloseLibraryClearsHandle checks that closing the library clears its
+// handle, so symbol checks after Shutdown report false instead of reading a
+// closed handle, and that a second close does nothing.
+func TestCloseLibraryClearsHandle(t *testing.T) {
+	oldLibHandle := dcgmLibHandle
+	t.Cleanup(func() { dcgmLibHandle = oldLibHandle })
+
+	// Loading the library needs DCGM installed but no GPU; CI's unit-test
+	// image has it.
+	if err := (cgoAdapter{}).loadLibrary(); err != nil {
+		t.Skipf("DCGM library not installed: %v", err)
+	}
+	require.True(t, dcgmSymbolAvailable("dcgmInit"))
+
+	cgoAdapter{}.closeLibrary()
+
+	require.Nil(t, dcgmLibHandle)
+	require.False(t, dcgmSymbolAvailable("dcgmInit"))
+
+	// A second close must return without calling dlclose on a nil handle.
+	cgoAdapter{}.closeLibrary()
+
+	require.Nil(t, dcgmLibHandle)
 }

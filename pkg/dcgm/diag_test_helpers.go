@@ -36,12 +36,15 @@ func createTestDiagResponse() C.dcgmDiagResponse_v12 {
 	return response
 }
 
+// setDiagCString copies value into a fixed-size C string field of a test response.
 func setDiagCString(dst *C.char, value string) {
 	cStr := C.CString(value)
 	defer C.free(unsafe.Pointer(cStr))
 	C.strcpy(dst, cStr)
 }
 
+// createFullTestDiagResponse builds a diag response with versions, two
+// categories, one GPU entity, and test results, for decoder tests.
 func createFullTestDiagResponse() C.dcgmDiagResponse_v12 {
 	response := createTestDiagResponse()
 	setDiagCString(&response.dcgmVersion[0], "4.6.1")
@@ -118,6 +121,22 @@ func createFullTestDiagResponse() C.dcgmDiagResponse_v12 {
 
 	response.numTests = 2
 	response.numResults = 2
+	return response
+}
+
+// createDiagResponseWithRuntimeInfo adds a per-test info message, as DCGM 4.7.1
+// reports "Test runtime: <s.mmm> seconds", to the "memory" test of the full test response.
+func createDiagResponseWithRuntimeInfo(message string, entityGroup Field_Entity_Group, entityID uint) C.dcgmDiagResponse_v12 {
+	response := createFullTestDiagResponse()
+	index := response.numInfo
+	response.info[index].entity.entityGroupId = C.dcgm_field_entity_group_t(entityGroup)
+	response.info[index].entity.entityId = C.uint(entityID)
+	response.info[index].testId = 1
+	setDiagCString(&response.info[index].msg[0], message)
+	memory := &response.tests[1]
+	memory.infoIndices[memory.numInfo] = index
+	memory.numInfo++
+	response.numInfo++
 	return response
 }
 

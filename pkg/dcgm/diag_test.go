@@ -72,6 +72,8 @@ func TestDiagLevel(t *testing.T) {
 	}
 }
 
+// TestNewDiagResultsPreservesHierarchy checks that newDiagResults keeps the
+// categories, entities, tests and results from a full native response.
 func TestNewDiagResultsPreservesHierarchy(t *testing.T) {
 	response := createFullTestDiagResponse()
 
@@ -115,6 +117,38 @@ func TestNewDiagResultsPreservesHierarchy(t *testing.T) {
 	require.Len(t, memory.Info, 1)
 	assert.Equal(t, GroupEntityPair{EntityGroupId: FE_GPU, EntityId: 7}, memory.Info[0].Entity)
 	assert.Equal(t, "memory ok", memory.Info[0].Message)
+}
+
+// TestNewDiagResultsKeepsTestRuntimeInfo checks that the DCGM 4.7.1 per-test runtime
+// message reaches DiagTest.Info and the legacy TestOutput, whether DCGM attaches it
+// to the GPU or to no entity.
+func TestNewDiagResultsKeepsTestRuntimeInfo(t *testing.T) {
+	const runtime = "Test runtime: 1.234 seconds"
+	for _, tt := range []struct {
+		name   string
+		group  Field_Entity_Group
+		entity uint
+	}{
+		{name: "attached to the GPU", group: FE_GPU, entity: 7},
+		{name: "attached to no entity", group: FE_NONE, entity: 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			response := createDiagResponseWithRuntimeInfo(runtime, tt.group, tt.entity)
+
+			result := newDiagResults(&response)
+
+			memory := result.Tests[1]
+			assert.Equal(t, "memory", memory.Name)
+			require.Len(t, memory.Info, 2)
+			assert.Equal(t, DiagInfo{
+				Entity:  GroupEntityPair{EntityGroupId: tt.group, EntityId: tt.entity},
+				Message: runtime,
+			}, memory.Info[1])
+
+			require.Len(t, result.Software, 2)
+			assert.Equal(t, "memory ok | "+runtime, result.Software[1].TestOutput)
+		})
+	}
 }
 
 func TestNewDiagResultsIgnoresOutOfRangeCategoryIndex(t *testing.T) {
