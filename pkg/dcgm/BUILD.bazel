@@ -41,7 +41,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude profile_test_helpers.go
 # gazelle:exclude profile_unit_test.go
 # gazelle:exclude pure_helpers_test.go
-# gazelle:exclude test_utils.go
+# gazelle:exclude test_utils_test.go
 # gazelle:exclude topology_test.go
 # gazelle:exclude utils_unit_test.go
 # gazelle:exclude watch_unit_test.go
@@ -161,7 +161,7 @@ go_test(
         "health_test.go",
         "instances_test.go",
         "policy_test.go",
-        "test_utils.go",  # keep: used by the runtime test target.
+        "test_utils_test.go",  # keep: used by the runtime test target.
     ],
     data = glob(["testdata/**"]) + [
         "dcgm_agent.h",
