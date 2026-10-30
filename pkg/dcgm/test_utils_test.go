@@ -25,15 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	// DCGM_NVSDM_MOCK_YAML environment variable for enabling NVSDM mock configuration
-	DCGM_NVSDM_MOCK_YAML = "DCGM_NVSDM_MOCK_YAML"
-	// DCGM_DBG_FILE is environment variables which enables DCGM to write debug logs to a specific file
-	DCGM_DBG_FILE = "__DCGM_DBG_FILE"
-	// DCGM_DBG_LVL is environment variables which enables DCGM logging level
-	DCGM_DBG_LVL = "__DCGM_DBG_LVL"
-)
-
 func setupTest(tb testing.TB) func(testing.TB) {
 	// Store original debug settings
 	originalDebugLevel, hasDebugLevel := os.LookupEnv(DCGM_DBG_LVL)
