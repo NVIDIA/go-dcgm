@@ -96,6 +96,14 @@ func WatchPidFieldsEx(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, 
 	return watchPidFields(updateFreq, maxKeepAge, maxKeepSamples, gpus...)
 }
 
+// WatchPidFieldsForGroupEx is the same as WatchPidFieldsForGroup, but allows for
+// modifying the update frequency, max sample age, and max samples.
+func WatchPidFieldsForGroupEx(group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
+	return watchPidFieldsForGroupWithOps(cgoAdapter{}, group, updateFreq, maxKeepAge, maxKeepSamples)
+}
+
+// watchPidFields creates a group of GPUs and starts PID watches on it, using the
+// real DCGM calls.
 func watchPidFields(updateFreq, maxKeepAge time.Duration, maxKeepSamples int, gpus ...uint) (groupId GroupHandle, err error) {
 	return watchPidFieldsWithOps(cgoAdapter{}, updateFreq, maxKeepAge, maxKeepSamples, gpus...)
 }
@@ -129,15 +137,24 @@ func watchPidFieldsWithOps(api pidWatchOps, updateFreq, maxKeepAge time.Duration
 		}
 	}
 
-	err = api.watchPidFieldsNative(group, updateFreq, maxKeepAge, maxKeepSamples)
+	err = watchPidFieldsForGroupWithOps(api, group, updateFreq, maxKeepAge, maxKeepSamples)
 	if err != nil {
 		return groupId, err
 	}
-	err = api.updateAllFields()
-	if err != nil {
-		return groupId, err
-	}
+
 	return group, nil
+}
+
+// watchPidFieldsForGroupWithOps starts PID watches on an existing group, then
+// refreshes every watched field once so the first samples exist when it returns.
+// It does not create or destroy the group. It returns DCGM's errors unwrapped,
+// so WatchPidFields keeps returning the *dcgm.Error itself.
+func watchPidFieldsForGroupWithOps(api pidWatchOps, group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
+	if err := api.watchPidFieldsNative(group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
+		return err
+	}
+
+	return api.updateAllFields()
 }
 
 // watchPidFieldsNative starts DCGM PID watches, converting updateFreq to microseconds

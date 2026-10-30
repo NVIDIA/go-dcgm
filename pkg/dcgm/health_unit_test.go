@@ -23,12 +23,14 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
-// TestHealthCheckByGPUWithOpsCleansUp checks temporary group cleanup on success and failure.
+// TestHealthCheckByGPUWithOpsCleansUp checks that the temporary group is
+// destroyed whichever step fails, and that the failing step's error is returned.
 func TestHealthCheckByGPUWithOpsCleansUp(t *testing.T) {
 	for _, tt := range []struct {
 		name string
@@ -42,35 +44,11 @@ func TestHealthCheckByGPUWithOpsCleansUp(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewMockHealthGroupOps(gomock.NewController(t))
-			var group GroupHandle
-			group.SetHandle(11)
 			stageErr := errors.New(tt.fail + " failed")
-			create := m.EXPECT().createGroup(gomock.Any(), false)
-			if tt.fail == "create" {
-				create.Return(GroupHandle{}, stageErr)
-			} else {
-				create.Return(group, nil)
-				add := m.EXPECT().addToGroup(group, uint(5)).After(create)
-				if tt.fail == "add" {
-					add.Return(stageErr)
-				} else {
-					add.Return(nil)
-					set := m.EXPECT().healthSet(group, DCGM_HEALTH_WATCH_ALL).After(add)
-					if tt.fail == "set" {
-						set.Return(stageErr)
-					} else {
-						set.Return(nil)
-						check := m.EXPECT().healthCheck(group).After(set)
-						if tt.fail == "check" {
-							check.Return(HealthResponse{}, stageErr)
-						} else {
-							check.Return(HealthResponse{}, nil)
-						}
-					}
-				}
-				m.EXPECT().destroyGroup(group).After(create)
-			}
+			expectHealthCheckSteps(m, tt.fail, stageErr)
+
 			got, err := healthCheckByGPUWithOps(m, 5)
+
 			if tt.fail == "" {
 				require.NoError(t, err)
 				require.Equal(t, uint(5), got.GPU)
@@ -81,6 +59,46 @@ func TestHealthCheckByGPUWithOpsCleansUp(t *testing.T) {
 	}
 }
 
+// expectHealthCheckSteps registers, in order, the calls healthCheckByGPUWithOps
+// makes for GPU 5. The step named by fail ("create", "add", "set" or "check")
+// returns stageErr and no later step is expected; an empty fail means every step
+// succeeds. Once the group exists, destroyGroup must be called.
+func expectHealthCheckSteps(m *MockHealthGroupOps, fail string, stageErr error) {
+	var group GroupHandle
+	group.SetHandle(11)
+
+	create := m.EXPECT().createGroup(gomock.Any(), false)
+	if fail == "create" {
+		create.Return(GroupHandle{}, stageErr)
+		return
+	}
+	create.Return(group, nil)
+	m.EXPECT().destroyGroup(group).After(create)
+
+	add := m.EXPECT().addToGroup(group, uint(5)).After(create)
+	if fail == "add" {
+		add.Return(stageErr)
+		return
+	}
+	add.Return(nil)
+
+	set := m.EXPECT().healthSet(group, DCGM_HEALTH_WATCH_ALL).After(add)
+	if fail == "set" {
+		set.Return(stageErr)
+		return
+	}
+	set.Return(nil)
+
+	check := m.EXPECT().healthCheck(group).After(set)
+	if fail == "check" {
+		check.Return(HealthResponse{}, stageErr)
+		return
+	}
+	check.Return(HealthResponse{}, nil)
+}
+
+// TestIMEXHealthWatchConstant checks the IMEX watch bit matches the DCGM header and is
+// part of DCGM_HEALTH_WATCH_ALL.
 func TestIMEXHealthWatchConstant(t *testing.T) {
 	const want HealthSystem = 0x2000
 
@@ -88,6 +106,7 @@ func TestIMEXHealthWatchConstant(t *testing.T) {
 	require.Equal(t, want, DCGM_HEALTH_WATCH_ALL&want)
 }
 
+// TestHealthStatus checks the display name of each health result, including an unknown one.
 func TestHealthStatus(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -107,6 +126,7 @@ func TestHealthStatus(t *testing.T) {
 	}
 }
 
+// TestSystemWatch checks the display name of each health watch system, including an unknown one.
 func TestSystemWatch(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -137,6 +157,8 @@ func TestSystemWatch(t *testing.T) {
 	}
 }
 
+// TestDeviceHealthFromResponse checks that a group health result becomes the
+// right per-GPU summary, with and without incidents.
 func TestDeviceHealthFromResponse(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -229,4 +251,45 @@ func TestHealthResponseFromNativeRejectsInvalidCounts(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHealthSetWithParamsStrictRejectsWideMask checks that bits above DCGM's 32-bit
+// mask are rejected before DCGM is called, because they would otherwise be dropped.
+func TestHealthSetWithParamsStrictRejectsWideMask(t *testing.T) {
+	err := HealthSetWithParamsStrict(GroupHandle{}, HealthSystem(1)<<32, time.Second, time.Minute)
+
+	require.False(t, IsFeatureUnavailable(err))
+
+	var dcgmErr *Error
+	require.ErrorAs(t, err, &dcgmErr)
+	require.Equal(t, testDCGMReturn(testDCGMStatusBadParam), dcgmErr.Code)
+}
+
+// TestHealthV3CallsWithoutLibrary checks the DCGM 4.7.1 health functions when no
+// DCGM library is loaded: each reports its unavailable symbol, with no DCGM code.
+func TestHealthV3CallsWithoutLibrary(t *testing.T) {
+	oldLibHandle := dcgmLibHandle
+	dcgmLibHandle = nil
+	t.Cleanup(func() {
+		dcgmLibHandle = oldLibHandle
+	})
+
+	requireUnavailable := func(t *testing.T, err error, feature, symbol string) {
+		t.Helper()
+
+		var unavailable *FeatureUnavailableError
+		require.ErrorAs(t, err, &unavailable)
+		require.Equal(t, feature, unavailable.Feature)
+		require.Equal(t, symbol, unavailable.Symbol)
+
+		var dcgmErr *Error
+		require.NotErrorAs(t, err, &dcgmErr, "a missing symbol has no DCGM code")
+	}
+
+	systems, err := HealthGetSupportedSystems()
+	require.Zero(t, systems)
+	requireUnavailable(t, err, healthSupportedSystemsFeature, healthSupportedSystemsSymbol)
+
+	err = HealthSetWithParamsStrict(GroupHandle{}, DCGM_HEALTH_WATCH_ALL, time.Second, time.Minute)
+	requireUnavailable(t, err, healthSetV3Feature, healthSetV3Symbol)
 }

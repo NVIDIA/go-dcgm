@@ -19,7 +19,8 @@ var (
 // - Embedded: Start hostengine within this process
 // - Standalone: Connect to an already running nv-hostengine
 // - StartHostengine: Start and connect to nv-hostengine, terminate before exiting
-// Returns a cleanup function on success. On error, cleanup is nil.
+// Returns a cleanup function on success. On error, cleanup is nil. If the DCGM
+// library cannot be loaded, the error is a *LibraryLoadError.
 func Init(m mode, args ...string) (cleanup func(), err error) {
 	mux.Lock()
 	defer mux.Unlock()
@@ -68,7 +69,11 @@ func GetAllDeviceCount() (uint, error) {
 	return getAllDeviceCount()
 }
 
-// GetEntityGroupEntities returns all entities of the specified group type
+// GetEntityGroupEntities returns the entities of the specified group type, up to
+// DCGM_ENTITY_GROUP_ENTITIES_MAX of them.
+//
+// The DCGM library and the host engine must run the same DCGM version. A 4.7.1
+// library and a 4.7.0 host engine reject each other's entity-listing request.
 func GetEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 	return getEntityGroupEntities(entityGroup)
 }
@@ -117,6 +122,32 @@ func GetDeviceTopology(gpuID uint) ([]P2PLink, error) {
 //	// Use GetProcessInfo with the group...
 func WatchPidFields() (GroupHandle, error) {
 	return watchPidFields(time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
+}
+
+// WatchPidFieldsForGroup is like WatchPidFields, but records process stats for
+// the GPUs in a group the caller already created, instead of creating a new
+// group. Call it before GetProcessInfo with the same group.
+//
+// The caller keeps ownership of the group and destroys it with DestroyGroup.
+//
+// Example:
+//
+//	group, err := dcgm.CreateGroup("pid-watch-gpus")
+//	if err != nil {
+//	    return err
+//	}
+//	defer dcgm.DestroyGroup(group)
+//
+//	if err := dcgm.AddToGroup(group, gpuID); err != nil {
+//	    return err
+//	}
+//	if err := dcgm.WatchPidFieldsForGroup(group); err != nil {
+//	    return err
+//	}
+//
+//	// Use GetProcessInfo with the group...
+func WatchPidFieldsForGroup(group GroupHandle) error {
+	return WatchPidFieldsForGroupEx(group, time.Microsecond*time.Duration(defaultUpdateFreq), time.Second*time.Duration(defaultMaxKeepAge), defaultMaxKeepSamples)
 }
 
 // GetProcessInfo returns detailed per-GPU statistics for the specified process

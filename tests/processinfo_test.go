@@ -2,6 +2,7 @@ package tests
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -122,4 +123,62 @@ func TestWatchPidFields(t *testing.T) {
 	// Wait a bit to ensure watches are properly set up
 	time.Sleep(1000 * time.Millisecond)
 	t.Log("PID field watches enabled successfully")
+}
+
+// newPidWatchTestGroup returns a caller-owned group holding the first supported
+// GPU. The test destroys it at cleanup and fails if that destroy fails, which
+// also shows the watch call left the group in place.
+func newPidWatchTestGroup(t *testing.T) dcgm.GroupHandle {
+	t.Helper()
+
+	gpus, err := dcgm.GetSupportedDevices()
+	if err != nil {
+		t.Fatalf("Failed to get supported devices: %v", err)
+	}
+	if len(gpus) == 0 {
+		t.Skip("No supported GPUs found")
+	}
+
+	group, err := dcgm.CreateGroup(fmt.Sprintf("pid-watch-%d", time.Now().UnixNano()))
+	if err != nil {
+		t.Fatalf("Failed to create group: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := dcgm.DestroyGroup(group); err != nil {
+			t.Errorf("Failed to destroy group: %v", err)
+		}
+	})
+
+	if err := dcgm.AddToGroup(group, gpus[0]); err != nil {
+		t.Fatalf("Failed to add GPU %d to group: %v", gpus[0], err)
+	}
+
+	return group
+}
+
+// TestWatchPidFieldsForGroup checks that PID watches start on a group the caller
+// created, and that GetProcessInfo accepts that group afterward.
+func TestWatchPidFieldsForGroup(t *testing.T) {
+	cleanup, err := dcgm.Init(dcgm.Embedded)
+	if err != nil {
+		t.Fatalf("Failed to initialize DCGM: %v", err)
+	}
+	t.Cleanup(cleanup) // runs after the group cleanup registered later
+
+	group := newPidWatchTestGroup(t)
+
+	if err = dcgm.WatchPidFieldsForGroup(group); err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
+		t.Fatalf("WatchPidFieldsForGroup failed: %v", err)
+	}
+
+	// This process does not use the GPU, so DCGM has no record of it. A
+	// missing PID is reported as DCGM_ST_NO_DATA; any other error means the
+	// group was not usable.
+	_, err = dcgm.GetProcessInfo(group, uint(os.Getpid())) // #nosec G115 -- process IDs are non-negative.
+	var dcgmErr *dcgm.Error
+	noRecord := errors.As(err, &dcgmErr) && int(dcgmErr.Code) == dcgm.DCGM_ST_NO_DATA
+	if err != nil && !noRecord {
+		t.Fatalf("GetProcessInfo on the watched group failed: %v", err)
+	}
 }

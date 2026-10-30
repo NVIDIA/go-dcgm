@@ -313,7 +313,21 @@ func GetMultipleValuesForField(
 		return nil, fmt.Errorf("error getting multiple field values: %w", err)
 	}
 
-	return toFieldValue(values.values[:int(count)]), nil
+	if err := checkFieldValueCount(int(count), maxSamples); err != nil {
+		return nil, err
+	}
+
+	return toFieldValue(values.values[:count]), nil
+}
+
+// checkFieldValueCount checks that the sample count DCGM reported fits the
+// buffer that was passed in. A count below zero or above maxSamples would
+// otherwise make the slice of that buffer panic.
+func checkFieldValueCount(count, maxSamples int) error {
+	if count < 0 || count > maxSamples {
+		return fmt.Errorf("DCGM returned %d field values, expected between 0 and %d", count, maxSamples)
+	}
+	return nil
 }
 
 var (

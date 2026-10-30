@@ -1,9 +1,9 @@
 module github.com/NVIDIA/go-dcgm
 
-go 1.27.2
+go 1.27.3
 
 require (
-	github.com/bits-and-blooms/bitset v1.26.0
+	github.com/bits-and-blooms/bitset v1.28.0
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/mock v0.6.0

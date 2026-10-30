@@ -1,0 +1,94 @@
+# go-dcgm API Usage Contract
+
+> Rules for writing Go code that calls the go-dcgm bindings for NVIDIA Data
+> Center GPU Manager (DCGM). This is a usage contract, not a repository map.
+> Rules for changing this repository live in `AGENTS.md`.
+
+This file is for LLMs and agents writing programs that import
+`github.com/NVIDIA/go-dcgm/pkg/dcgm`, such as DCGM Exporter. The code in
+`pkg/dcgm` is the source of truth. The official DCGM documentation is
+authoritative for what a field or health system means.
+
+Do not invent functions, field IDs, status codes, or connection options. If a
+fact is not in this repository or the DCGM documentation, say it is unknown.
+
+## Source of truth
+
+Use this order:
+
+1. Exported Go code and its doc comments in `pkg/dcgm`.
+2. Field IDs in `pkg/dcgm/const_fields.go`, generated from DCGM's
+   `dcgm_fields.h`. Use the `DCGM_FI_*` constants, never raw numbers.
+3. Status codes (`DCGM_ST_*`) and health systems (`DCGM_HEALTH_WATCH_*`) in
+   `pkg/dcgm/const.go`.
+4. Programs under `samples/` and tests under `tests/`.
+
+## Requirements
+
+- Linux, cgo, and DCGM 4. `Init` loads `libdcgm.so.4` at run time.
+- An NVIDIA GPU and driver supported by DCGM for anything that reads GPUs.
+- DCGM 4.5.0 or newer for standalone connection strings and for
+  `AttachDriver` and `DetachDriver`.
+
+## Starting and stopping DCGM
+
+Call `dcgm.Init` once and defer the cleanup function it returns:
+
+```go
+cleanup, err := dcgm.Init(dcgm.Embedded)
+if err != nil {
+    return err
+}
+defer cleanup()
+```
+
+- `Embedded` runs the host engine inside the process.
+- `Standalone` connects to a running `nv-hostengine`. Pass either a connection
+  string (`tcp://`, `unix://` or `vsock://`, DCGM 4.5.0 or newer) or an address
+  and a socket flag: `dcgm.Init(dcgm.Standalone, "localhost", "0")`, where
+  `"0"` means TCP and `"1"` means a Unix socket path.
+- `StartHostengine` starts `nv-hostengine` as a child process and stops it in
+  cleanup.
+- `Init` is reference counted: later calls reuse the first connection and
+  ignore their mode. Each successful `Init` needs one cleanup call.
+- When `Init` fails, cleanup is nil. If the library cannot be loaded, the
+  error is a `*dcgm.LibraryLoadError`; check it with `errors.As`.
+
+## Reading GPU data
+
+- List GPUs with `GetSupportedDevices`, then use `GetDeviceInfo` and
+  `GetDeviceStatus` for one GPU.
+- To watch fields: `CreateGroup` and `AddToGroup` (or `GroupAllGPUs`),
+  `FieldGroupCreate`, `WatchFieldsWithGroup`, then read with
+  `GetLatestValuesForFields`, `EntityGetLatestValues`,
+  `EntitiesGetLatestValues` or `GetValuesSince`. `UpdateAllFields` forces an
+  update instead of waiting for the next one.
+- Release what you create: `UnwatchFields`, `FieldGroupDestroy` and
+  `DestroyGroup`. Do not destroy `GroupAllGPUs`.
+- Process stats need `WatchPidFields` (or `WatchPidFieldsForGroup` on your own
+  group) before `GetProcessInfo` with the same group. DCGM requires the host
+  engine to run as root for these watches.
+- Health checks use `HealthSet` and `HealthCheck` on a group, or
+  `HealthCheckByGpuId` for one GPU. Diagnostics use `RunDiag`; read
+  `DiagResults.Tests`, not the deprecated `Software` view.
+
+## Errors and optional features
+
+- DCGM failures are `*dcgm.Error`. Compare its `Code` with the `DCGM_ST_*`
+  constants, for example `DCGM_ST_NO_DATA` or `DCGM_ST_REQUIRES_ROOT`.
+- APIs that older DCGM releases lack return an error for which
+  `dcgm.IsFeatureUnavailable(err)` is true. Treat it as "not supported here",
+  not as a failure.
+- Use `GetHostengineVersionInfo` to report the connected DCGM version.
+
+## Docs
+
+- [README](README.md): installation, requirements and a first example.
+- [Samples](samples/README.md): complete programs for each mode and feature.
+- [Package source](pkg/dcgm): exported API and doc comments.
+
+## Optional
+
+- [Integration tests](tests/README.md): GPU tests that mirror the samples.
+- [Contributing](CONTRIBUTING.md): building, field updates and sign-off.
+- [Agent rules](AGENTS.md): working in this repository.

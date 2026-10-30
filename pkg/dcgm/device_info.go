@@ -73,8 +73,8 @@ func getAllDeviceCount() (gpuCount uint, err error) {
 // getEntityGroupEntities returns the entity IDs in one native entity group.
 func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 	var err error
-	var pEntities [C.DCGM_GROUP_MAX_ENTITIES_V2]C.uint
-	var count C.int = C.DCGM_GROUP_MAX_ENTITIES_V2
+	var pEntities [C.DCGM_ENTITY_GROUP_ENTITIES_MAX]C.uint
+	count := C.int(len(pEntities))
 
 	result := C.dcgmGetEntityGroupEntities(handle.handle, C.dcgm_field_entity_group_t(entityGroup), &pEntities[0], &count, 0)
 	if err = errorString(result); err != nil {
@@ -85,7 +85,7 @@ func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 }
 
 // entityGroupEntitiesFromNative validates and copies native entity IDs into Go-owned memory.
-func entityGroupEntitiesFromNative(pEntities *[C.DCGM_GROUP_MAX_ENTITIES_V2]C.uint, count C.int) ([]uint, error) {
+func entityGroupEntitiesFromNative(pEntities *[C.DCGM_ENTITY_GROUP_ENTITIES_MAX]C.uint, count C.int) ([]uint, error) {
 	entityCount := int(count)
 	if err := validateNativeCount(entityCount, len(pEntities), "entity"); err != nil {
 		return nil, err

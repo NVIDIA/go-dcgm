@@ -1,22 +1,26 @@
 <div align="center">
 
+<img src="assets/logo.svg" alt="go-dcgm logo" width="180" />
+
 # go-dcgm
 
 **Go bindings for NVIDIA Data Center GPU Manager (DCGM).**
 
-<a href="#development">Build and test</a>
-·
-<a href="#development-container">Development container</a>
+<a href="https://pkg.go.dev/github.com/NVIDIA/go-dcgm/pkg/dcgm">API reference</a>
 ·
 <a href="samples/README.md">Samples</a>
+·
+<a href="https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/index.html">DCGM user guide</a>
 ·
 <a href="CONTRIBUTING.md">Contribute</a>
 
 <p>
-  <a href="https://github.com/NVIDIA/go-dcgm/actions/workflows/go.yml"><img alt="GitHub Actions" src="https://github.com/NVIDIA/go-dcgm/actions/workflows/go.yml/badge.svg" /></a>
+  <a href="https://github.com/NVIDIA/go-dcgm/actions/workflows/go.yml"><img alt="GitHub Actions build" src="https://github.com/NVIDIA/go-dcgm/actions/workflows/go.yml/badge.svg?branch=main" /></a>
+  <a href="https://app.codecov.io/gh/NVIDIA/go-dcgm"><img alt="Codecov coverage" src="https://img.shields.io/codecov/c/github/NVIDIA/go-dcgm/main" /></a>
+  <a href="https://github.com/NVIDIA/go-dcgm/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/NVIDIA/go-dcgm?display_name=tag&amp;sort=date" /></a>
   <a href="https://pkg.go.dev/github.com/NVIDIA/go-dcgm"><img alt="Go Reference" src="https://pkg.go.dev/badge/github.com/NVIDIA/go-dcgm.svg" /></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/License-Apache--2.0-blue.svg" /></a>
-  <a href="CONTRIBUTING.md"><img alt="DCO" src="https://img.shields.io/badge/DCO-1.1-blue.svg" /></a>
+  <a href="CONTRIBUTING.md#sign-your-work"><img alt="DCO" src="https://img.shields.io/badge/DCO-1.1-blue.svg" /></a>
 </p>
 
 </div>
@@ -25,23 +29,75 @@
 
 ## Overview
 
-This repository provides Go bindings for [NVIDIA Data Center GPU Manager
+go-dcgm provides Go bindings for [NVIDIA Data Center GPU Manager
 (DCGM)](https://developer.nvidia.com/dcgm). DCGM manages and monitors NVIDIA
-GPUs in cluster environments.
+GPUs in cluster environments. [DCGM
+Exporter](https://github.com/NVIDIA/dcgm-exporter) uses these bindings to
+publish GPU telemetry to Prometheus.
 
-The repository also includes sample programs that show how to use the bindings.
+This repository contains the `pkg/dcgm` package, sample programs, and the
+field-constant generator.
 
-## Diagnostic API note
+## Requirements
 
-`RunDiag` returns hierarchical `DiagResults`. Existing `DiagResults.Software`
-and `DiagResult` users remain supported through a deprecated compatibility
-view. New code should use `results.Tests`. Each test includes its status,
-per-entity results, errors, information, and extra data. See the [diagnostic
+- Linux with an NVIDIA GPU and driver supported by DCGM. See the [DCGM support
+  matrix](https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/getting-started.html#supported-platforms).
+- DCGM 4 installed on the host. The bindings load `libdcgm.so.4` at runtime.
+- cgo enabled when building.
+
+Connection strings in standalone mode require DCGM 4.5.0 or later.
+
+## Usage
+
+```bash
+go get github.com/NVIDIA/go-dcgm
+```
+
+```go
+cleanup, err := dcgm.Init(dcgm.Embedded)
+if err != nil {
+    log.Fatal(err)
+}
+defer cleanup()
+
+gpus, err := dcgm.GetSupportedDevices()
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, gpu := range gpus {
+    info, err := dcgm.GetDeviceInfo(gpu)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("GPU %d: %s (%s)\n", gpu, info.Identifiers.Model, info.UUID)
+}
+```
+
+`dcgm.Init` supports three modes:
+
+- `Embedded` runs the DCGM host engine inside your process.
+- `Standalone` connects to a running `nv-hostengine` over TCP or a Unix socket.
+- `StartHostengine` starts `nv-hostengine` as a child process and stops it on
+  cleanup.
+
+See the [samples](samples/README.md) for complete programs, including device
+information, health checks, policies, diagnostics, and a REST API.
+
+### Diagnostics
+
+`RunDiag` returns hierarchical `DiagResults`. New code should use
+`results.Tests`; each test includes its status, per-entity results, errors,
+information, and extra data. `DiagResults.Software` and `DiagResult` remain
+available as a deprecated compatibility view. See the [diagnostic
 sample](samples/diag/main.go).
 
 ## Development
 
-Use Task for common commands. Bazel builds the Go and CGO code.
+The repository uses Task for common commands and Bazel for Go and cgo builds.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the pinned tool versions, or open the
+repository in a [Dev Containers](https://containers.dev/) compatible editor to
+use the same environment as CI.
 
 These checks do not need a GPU:
 
@@ -51,44 +107,26 @@ task test
 task validate
 ```
 
-Run GPU and DCGM tests only on a suitable system:
+These need a GPU host with DCGM installed:
 
 ```bash
 task test:integration
 task test:race
 ```
 
-### Development container
+After updating `pkg/dcgm/dcgm_fields.h`, regenerate the field constants with
+`task generate` and confirm them with `task generate:check`. See [Updating DCGM
+Fields](CONTRIBUTING.md#updating-dcgm-fields) for the full process.
 
-Open the repository with a [Dev Containers](https://containers.dev/) compatible
-editor to use the checked-in development environment. It includes DCGM headers,
-the pinned Go tools, and Bazel. CI builds and uses the same environment.
+## Contributing and support
 
-The normal build and validation commands do not need a GPU. GPU tests still
-need a compatible NVIDIA host.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. For
+community support, [open an issue](https://github.com/NVIDIA/go-dcgm/issues/new).
 
-### Generate field constants
+Report potential security vulnerabilities through the
+[NVIDIA Product Security](https://www.nvidia.com/en-us/security/) process, not
+through a public issue.
 
-The DCGM field constants in `pkg/dcgm/const_fields.go` are automatically generated from `pkg/dcgm/dcgm_fields.h`. Curated lowercase compatibility names are tracked in `pkg/dcgm/legacy_fields.csv` and included during generation.
+## License
 
-To regenerate these constants after updating the header file:
-
-```bash
-task generate
-```
-
-To verify that the generated code is up to date:
-
-```bash
-task generate:check
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md#updating-dcgm-fields) for the full field
-update process.
-
-## Contribute and get help
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
-
-- Report a problem by [opening an issue](https://github.com/NVIDIA/go-dcgm/issues/new).
-- Send a change by [opening a pull request](https://github.com/NVIDIA/go-dcgm).
+go-dcgm is licensed under the [Apache License, Version 2.0](LICENSE).

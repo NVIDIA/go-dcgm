@@ -134,7 +134,7 @@ task test:integration -- --test_filter='TestDevice.*'
 - NVIDIA GPU(s) with DCGM support
 - NVIDIA drivers installed
 - DCGM libraries available
-- The repository's selected Go 1.27.2 toolchain
+- The Go toolchain version pinned in [`hack/versions.env`](../hack/versions.env)
 
 ### Dependencies
 

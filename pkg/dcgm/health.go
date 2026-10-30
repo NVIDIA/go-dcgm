@@ -24,10 +24,14 @@ import "C"
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 	"unsafe"
 )
+
+// healthSetErrorFormat wraps every error returned while setting health watches.
+const healthSetErrorFormat = "error setting health watches: %w"
 
 // SystemWatch represents a health watch system and its status
 type SystemWatch struct {
@@ -59,8 +63,9 @@ func HealthSet(groupID GroupHandle, systems HealthSystem) (err error) {
 func (cgoAdapter) healthSet(groupID GroupHandle, systems HealthSystem) (err error) {
 	result := C.dcgmHealthSet(handle.handle, groupID.handle, C.dcgmHealthSystems_t(systems))
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error setting health watches: %w", err)
+		return fmt.Errorf(healthSetErrorFormat, err)
 	}
+
 	return nil
 }
 
@@ -74,20 +79,102 @@ func HealthSetWithParams(
 	updateInterval time.Duration,
 	maxKeepAge time.Duration,
 ) error {
-	params := C.dcgmHealthSetParams_v2{
+	params := healthSetParams(groupID, systems, updateInterval, maxKeepAge)
+
+	result := C.dcgmHealthSet_v2(handle.handle, &params)
+	if err := errorString(result); err != nil {
+		return fmt.Errorf(healthSetErrorFormat, err)
+	}
+
+	return nil
+}
+
+// healthSetParams builds the parameters shared by dcgmHealthSet_v2 and dcgmHealthSet_v3.
+func healthSetParams(
+	groupID GroupHandle,
+	systems HealthSystem,
+	updateInterval time.Duration,
+	maxKeepAge time.Duration,
+) C.dcgmHealthSetParams_v2 {
+	return C.dcgmHealthSetParams_v2{
 		version:        makeVersion2(unsafe.Sizeof(C.dcgmHealthSetParams_v2{})),
 		groupId:        groupID.handle,
 		systems:        C.dcgmHealthSystems_t(systems),
 		updateInterval: C.longlong(updateInterval.Microseconds()),
 		maxKeepAge:     C.double(maxKeepAge.Seconds()),
 	}
+}
 
-	result := C.dcgmHealthSet_v2(handle.handle, &params)
-	if err := errorString(result); err != nil {
-		return fmt.Errorf("error setting health watches: %w", err)
+// DCGM 4.7.1 health APIs. Older libraries and host engines do not provide them.
+const (
+	// healthSetV3Symbol is the libdcgm symbol of the strict health watch setter.
+	healthSetV3Symbol = "dcgmHealthSet_v3"
+	// healthSetV3Feature names the strict health watch setter in FeatureUnavailableError.
+	healthSetV3Feature = "DCGM strict health set API"
+	// healthSupportedSystemsSymbol is the libdcgm symbol of the supported-systems query.
+	healthSupportedSystemsSymbol = "dcgmHealthGetSupportedSystems"
+	// healthSupportedSystemsFeature names the supported-systems query in FeatureUnavailableError.
+	healthSupportedSystemsFeature = "DCGM supported health systems API"
+)
+
+// HealthSetWithParamsStrict is like HealthSetWithParams, but calls dcgmHealthSet_v3.
+//
+// If systems contains a health system that the host engine does not support, it
+// returns a *Error with Code DCGM_ST_NOT_SUPPORTED and leaves the group's watches
+// unchanged. DCGM_HEALTH_WATCH_ALL enables every system that
+// HealthGetSupportedSystems reports. Bits above the 32-bit DCGM mask are rejected
+// with a *Error with Code DCGM_ST_BADPARAM before DCGM is called.
+//
+// IsFeatureUnavailable(err) is true when the loaded library or the connected host
+// engine lacks the API. Other DCGM failures are returned as *Error.
+func HealthSetWithParamsStrict(
+	groupID GroupHandle,
+	systems HealthSystem,
+	updateInterval time.Duration,
+	maxKeepAge time.Duration,
+) error {
+	// DCGM's mask is 32 bits wide; a larger value would lose its high bits and
+	// could turn every watch off.
+	if uint64(systems) > math.MaxUint32 {
+		return fmt.Errorf(healthSetErrorFormat, &Error{
+			msg:  fmt.Sprintf("health systems %#x do not fit in DCGM's 32-bit mask", uint64(systems)),
+			Code: C.DCGM_ST_BADPARAM,
+		})
+	}
+
+	// Libraries older than 4.7.1 do not export the v3 call.
+	if !dcgmSymbolAvailable(healthSetV3Symbol) {
+		return &FeatureUnavailableError{Feature: healthSetV3Feature, Symbol: healthSetV3Symbol}
+	}
+
+	params := healthSetParams(groupID, systems, updateInterval, maxKeepAge)
+	result := C.dcgmHealthSet_v3(handle.handle, &params)
+	if err := dcgmFeatureResult(healthSetV3Feature, healthSetV3Symbol, result, dcgmErrorText(result)); err != nil {
+		return fmt.Errorf(healthSetErrorFormat, err)
 	}
 
 	return nil
+}
+
+// HealthGetSupportedSystems returns the health systems that the connected host
+// engine supports. A supported system may not apply to every device. Use HealthGet
+// for the systems enabled on a group.
+//
+// IsFeatureUnavailable(err) is true when the loaded library or the connected host
+// engine lacks the API. Other DCGM failures are returned as *Error.
+func HealthGetSupportedSystems() (HealthSystem, error) {
+	// Libraries older than 4.7.1 do not export the query.
+	if !dcgmSymbolAvailable(healthSupportedSystemsSymbol) {
+		return 0, &FeatureUnavailableError{Feature: healthSupportedSystemsFeature, Symbol: healthSupportedSystemsSymbol}
+	}
+
+	supported := C.dcgmHealthSupportedSystems_t{version: C.dcgmHealthSupportedSystems_version}
+	result := C.dcgmHealthGetSupportedSystems(handle.handle, &supported)
+	if err := dcgmFeatureResult(healthSupportedSystemsFeature, healthSupportedSystemsSymbol, result, dcgmErrorText(result)); err != nil {
+		return 0, fmt.Errorf("error getting supported health systems: %w", err)
+	}
+
+	return HealthSystem(supported.systems), nil
 }
 
 // HealthGet retrieves the current state of the DCGM health check system.
@@ -99,6 +186,7 @@ func HealthGet(groupID GroupHandle) (HealthSystem, error) {
 	if err := errorString(result); err != nil {
 		return HealthSystem(0), err
 	}
+
 	return HealthSystem(systems), nil
 }
 
@@ -158,34 +246,43 @@ func (cgoAdapter) healthCheck(groupID GroupHandle) (HealthResponse, error) {
 func healthResponseFromNative(healthResults *C.dcgmHealthResponse_v5) (HealthResponse, error) {
 	incidents := uint(healthResults.incidentCount)
 	maxIncidents := uint(len(healthResults.incidents))
+
+	// A count larger than the array means DCGM returned a bad response; reading
+	// past the array would read invalid memory.
 	if incidents > maxIncidents {
 		return HealthResponse{}, fmt.Errorf("health response contains %d incidents, maximum %d", incidents, maxIncidents)
 	}
 
 	response := HealthResponse{
 		OverallHealth: HealthResult(healthResults.overallHealth),
+		Incidents:     make([]Incident, incidents),
 	}
 
-	response.Incidents = make([]Incident, incidents)
-
 	for i := uint(0); i < incidents; i++ {
-		response.Incidents[i] = Incident{
-			System: HealthSystem(healthResults.incidents[i].system),
-			Health: HealthResult(healthResults.incidents[i].health),
-			Error: DiagErrorDetail{
-				Message: *stringPtr(&healthResults.incidents[i].error.msg[0]),
-				Code:    HealthCheckErrorCode(healthResults.incidents[i].error.code),
-			},
-			EntityInfo: GroupEntityPair{
-				EntityGroupId: Field_Entity_Group(healthResults.incidents[i].entityInfo.entityGroupId),
-				EntityId:      uint(healthResults.incidents[i].entityInfo.entityId),
-			},
-		}
+		response.Incidents[i] = incidentFromNative(&healthResults.incidents[i])
 	}
 
 	return response, nil
 }
 
+// incidentFromNative copies one native health incident into a Go Incident.
+func incidentFromNative(incident *C.dcgmIncidentInfo_t) Incident {
+	return Incident{
+		System: HealthSystem(incident.system),
+		Health: HealthResult(incident.health),
+		Error: DiagErrorDetail{
+			Message: *stringPtr(&incident.error.msg[0]),
+			Code:    HealthCheckErrorCode(incident.error.code),
+		},
+		EntityInfo: GroupEntityPair{
+			EntityGroupId: Field_Entity_Group(incident.entityInfo.entityGroupId),
+			EntityId:      uint(incident.entityInfo.entityId),
+		},
+	}
+}
+
+// healthCheckByGpuId checks the health of one GPU using the real DCGM calls.
+// HealthCheckByGpuId calls it.
 func healthCheckByGpuId(gpuID uint) (deviceHealth DeviceHealth, err error) {
 	return healthCheckByGPUWithOps(cgoAdapter{}, gpuID)
 }
@@ -207,6 +304,7 @@ func healthCheckByGPUWithOps(api healthGroupOps, gpuID uint) (deviceHealth Devic
 		return
 	}
 
+	// Watch every system so the check reports any problem on this GPU.
 	err = api.healthSet(groupID, DCGM_HEALTH_WATCH_ALL)
 	if err != nil {
 		return
@@ -218,9 +316,12 @@ func healthCheckByGPUWithOps(api healthGroupOps, gpuID uint) (deviceHealth Devic
 	}
 
 	deviceHealth = deviceHealthFromResponse(gpuID, result)
+
 	return
 }
 
+// deviceHealthFromResponse turns a group health check result into the
+// per-GPU DeviceHealth summary, with one SystemWatch per incident.
 func deviceHealthFromResponse(gpuID uint, result HealthResponse) DeviceHealth {
 	watches := make([]SystemWatch, len(result.Incidents))
 	for i := range result.Incidents {
@@ -238,6 +339,8 @@ func deviceHealthFromResponse(gpuID uint, result HealthResponse) DeviceHealth {
 	}
 }
 
+// healthStatus returns the display name of a DCGM health result: "Healthy",
+// "Warning", "Failure", or "N/A" for any other value.
 func healthStatus(status HealthResult) string {
 	switch status {
 	case 0:
@@ -250,6 +353,8 @@ func healthStatus(status HealthResult) string {
 	return "N/A"
 }
 
+// systemWatch returns the display name of one health watch system, such as
+// "PCIe watches". It returns "N/A" for a value that is not a single known system.
 func systemWatch(watch HealthSystem) string {
 	switch watch {
 	case DCGM_HEALTH_WATCH_PCIE:

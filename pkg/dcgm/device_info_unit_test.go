@@ -345,6 +345,21 @@ func TestEntityGroupEntitiesFromNative(t *testing.T) {
 	require.Equal(t, entityIDs, got)
 }
 
+// TestEntityGroupEntitiesFromNativeLargeResponse checks a response larger than DCGM_GROUP_MAX_ENTITIES_V2 (1,024 entities).
+func TestEntityGroupEntitiesFromNativeLargeResponse(t *testing.T) {
+	const entityCount = 2048
+	require.GreaterOrEqual(t, entityGroupCapacityForTest(), entityCount)
+
+	entityIDs := make([]uint, entityCount)
+	for i := range entityIDs {
+		entityIDs[i] = uint(i + 100)
+	}
+	got, err := entityGroupEntitiesFromValuesForTest(entityIDs, entityCount)
+	require.NoError(t, err)
+	require.Len(t, got, entityCount)
+	require.Equal(t, entityIDs, got)
+}
+
 // TestEntityGroupEntitiesFromNativeRejectsInvalidCounts checks negative and oversized native counts.
 func TestEntityGroupEntitiesFromNativeRejectsInvalidCounts(t *testing.T) {
 	capacity := entityGroupCapacityForTest()

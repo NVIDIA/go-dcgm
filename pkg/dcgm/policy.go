@@ -663,6 +663,11 @@ func policyValidationPtr(value PolicyValidation) *PolicyValidation {
 //
 //export ViolationRegistration
 func ViolationRegistration(data unsafe.Pointer, userData C.uint64_t) C.int {
+	// Nothing to decode. Return 0, the same value as a handled event (the header documents no other return values).
+	if data == nil {
+		return 0
+	}
+
 	var con PolicyCondition
 	var timestamp time.Time
 	var val any
