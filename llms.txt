@@ -63,6 +63,11 @@ defer cleanup()
   `GetLatestValuesForFields`, `EntityGetLatestValues`,
   `EntitiesGetLatestValues` or `GetValuesSince`. `UpdateAllFields` forces an
   update instead of waiting for the next one.
+- `WatchFieldsWithGroupEx` sets the interval and retention and refreshes after
+  it adds the watch. To add many watches, use
+  `WatchFieldsWithGroupExNoRefresh`: DCGM samples a new watch's fields once
+  before the call returns, and a refresh after each of many watches adds one
+  wait for a full DCGM update pass per call.
 - Release what you create: `UnwatchFields`, `FieldGroupDestroy` and
   `DestroyGroup`. Do not destroy `GroupAllGPUs`.
 - Process stats need `WatchPidFields` (or `WatchPidFieldsForGroup` on your own

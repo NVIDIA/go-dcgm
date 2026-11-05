@@ -76,8 +76,11 @@ task test:integration
 ```bash
 task test:integration -- --test_filter=TestDeviceInfo
 task test:integration -- --test_filter=TestDmon
-task test:integration -- --test_filter=TestDiag
 ```
+
+`task test:integration` and `task test:race` skip the diagnostic tests
+(`TestDiagnostics`, `TestDiagnosticsLong`, `TestDiagTestNameFormat`). Run them
+with `task test:diagnostics`.
 
 ### Run Tests with Different Modes
 
@@ -103,9 +106,9 @@ task test:integration -- --test_filter='TestDevice.*'
 
 ### Adaptive Testing
 
-- Integration and race tasks fail when a GPU is unavailable.
+- Integration, race and diagnostic tasks fail when a GPU is unavailable.
   `task test:gpu:prereqs` checks that embedded DCGM starts and discovers a
-  physical GPU before either suite runs.
+  physical GPU before any of these suites runs.
 - Different behavior for single vs. multi-GPU systems
 - Graceful handling of permission-restricted operations
 
@@ -195,8 +198,10 @@ These tests are designed to integrate well with continuous integration systems:
   run: task test:integration -- --test_timeout=600
 ```
 
-`task test:integration` checks that embedded DCGM starts and discovers a
-physical GPU. A missing GPU or broken DCGM runtime fails the task.
+`task test:gpu:prereqs`, which the GPU test tasks run first, runs `nvidia-smi`,
+checks that `libdcgm.so.4` is installed, and checks that embedded DCGM starts
+and discovers a physical GPU. A missing GPU or broken DCGM runtime fails the
+task.
 
 ## Troubleshooting
 

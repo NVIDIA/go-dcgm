@@ -34,7 +34,7 @@ When sources disagree, trust them in this order:
 | `cmd/gen-fields/` | Generates `pkg/dcgm/const_fields.go` from `dcgm_fields.h` |
 | `samples/` | Example programs, including the `restApi` HTTP sample |
 | `tests/` | GPU and DCGM integration tests that mirror the samples |
-| `hack/` | Version pins (`versions.env`), pin check, CI coverage script |
+| `hack/` | Version pins (`versions.env`) and the pin check |
 | `.github/workflows/` | GitHub build, test, and lint workflow |
 | `.devcontainer/` | Development image used locally and by CI |
 
@@ -51,24 +51,34 @@ These need no GPU:
 ```sh
 task build              # library and samples; checks generated code first
 task test               # same as task test:unit
-task test:unit          # prerequisite-free Bazel tests
+task test:unit          # every Bazel test not tagged manual
 task fmt:check          # gofumpt
-task lint               # golangci-lint; lint:incremental checks since HEAD~1
+task lint               # golangci-lint; LINT_BASE_REV=<rev> checks only new issues
+task lint:shell         # ShellCheck over the repository scripts
 task generate:check     # generated constants and mocks are current
 task versions:validate  # version pins agree
-task bazel:validate     # Gazelle, Bzlmod lockfile, and CI-safe targets
-task validate           # pins, Bazel, generated code, format, and lint
+task bazel:validate     # Gazelle, Bzlmod lockfile, and every non-manual target
+                        # builds; the GPU tasks build the manual ones
+task validate:static    # versions:validate, bazel:validate, generate:check
+task validate           # validate:static, test:unit, format, lint, and lint:shell
 task test:error-metadata # needs DCGM libraries, as in the dev container
 ```
 
 These need a host with a GPU and the DCGM runtime:
 
 ```sh
-task test:gpu:prereqs      # confirms DCGM finds a physical GPU
-task test:integration      # integration suite; runs the prereq check first
-task test:race             # integration suite with the race detector
-task test:diagnostics      # hardware diagnostic tests
+task test:gpu:prereqs      # nvidia-smi, libdcgm.so.4, and DCGM finds a GPU
+task test:integration      # integration suite without diagnostics; runs the prereq check first
+task test:race             # same as task test:integration RACE=true
+task test:diagnostics      # diagnostic tests; runs the prereq check first
 ```
+
+CI runs the same tasks with switches that default to off: `test:unit`
+takes `COVERAGE=true` and `REPORTS=true`, and the GPU test tasks take
+`REPORTS=true`. Reports go to `test-reports/`, plus `tests.cov` and
+`coverage.xml` after a coverage run, also when tests fail;
+`task test:reports` writes them again from the last `test:unit`,
+`test:integration`, `test:race` or `test:diagnostics` run.
 
 The test tasks (`test:unit`, `test:error-metadata`, `test:integration`,
 `test:race`, `test:diagnostics`) pass Bazel options given after `--`, such as

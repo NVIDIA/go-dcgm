@@ -47,7 +47,6 @@ RUN set -eux; \
     /usr/local/go/bin/go install "mvdan.cc/gofumpt@v${GOFUMPT_VERSION}"; \
     /usr/local/go/bin/go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}"; \
     /usr/local/go/bin/go install "github.com/boumenot/gocover-cobertura@v${GOCOVER_COBERTURA_VERSION}"; \
-    /usr/local/go/bin/go install "github.com/jstemmer/go-junit-report/v2@v${GO_JUNIT_REPORT_VERSION}"; \
     ln --symbolic /usr/local/bin/bazelisk /usr/local/bin/bazel; \
     mkdir /opt/bazelisk; \
     BAZELISK_HOME=/opt/bazelisk USE_BAZEL_VERSION="${BAZEL_VERSION}" bazelisk version; \
