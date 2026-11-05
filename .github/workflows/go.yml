@@ -24,10 +24,11 @@ jobs:
           configFile: .devcontainer/devcontainer.json
           runCmd: |
             set -e
-            task build
-            task test:unit:coverage
+            task validate:static
+            task test:unit COVERAGE=true REPORTS=true
             task fmt:check
             task lint
+            task lint:shell
       - name: Upload coverage to Codecov
         if: ${{ !cancelled() }}
         continue-on-error: true

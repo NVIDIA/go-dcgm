@@ -1,0 +1,5 @@
+# Reviewed gitleaks findings in past commits, as <commit>:<path>:<rule>:<line>,
+# each under a comment that says why it is not a secret. Allow current files in
+# .gitleaks.toml instead. Secret scans read both files from a reviewed commit
+# (the default branch, or a pull request's base), never from the change under
+# scan, so a new entry takes effect only once it is merged.

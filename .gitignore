@@ -12,6 +12,8 @@ tags
 !.dockerignore
 !.github/
 !.gitlab/
+!.gitleaks.toml
+!.gitleaksignore
 !.devcontainer/
 !.bazelrc
 !.bazelversion

@@ -112,6 +112,47 @@ func TestGetLatestValuesForFields(t *testing.T) {
 	assert.Equal(t, int64(10), values[0].Int64())
 }
 
+// TestWatchFieldsWithGroupExNoRefreshHasFirstSample checks that a watch added
+// without a forced refresh has a sample as soon as the call returns. No other
+// watch in this test's DCGM covers GPU temperature, so the sample can only come
+// from the update DCGM runs for the new watch.
+func TestWatchFieldsWithGroupExNoRefreshHasFirstSample(t *testing.T) {
+	teardownTest := setupTest(t)
+	defer teardownTest(t)
+
+	runOnlyWithLiveGPUs(t)
+
+	gpus, err := GetSupportedDevices()
+	require.NoError(t, err)
+	require.NotEmpty(t, gpus)
+
+	group, err := CreateGroup("noRefreshWatch")
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, DestroyGroup(group))
+	}()
+	require.NoError(t, AddToGroup(group, gpus[0]))
+
+	fieldsGroup, err := FieldGroupCreate("noRefreshWatchFields", []Short{DCGM_FI_DEV_GPU_TEMP_CELSIUS})
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, FieldGroupDestroy(fieldsGroup))
+	}()
+
+	// The value is read right after the call returns; the hour-long interval
+	// only stops later scheduled updates.
+	require.NoError(t, WatchFieldsWithGroupExNoRefresh(fieldsGroup, group, int64(time.Hour/time.Microsecond), 3600, 0))
+	defer func() {
+		assert.NoError(t, UnwatchFields(fieldsGroup, group))
+	}()
+
+	values, err := EntityGetLatestValues(FE_GPU, gpus[0], []Short{DCGM_FI_DEV_GPU_TEMP_CELSIUS})
+	require.NoError(t, err)
+	require.Len(t, values, 1)
+	assert.NotZero(t, values[0].TS)
+	assert.False(t, IsInt64Blank(values[0].Int64()))
+}
+
 func BenchmarkGetLatestValuesForFieldsVariousSize(b *testing.B) {
 	teardownTest := setupTest(b)
 	defer teardownTest(b)

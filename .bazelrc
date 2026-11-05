@@ -2,6 +2,11 @@ build --@rules_go//go/config:static=false
 build --jobs=auto
 test --test_output=errors
 
+# Every test case appears in its test.xml, and bazel coverage writes a Go cover
+# profile per test target; task test:reports builds the CI reports from both.
+test --test_env=GO_TEST_WRAP_TESTV=1
+coverage --@rules_go//go/config:cover_format=go_cover
+
 build:ci --verbose_failures
 build:ci --show_timestamps
 build:ci --incompatible_strict_action_env

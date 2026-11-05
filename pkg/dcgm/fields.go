@@ -171,7 +171,7 @@ func watchFieldsWithOps(api watchGroupOps, gpuID uint, fieldsGroup FieldHandle, 
 
 	err = api.updateAllFields()
 	if err != nil {
-		return groupId, err
+		return groupId, fmt.Errorf("error refreshing watched fields: %w", err)
 	}
 	return group, nil
 }
@@ -182,17 +182,65 @@ func watchFieldsWithOps(api watchGroupOps, gpuID uint, fieldsGroup FieldHandle, 
 // updateFreq is the update frequency in microseconds.
 // maxKeepAge is the maximum age of samples to keep in seconds.
 // maxKeepSamples is the maximum number of samples to keep.
-// Returns an error if the watch operation fails.
+// After adding the watch, it calls UpdateAllFields and waits for that update.
+// It returns an error if the watch fails, or a wrapped refresh error if the
+// refresh fails; the watch stays in place in that case. To add many watches,
+// use WatchFieldsWithGroupExNoRefresh.
 func WatchFieldsWithGroupEx(
 	fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
 ) error {
-	if err := (cgoAdapter{}).watchFieldsNative(fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
-		return err
-	}
-	return UpdateAllFields()
+	return watchFieldsWithGroupExWithOps(cgoAdapter{}, fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples)
 }
 
-// watchFieldsNative configures a native field watch; the caller refreshes the values afterward.
+// watchFieldsWithGroupExWithOps adds a group watch through api, then asks DCGM
+// to update all watched fields and waits for it. A failed watch returns its
+// error unchanged and skips the refresh.
+func watchFieldsWithGroupExWithOps(
+	api watchGroupOps, fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
+) error {
+	if err := api.watchFieldsNative(fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
+		return err
+	}
+
+	if err := api.updateAllFields(); err != nil {
+		return fmt.Errorf("error refreshing watched fields: %w", err)
+	}
+	return nil
+}
+
+// WatchFieldsWithGroupExNoRefresh starts watching fields like
+// WatchFieldsWithGroupEx, but does not call UpdateAllFields afterwards. Use it
+// when adding many watches: each forced refresh waits for one DCGM update pass,
+// and every pass walks all the watches DCGM holds.
+//
+// When the call adds a watch on an entity and field that DCGM has not sampled
+// before, DCGM updates the fields it samples itself once and waits for that
+// update before returning. Fields that DCGM modules push, such as profiling
+// fields on GPUs without GPM, NVSwitch fields and CPU fields, get their first
+// value when the module pushes it. A field another watcher already samples keeps
+// its current value until its next update is due. After that, DCGM updates the
+// fields every updateFreq microseconds in auto operation mode; in manual mode,
+// call UpdateAllFields.
+//
+// The host engine does this in DcgmHostEngineHandler::WatchFieldGroup. The note
+// in dcgm_agent.h that the first update waits for the next update cycle is older
+// than this behavior.
+func WatchFieldsWithGroupExNoRefresh(
+	fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
+) error {
+	return watchFieldsWithGroupExNoRefreshWithOps(cgoAdapter{}, fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples)
+}
+
+// watchFieldsWithGroupExNoRefreshWithOps adds a group watch through api and
+// does not refresh the watched fields.
+func watchFieldsWithGroupExNoRefreshWithOps(
+	api watchGroupOps, fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
+) error {
+	return api.watchFieldsNative(fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples)
+}
+
+// watchFieldsNative adds a native field watch only; refreshing the values is up
+// to the caller.
 func (cgoAdapter) watchFieldsNative(fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) error {
 	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
 		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))

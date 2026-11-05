@@ -1,0 +1,6 @@
+# Secret scan rules: gitleaks' default rules. Add narrow allowances here for
+# test data that is meant to look like a secret.
+title = "go-dcgm gitleaks configuration"
+
+[extend]
+useDefault = true
