@@ -24,9 +24,11 @@ tasks:
       - task --list
 
   versions:validate:
-    desc: Validate shared version pins
+    desc: Validate shared version pins; IMAGE_VARIABLES_FILE also checks the CI image variables in that file
+    env:
+      IMAGE_VARIABLES_FILE: '{{.IMAGE_VARIABLES_FILE | default ""}}'
     cmds:
-      - bash hack/validate-versions.sh
+      - bash hack/validate-versions.sh "${IMAGE_VARIABLES_FILE}"
 
   bazel:gazelle:
     desc: Generate and update Bazel Go targets
