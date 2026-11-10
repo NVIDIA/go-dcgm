@@ -30,6 +30,17 @@ tasks:
     cmds:
       - bash hack/validate-versions.sh "${IMAGE_VARIABLES_FILE}"
 
+  release:tag:check:
+    desc: Check that RELEASE_TAG is v1.<DCGM_VERSION digits><DCGM_PACKAGE_REVISION>.<patch> for the DCGM pin in hack/versions.env (RELEASE_TAG=v1.4712.3 task release:tag:check)
+    requires:
+      vars: [RELEASE_TAG]
+    env:
+      RELEASE_TAG: '{{.RELEASE_TAG}}'
+    cmds:
+      # Source the pin: Task's dotenv does not replace a DCGM_VERSION that is
+      # already in the environment.
+      - . ./hack/versions.env && go run ./cmd/check-release-tag -tag "${RELEASE_TAG}" -dcgm-version "${DCGM_VERSION}" -dcgm-package-revision "${DCGM_PACKAGE_REVISION}"
+
   bazel:gazelle:
     desc: Generate and update Bazel Go targets
     cmds:

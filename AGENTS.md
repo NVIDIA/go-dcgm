@@ -32,6 +32,7 @@ When sources disagree, trust them in this order:
 | --- | --- |
 | `pkg/dcgm/` | The bindings, copied DCGM C headers, and package tests |
 | `cmd/gen-fields/` | Generates `pkg/dcgm/const_fields.go` from `dcgm_fields.h` |
+| `cmd/check-release-tag/` | Checks a release tag against the DCGM pin in `hack/versions.env` |
 | `samples/` | Example programs, including the `restApi` HTTP sample |
 | `tests/` | GPU and DCGM integration tests that mirror the samples |
 | `hack/` | Version pins (`versions.env`) and the pin check |
@@ -57,6 +58,7 @@ task lint               # golangci-lint; LINT_BASE_REV=<rev> checks only new iss
 task lint:shell         # ShellCheck over the repository scripts
 task generate:check     # generated constants and mocks are current
 task versions:validate  # version pins agree
+task release:tag:check RELEASE_TAG=<tag>  # tag is v1.<DCGM pin digits>.<patch>
 task bazel:validate     # Gazelle, Bzlmod lockfile, and every non-manual target
                         # builds; the GPU tasks build the manual ones
 task validate:static    # versions:validate, bazel:validate, generate:check

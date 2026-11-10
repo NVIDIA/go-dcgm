@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "check-release-tag_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/NVIDIA/go-dcgm/cmd/check-release-tag",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "check-release-tag",
+    embed = [":check-release-tag_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "check-release-tag_test",
+    srcs = ["main_test.go"],
+    embed = [":check-release-tag_lib"],
+)
