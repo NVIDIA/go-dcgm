@@ -300,7 +300,7 @@ tasks:
     cmds:
       # Left unquoted so the shell expands globs in EXTRA_SHELL_SCRIPTS.
       # ShellCheck takes each script's shell from its first line.
-      - shellcheck -x hack/validate-versions.sh scripts/lint/go-mod-tidy.sh {{.EXTRA_SHELL_SCRIPTS}}
+      - shellcheck -x hack/validate-versions.sh hack/script-template.sh scripts/lint/go-mod-tidy.sh {{.EXTRA_SHELL_SCRIPTS}}
 
   fmt:
     desc: Format Go sources

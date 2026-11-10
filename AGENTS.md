@@ -35,7 +35,7 @@ When sources disagree, trust them in this order:
 | `cmd/check-release-tag/` | Checks a release tag against the DCGM pin in `hack/versions.env` |
 | `samples/` | Example programs, including the `restApi` HTTP sample |
 | `tests/` | GPU and DCGM integration tests that mirror the samples |
-| `hack/` | Version pins (`versions.env`) and the pin check |
+| `hack/` | Version pins (`versions.env`), the pin check, and the shell script template and rules (`hack/AGENTS.md`) |
 | `.github/workflows/` | GitHub build, test, and lint workflow |
 | `.devcontainer/` | Development image used locally and by CI |
 
@@ -55,7 +55,7 @@ task test               # same as task test:unit
 task test:unit          # every Bazel test not tagged manual
 task fmt:check          # gofumpt
 task lint               # golangci-lint; LINT_BASE_REV=<rev> checks only new issues
-task lint:shell         # ShellCheck over the repository scripts
+task lint:shell         # ShellCheck over the scripts
 task generate:check     # generated constants and mocks are current
 task versions:validate  # version pins agree
 task release:tag:check RELEASE_TAG=<tag>  # tag is v1.<DCGM pin digits>.<patch>
