@@ -79,8 +79,9 @@ defer cleanup()
 
 ## Errors and optional features
 
-- DCGM failures are `*dcgm.Error`. Compare its `Code` with the `DCGM_ST_*`
-  constants, for example `DCGM_ST_NO_DATA` or `DCGM_ST_REQUIRES_ROOT`.
+- Native DCGM failures contain a `*dcgm.Error`. Extract it with `errors.As`
+  before comparing its `Code` with the `DCGM_ST_*` constants, for example
+  `DCGM_ST_NO_DATA` or `DCGM_ST_REQUIRES_ROOT`.
 - APIs that older DCGM releases lack return an error for which
   `dcgm.IsFeatureUnavailable(err)` is true. Treat it as "not supported here",
   not as a failure.

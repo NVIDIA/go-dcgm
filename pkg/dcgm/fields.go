@@ -110,7 +110,7 @@ func (cgoAdapter) fieldGroupCreate(fieldsGroupName string, fields []Short) (fiel
 
 	result := C.dcgmFieldGroupCreate(handle.handle, C.int(len(fields)), &cfields[0], groupName, &fieldsGroup)
 	if err = errorString(result); err != nil {
-		return fieldsId, fmt.Errorf("error creating DCGM fields group: %s", err)
+		return fieldsId, fmt.Errorf("error creating DCGM fields group: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	fieldsId = FieldHandle{fieldsGroup}
@@ -127,7 +127,7 @@ func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 func (cgoAdapter) fieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 	result := C.dcgmFieldGroupDestroy(handle.handle, fieldsGroup.handle)
 	if err = errorString(result); err != nil {
-		err = fmt.Errorf("error destroying DCGM fields group: %s", err)
+		err = fmt.Errorf("error destroying DCGM fields group: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return err
@@ -246,7 +246,7 @@ func (cgoAdapter) watchFieldsNative(fieldsGroup FieldHandle, group GroupHandle, 
 		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
 
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error watching fields: %s", err)
+		return fmt.Errorf("error watching fields: %w", &Error{msg: err.Error(), Code: result})
 	}
 	return nil
 }
@@ -265,7 +265,7 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
 	result := C.dcgmUnwatchFields(handle.handle, group.handle, fieldsGroup.handle)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error unwatching fields: %w", err)
+		return fmt.Errorf("error unwatching fields: %w", &Error{msg: err.Error(), Code: result})
 	}
 	return nil
 }
@@ -295,7 +295,7 @@ func WatchFieldValue(
 		C.int(maxKeepSamples),
 	)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error watching field value: %w", err)
+		return fmt.Errorf("error watching field value: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return nil
@@ -317,7 +317,7 @@ func UnwatchFieldValue(gpuID uint, fieldID Short, clearCache bool) error {
 		clearCacheValue,
 	)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error unwatching field value: %w", err)
+		return fmt.Errorf("error unwatching field value: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return nil
@@ -467,7 +467,7 @@ func (cgoAdapter) getLatestValuesForFields(gpu uint, fields []Short) ([]FieldVal
 	)
 	runtime.KeepAlive(fields)
 	if err := errorString(result); err != nil {
-		return nil, fmt.Errorf("error watching fields: %s", err)
+		return nil, fmt.Errorf("error watching fields: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	// Convert to our return type before returning
@@ -561,7 +561,11 @@ func (cgoAdapter) updateAllFields() error {
 	waitForUpdate := C.int(1)
 	result := C.dcgmUpdateAllFields(handle.handle, waitForUpdate)
 
-	return errorString(result)
+	if err := errorString(result); err != nil {
+		return &Error{msg: err.Error(), Code: result}
+	}
+
+	return nil
 }
 
 func toFieldValue(cfields []C.dcgmFieldValue_v1) []FieldValue_v1 {

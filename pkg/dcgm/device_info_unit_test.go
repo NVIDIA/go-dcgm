@@ -195,6 +195,7 @@ func TestGetPciBandwidthWithOps(t *testing.T) {
 				require.ErrorIs(t, err, stageErr)
 				require.Zero(t, got)
 			case "collect":
+				require.ErrorIs(t, err, stageErr)
 				require.EqualError(t, err, "error getting Pcie bandwidth: stage failed")
 				require.Zero(t, got)
 			default:
@@ -283,6 +284,7 @@ func TestGetCPUAffinityWithOps(t *testing.T) {
 				require.ErrorIs(t, err, stageErr)
 				require.Equal(t, "N/A", got)
 			case "collect":
+				require.ErrorIs(t, err, stageErr)
 				require.EqualError(t, err, "error getting cpu affinity: stage failed")
 				require.Equal(t, "N/A", got)
 			default:

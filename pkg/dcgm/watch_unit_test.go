@@ -221,3 +221,34 @@ func TestWatchFieldsWithGroupExRefreshCount(t *testing.T) {
 		})
 	}
 }
+
+// TestWatchErrorsRetainDCGMStatus checks native statuses through watch setup and refresh.
+func TestWatchErrorsRetainDCGMStatus(t *testing.T) {
+	for _, native := range []*Error{
+		{Code: DCGM_ST_CONNECTION_NOT_VALID, msg: "connection not valid"},
+		{Code: DCGM_ST_UNINITIALIZED, msg: "uninitialized"},
+		{Code: DCGM_ST_NVML_NOT_LOADED, msg: "NVML not loaded"},
+	} {
+		for _, stage := range []string{"watch", "refresh"} {
+			t.Run(native.Error()+"/"+stage, func(t *testing.T) {
+				api := NewMockWatchGroupOps(gomock.NewController(t))
+				watch := api.EXPECT().watchFieldsNative(FieldHandle{}, GroupHandle{}, int64(1000000), float64(1), int32(0))
+				if stage == "watch" {
+					watch.Return(native)
+				} else {
+					watch.Return(nil)
+					api.EXPECT().updateAllFields().After(watch).Return(native)
+				}
+				err := watchFieldsWithGroupExWithOps(api, FieldHandle{}, GroupHandle{}, 1000000, 1, 0)
+				var got *Error
+				require.ErrorAs(t, err, &got)
+				require.Same(t, native, got)
+				prefix := ""
+				if stage == "refresh" {
+					prefix = "error refreshing watched fields: "
+				}
+				require.Equal(t, prefix+native.Error(), err.Error())
+			})
+		}
+	}
+}

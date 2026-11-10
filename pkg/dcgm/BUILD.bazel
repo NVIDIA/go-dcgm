@@ -26,6 +26,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude field_values_test_helpers.go
 # gazelle:exclude field_values_unit_test.go
 # gazelle:exclude fields_empty_test.go
+# gazelle:exclude gpu_group_runtime_test.go
 # gazelle:exclude gpu_group_unit_test.go
 # gazelle:exclude health_test_helpers.go
 # gazelle:exclude health_unit_test.go
@@ -156,6 +157,7 @@ go_test(
         "field_summary_test.go",
         "field_values_test.go",
         "fields_test.go",
+        "gpu_group_runtime_test.go",  # keep: native status checks need the DCGM runtime.
         "gpu_group_test.go",
         "group_lifecycle_test.go",
         "health_test.go",
