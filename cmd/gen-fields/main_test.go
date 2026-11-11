@@ -77,61 +77,86 @@ func TestGeneratedFieldCommentDocumentsNVLinkScopes(t *testing.T) {
 	}
 }
 
-func TestPreserveLegacyFieldNames(t *testing.T) {
-	fields, aliases := preserveLegacyFieldNames([]Field{
-		{Name: "DCGM_FI_DEV_GPU_UTIL", LookupName: "DCGM_FI_DEV_GPU_UTIL", ID: 203},
-		{Name: "DCGM_FI_DEV_GPU_UTIL_RATIO", LookupName: "DCGM_FI_DEV_GPU_UTIL_RATIO", ID: 1613, Comment: "Use DCGM_FI_DEV_GPU_UTIL_RATIO."},
-	}, map[string]int{
-		"DCGM_FI_DEV_GPU_UTIL_RATIO": 203,
-	})
+// TestCuratedFieldAliases checks that curated DCGM_FI_* names become Go
+// aliases only when the header no longer defines them, and that a curated ID
+// never overrides the header's ID for a name the header defines.
+func TestCuratedFieldAliases(t *testing.T) {
+	fields := []Field{
+		{Name: "DCGM_FI_DEV_GPU_UTIL", ID: 203},
+		{Name: "DCGM_FI_DEV_GPU_UTIL_RATIO", ID: 1613},
+	}
+	headerAliases := []DeprecatedFieldAlias{
+		{Name: "DCGM_FI_DEV_OLD_UTIL", Target: "DCGM_FI_DEV_GPU_UTIL", ID: 203},
+	}
 
-	if got, want := fields[1].Name, "DCGM_FI_DEV_GPU_UTIL_RATIO_V2"; got != want {
-		t.Fatalf("renamed field = %q, want %q", got, want)
+	tests := []struct {
+		name    string
+		legacy  map[string]int
+		want    []DeprecatedFieldAlias
+		wantErr string
+	}{
+		{
+			name: "header field with matching ID",
+			legacy: map[string]int{
+				"DCGM_FI_DEV_GPU_UTIL": 203,
+				"dcgm_gpu_utilization": 203,
+			},
+		},
+		{
+			name:   "header alias with matching ID",
+			legacy: map[string]int{"DCGM_FI_DEV_OLD_UTIL": 203},
+		},
+		{
+			name: "names the header no longer defines",
+			legacy: map[string]int{
+				"DCGM_FI_DEV_GPU_UTIL_RATIO_V2": 1613,
+				"DCGM_FI_DEV_GPU_UTIL_PERCENT":  203,
+			},
+			want: []DeprecatedFieldAlias{
+				{Name: "DCGM_FI_DEV_GPU_UTIL_PERCENT", Target: "DCGM_FI_DEV_GPU_UTIL", ID: 203},
+				{Name: "DCGM_FI_DEV_GPU_UTIL_RATIO_V2", Target: "DCGM_FI_DEV_GPU_UTIL_RATIO", ID: 1613},
+			},
+		},
+		{
+			name:    "header field with a different ID",
+			legacy:  map[string]int{"DCGM_FI_DEV_GPU_UTIL_RATIO": 203},
+			wantErr: `"DCGM_FI_DEV_GPU_UTIL_RATIO" has ID 203, but dcgm_fields.h defines it as 1613`,
+		},
+		{
+			name:    "header alias with a different ID",
+			legacy:  map[string]int{"DCGM_FI_DEV_OLD_UTIL": 1613},
+			wantErr: `"DCGM_FI_DEV_OLD_UTIL" has ID 1613, but dcgm_fields.h defines it as 203`,
+		},
+		{
+			name:    "unknown ID",
+			legacy:  map[string]int{"DCGM_FI_DEV_GONE": 9999},
+			wantErr: `"DCGM_FI_DEV_GONE" has ID 9999, which dcgm_fields.h does not define`,
+		},
 	}
-	if got, want := fields[1].LookupName, "DCGM_FI_DEV_GPU_UTIL_RATIO"; got != want {
-		t.Fatalf("field lookup name = %q, want %q", got, want)
-	}
-	if !strings.Contains(fields[1].Comment, "DCGM_FI_DEV_GPU_UTIL_RATIO_V2") {
-		t.Fatalf("renamed field comment does not name its replacement: %q", fields[1].Comment)
-	}
-	if len(aliases) != 1 {
-		t.Fatalf("compatibility aliases = %d, want 1", len(aliases))
-	}
-	if got, want := aliases[0], (DeprecatedFieldAlias{
-		Name:   "DCGM_FI_DEV_GPU_UTIL_RATIO",
-		Target: "DCGM_FI_DEV_GPU_UTIL",
-		ID:     203,
-	}); got != want {
-		t.Fatalf("compatibility alias = %+v, want %+v", got, want)
-	}
-}
 
-func TestPreserveLegacyFieldNames_ResolvesAliasTargetsAfterRenames(t *testing.T) {
-	fields, aliases := preserveLegacyFieldNames([]Field{
-		{Name: "DCGM_FI_DEV_FIRST", ID: 100},
-		{Name: "DCGM_FI_DEV_SECOND", ID: 200},
-	}, map[string]int{
-		"DCGM_FI_DEV_FIRST":  200,
-		"DCGM_FI_DEV_SECOND": 100,
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := curatedFieldAliases(fields, headerAliases, tt.legacy)
 
-	if got, want := fields[0].Name, "DCGM_FI_DEV_FIRST_V2"; got != want {
-		t.Fatalf("first renamed field = %q, want %q", got, want)
-	}
-	if got, want := fields[1].Name, "DCGM_FI_DEV_SECOND_V2"; got != want {
-		t.Fatalf("second renamed field = %q, want %q", got, want)
-	}
-	wantAliases := []DeprecatedFieldAlias{
-		{Name: "DCGM_FI_DEV_FIRST", Target: "DCGM_FI_DEV_SECOND_V2", ID: 200},
-		{Name: "DCGM_FI_DEV_SECOND", Target: "DCGM_FI_DEV_FIRST_V2", ID: 100},
-	}
-	if len(aliases) != len(wantAliases) {
-		t.Fatalf("compatibility aliases = %d, want %d", len(aliases), len(wantAliases))
-	}
-	for i, want := range wantAliases {
-		if got := aliases[i]; got != want {
-			t.Fatalf("compatibility alias %d = %+v, want %+v", i, got, want)
-		}
+			if tt.wantErr != "" {
+				if err == nil || err.Error() != tt.wantErr {
+					t.Fatalf("error = %v, want %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("curatedFieldAliases: %v", err)
+			}
+
+			if len(got) != len(tt.want) {
+				t.Fatalf("aliases = %+v, want %+v", got, tt.want)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Fatalf("alias %d = %+v, want %+v", i, got[i], tt.want[i])
+				}
+			}
+		})
 	}
 }
 
@@ -512,7 +537,7 @@ dcgm_xid_errors,230
 func TestReadLegacyFieldsCSV_PreservesGPUUtilCompatibilityNames(t *testing.T) {
 	path := writeLegacyCSV(t, `name,id
 DCGM_FI_DEV_GPU_UTIL,203
-DCGM_FI_DEV_GPU_UTIL_RATIO,203
+DCGM_FI_DEV_GPU_UTIL_RATIO_V2,1613
 `)
 
 	legacyFields, err := readLegacyFieldsCSV(path)
@@ -522,8 +547,8 @@ DCGM_FI_DEV_GPU_UTIL_RATIO,203
 	if legacyFields["DCGM_FI_DEV_GPU_UTIL"] != 203 {
 		t.Errorf("DCGM_FI_DEV_GPU_UTIL = %d, want 203", legacyFields["DCGM_FI_DEV_GPU_UTIL"])
 	}
-	if legacyFields["DCGM_FI_DEV_GPU_UTIL_RATIO"] != 203 {
-		t.Errorf("DCGM_FI_DEV_GPU_UTIL_RATIO = %d, want 203", legacyFields["DCGM_FI_DEV_GPU_UTIL_RATIO"])
+	if legacyFields["DCGM_FI_DEV_GPU_UTIL_RATIO_V2"] != 1613 {
+		t.Errorf("DCGM_FI_DEV_GPU_UTIL_RATIO_V2 = %d, want 1613", legacyFields["DCGM_FI_DEV_GPU_UTIL_RATIO_V2"])
 	}
 }
 

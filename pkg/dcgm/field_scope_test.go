@@ -32,10 +32,10 @@ func TestDCGM47GPUUtilFieldSemantics(t *testing.T) {
 			current:   true,
 		},
 		{
-			name:      "new ratio GPU utilization is field 1613",
+			name:      "earlier Go name for the ratio field is a legacy name for field 1613",
 			fieldName: "DCGM_FI_DEV_GPU_UTIL_RATIO_V2",
 			wantID:    1613,
-			current:   true,
+			current:   false,
 		},
 		{
 			name:      "current header ratio GPU utilization is field 1613",
@@ -60,11 +60,14 @@ func TestDCGM47GPUUtilFieldSemantics(t *testing.T) {
 		})
 	}
 
-	if DCGM_FI_DEV_GPU_UTIL == DCGM_FI_DEV_GPU_UTIL_RATIO_V2 {
-		t.Fatal("percentage and new ratio GPU utilization fields must have different IDs")
+	if DCGM_FI_DEV_GPU_UTIL_RATIO != 1613 {
+		t.Fatalf("DCGM_FI_DEV_GPU_UTIL_RATIO = %d, want the ratio field 1613", DCGM_FI_DEV_GPU_UTIL_RATIO)
 	}
-	if DCGM_FI_DEV_GPU_UTIL_RATIO != DCGM_FI_DEV_GPU_UTIL {
-		t.Fatal("legacy GPU utilization ratio constant must remain field 203")
+	if DCGM_FI_DEV_GPU_UTIL_RATIO_V2 != DCGM_FI_DEV_GPU_UTIL_RATIO {
+		t.Fatal("DCGM_FI_DEV_GPU_UTIL_RATIO_V2 must remain an alias of DCGM_FI_DEV_GPU_UTIL_RATIO")
+	}
+	if !IsLegacyField("DCGM_FI_DEV_GPU_UTIL_RATIO_V2") {
+		t.Fatal("DCGM_FI_DEV_GPU_UTIL_RATIO_V2 must remain a compatibility lookup for field 1613")
 	}
 	if !IsLegacyField("DCGM_FI_DEV_GPU_UTIL") {
 		t.Fatal("DCGM_FI_DEV_GPU_UTIL must remain a compatibility lookup for field 203")

@@ -199,7 +199,7 @@ const (
 	DCGM_FI_DEV_PCIE_RX_THROUGHPUT Short = 201
 	// DCGM_FI_DEV_PCIE_REPLAY_TOTAL represents PCIe replay counter
 	DCGM_FI_DEV_PCIE_REPLAY_TOTAL Short = 202
-	// DCGM_FI_DEV_GPU_UTIL represents Deprecated: Use DCGM_FI_DEV_GPU_UTIL_RATIO_V2 instead.
+	// DCGM_FI_DEV_GPU_UTIL represents Deprecated: Use DCGM_FI_DEV_GPU_UTIL_RATIO instead.
 	DCGM_FI_DEV_GPU_UTIL Short = 203
 	// DCGM_FI_DEV_MEM_COPY_UTIL represents Deprecated: Use DCGM_FI_DEV_MEMORY_UTIL_RATIO instead.
 	DCGM_FI_DEV_MEM_COPY_UTIL Short = 204
@@ -1343,8 +1343,8 @@ const (
 	DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL Short = 1611
 	// DCGM_FI_DEV_FAN_SPEED_RATIO represents Fan speed for the device as a ratio of maximum noise-tolerance fan speed (0.0-1.0+)
 	DCGM_FI_DEV_FAN_SPEED_RATIO Short = 1612
-	// DCGM_FI_DEV_GPU_UTIL_RATIO_V2 represents GPU Utilization (0.0-1.0) Go name adjusted to preserve source compatibility.
-	DCGM_FI_DEV_GPU_UTIL_RATIO_V2 Short = 1613
+	// DCGM_FI_DEV_GPU_UTIL_RATIO represents GPU Utilization (0.0-1.0)
+	DCGM_FI_DEV_GPU_UTIL_RATIO Short = 1613
 	// DCGM_FI_DEV_MEMORY_UTIL_RATIO represents Memory Utilization (0.0-1.0)
 	DCGM_FI_DEV_MEMORY_UTIL_RATIO Short = 1614
 	// DCGM_FI_DEV_ENC_UTIL_RATIO represents Encoder Utilization (0.0-1.0)
@@ -1529,8 +1529,6 @@ const (
 	DCGM_FI_DEV_PSTATE Short = DCGM_FI_DEV_GPU_PSTATE
 	// DCGM_FI_DEV_PCIE_REPLAY_COUNTER is deprecated; use DCGM_FI_DEV_PCIE_REPLAY_TOTAL.
 	DCGM_FI_DEV_PCIE_REPLAY_COUNTER Short = DCGM_FI_DEV_PCIE_REPLAY_TOTAL
-	// DCGM_FI_DEV_GPU_UTIL_RATIO is deprecated; use DCGM_FI_DEV_GPU_UTIL.
-	DCGM_FI_DEV_GPU_UTIL_RATIO Short = DCGM_FI_DEV_GPU_UTIL
 	// DCGM_FI_DEV_ACCOUNTING_DATA is deprecated; use DCGM_FI_DEV_PROCESS_ACCOUNTING_STATS.
 	DCGM_FI_DEV_ACCOUNTING_DATA Short = DCGM_FI_DEV_PROCESS_ACCOUNTING_STATS
 	// DCGM_FI_DEV_XID_ERRORS is deprecated; use DCGM_FI_DEV_XID_ERROR.
@@ -2147,6 +2145,8 @@ const (
 	DCGM_FI_DEV_NVLINK_PPCNT_IBPC_PORT_XMIT_WAIT Short = DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL
 	// DCGM_FI_DEV_GET_GPU_RECOVERY_ACTION is deprecated; use DCGM_FI_DEV_GPU_RECOVERY_ACTION.
 	DCGM_FI_DEV_GET_GPU_RECOVERY_ACTION Short = DCGM_FI_DEV_GPU_RECOVERY_ACTION
+	// DCGM_FI_DEV_GPU_UTIL_RATIO_V2 is deprecated; use DCGM_FI_DEV_GPU_UTIL_RATIO.
+	DCGM_FI_DEV_GPU_UTIL_RATIO_V2 Short = DCGM_FI_DEV_GPU_UTIL_RATIO
 )
 
 // dcgmFields maps field names to their IDs
@@ -2814,7 +2814,6 @@ var dcgmFields = map[string]Short{
 	"DCGM_FI_DEV_GPU_ENERGY_JOULES_TOTAL":                               1611,
 	"DCGM_FI_DEV_FAN_SPEED_RATIO":                                       1612,
 	"DCGM_FI_DEV_GPU_UTIL_RATIO":                                        1613,
-	"DCGM_FI_DEV_GPU_UTIL_RATIO_V2":                                     1613,
 	"DCGM_FI_DEV_MEMORY_UTIL_RATIO":                                     1614,
 	"DCGM_FI_DEV_ENC_UTIL_RATIO":                                        1615,
 	"DCGM_FI_DEV_DEC_UTIL_RATIO":                                        1616,
@@ -2905,6 +2904,7 @@ var legacyDCGMFields = map[string]Short{
 	"DCGM_FI_DEV_GPU_TEMP":                                         150,
 	"DCGM_FI_DEV_GPU_TEMP_LIMIT":                                   153,
 	"DCGM_FI_DEV_GPU_UTIL":                                         203,
+	"DCGM_FI_DEV_GPU_UTIL_RATIO_V2":                                1613,
 	"DCGM_FI_DEV_INFOROM_CONFIG_CHECK":                             83,
 	"DCGM_FI_DEV_INFOROM_CONFIG_VALID":                             84,
 	"DCGM_FI_DEV_INFOROM_IMAGE_VER":                                82,

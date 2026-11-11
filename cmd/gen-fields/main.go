@@ -38,10 +38,9 @@ var dcgmConstNamePattern = regexp.MustCompile(`^DCGM_FI_[A-Z0-9_]+$`)
 
 // Field describes a numeric field parsed from the DCGM header.
 type Field struct {
-	Name       string
-	LookupName string
-	ID         int
-	Comment    string
+	Name    string
+	ID      int
+	Comment string
 }
 
 // DeprecatedFieldAlias describes a deprecated DCGM field name that aliases a current field.
@@ -104,20 +103,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Error reading legacy fields from %q: %v\n", legacyFieldsPath, err)
 		return 1
 	}
-	fields, compatibilityAliases := preserveLegacyFieldNames(fields, legacyFields)
+	curatedAliases, err := curatedFieldAliases(fields, deprecatedAliases, legacyFields)
+	if err != nil {
+		fmt.Fprintf(stderr, "Error checking legacy fields from %q: %v\n", legacyFieldsPath, err)
+		return 1
+	}
 
 	// Merge resolved aliases into the legacy map. Curated names are lowercase
-	// except for preserved Go constant names.
+	// or DCGM field constant names.
 	for _, alias := range deprecatedAliases {
 		legacyFields[alias.Name] = alias.ID
 	}
-	// A compatibility alias can share its historical Go constant name with a
-	// current DCGM header field. Keep the current header name available for
-	// config-file lookup; the Go constant is preserved separately above.
-	for _, alias := range compatibilityAliases {
-		delete(legacyFields, alias.Name)
-	}
-	deprecatedAliases = append(deprecatedAliases, compatibilityAliases...)
+	deprecatedAliases = append(deprecatedAliases, curatedAliases...)
 	sort.Slice(deprecatedAliases, func(i, j int) bool {
 		if deprecatedAliases[i].ID != deprecatedAliases[j].ID {
 			return deprecatedAliases[i].ID < deprecatedAliases[j].ID
@@ -303,10 +300,9 @@ func parseHeader(path string) ([]Field, map[string]string, error) {
 			}
 
 			fields = append(fields, Field{
-				Name:       name,
-				LookupName: name,
-				ID:         id,
-				Comment:    generatedFieldComment(name, comment),
+				Name:    name,
+				ID:      id,
+				Comment: generatedFieldComment(name, comment),
 			})
 
 			lastComment = ""
@@ -462,68 +458,52 @@ func readLegacyFieldsCSV(path string) (map[string]int, error) {
 	return legacyFields, nil
 }
 
-// preserveLegacyFieldNames keeps previously exported Go constants stable when
-// a newer DCGM header reuses the name for a different numeric field. The newer
-// field receives a distinct Go name and the older name remains an alias.
-func preserveLegacyFieldNames(fields []Field, legacyFields map[string]int) ([]Field, []DeprecatedFieldAlias) {
-	fieldNames := make(map[string]struct{}, len(fields))
+// curatedFieldAliases returns a Go constant alias for each DCGM_FI_* name in
+// the curated legacy CSV that dcgm_fields.h no longer defines, pointing at the
+// header field with the curated ID. A curated name that the header still
+// defines, as a field or a deprecated alias, must carry the header's ID: the
+// header decides what a DCGM field name means, so a mismatch fails generation
+// instead of giving a Go constant a different ID than GetFieldID returns for
+// the same name.
+func curatedFieldAliases(
+	fields []Field,
+	headerAliases []DeprecatedFieldAlias,
+	legacyFields map[string]int,
+) ([]DeprecatedFieldAlias, error) {
+	headerIDs := make(map[string]int, len(fields)+len(headerAliases))
+	fieldNamesByID := make(map[int]string, len(fields))
 	for _, field := range fields {
-		fieldNames[field.Name] = struct{}{}
+		headerIDs[field.Name] = field.ID
+		fieldNamesByID[field.ID] = field.Name
+	}
+	for _, alias := range headerAliases {
+		headerIDs[alias.Name] = alias.ID
 	}
 
-	renamedFields := make(map[string]string)
-	type pendingAlias struct {
-		name string
-		id   int
-	}
-	var pendingAliases []pendingAlias
-	for i := range fields {
-		legacyID, preserve := legacyFields[fields[i].Name]
-		if !preserve || legacyID == fields[i].ID {
+	var aliases []DeprecatedFieldAlias
+	for name, id := range legacyFields {
+		if !dcgmConstNamePattern.MatchString(name) {
 			continue
 		}
 
-		oldName := fields[i].Name
-		newName := oldName + "_V2"
-		for suffix := 3; ; suffix++ {
-			if _, exists := fieldNames[newName]; !exists {
-				break
+		// A name the header defines keeps the header's ID.
+		if headerID, defined := headerIDs[name]; defined {
+			if headerID != id {
+				return nil, fmt.Errorf("%q has ID %d, but dcgm_fields.h defines it as %d", name, id, headerID)
 			}
-			newName = fmt.Sprintf("%s_V%d", oldName, suffix)
+			continue
 		}
-		delete(fieldNames, oldName)
-		fieldNames[newName] = struct{}{}
-		fields[i].Name = newName
-		renamedFields[oldName] = newName
-		pendingAliases = append(pendingAliases, pendingAlias{name: oldName, id: legacyID})
-	}
 
-	fieldNamesByID := make(map[int]string, len(fields))
-	for _, field := range fields {
-		fieldNamesByID[field.ID] = field.Name
-	}
-	aliases := make([]DeprecatedFieldAlias, 0, len(pendingAliases))
-	for _, pending := range pendingAliases {
-		target, ok := fieldNamesByID[pending.id]
+		target, ok := fieldNamesByID[id]
 		if !ok {
-			target = strconv.Itoa(pending.id)
+			return nil, fmt.Errorf("%q has ID %d, which dcgm_fields.h does not define", name, id)
 		}
-		aliases = append(aliases, DeprecatedFieldAlias{
-			Name:   pending.name,
-			Target: target,
-			ID:     pending.id,
-		})
-	}
-	for i := range fields {
-		for oldName, newName := range renamedFields {
-			fields[i].Comment = strings.ReplaceAll(fields[i].Comment, oldName, newName)
-			if fields[i].Name == newName {
-				fields[i].Comment = strings.TrimSpace(fields[i].Comment + " Go name adjusted to preserve source compatibility.")
-			}
-		}
+		aliases = append(aliases, DeprecatedFieldAlias{Name: name, Target: target, ID: id})
 	}
 
-	return fields, aliases
+	sort.Slice(aliases, func(i, j int) bool { return aliases[i].Name < aliases[j].Name })
+
+	return aliases, nil
 }
 
 func generateOutput(data TemplateData, outputPath string) error {
