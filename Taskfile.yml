@@ -213,9 +213,9 @@ tasks:
         if: '{{and (ne .FAILED_EXIT_CODE "") (eq .REPORTS "true")}}'
 
   test:error-metadata:
-    desc: Run DCGM runtime error metadata and native status tests
+    desc: Run DCGM runtime error, field metadata, and native status tests
     cmds:
-      - bazel test --config=ci --config=dcgm-runtime //pkg/dcgm:dcgm_test --test_filter='^(TestSelectedErrorMeta|TestNativeFailuresRetainStatus|TestGroupAdmissionPreservesNativeStatus)$' --cache_test_results=no {{.CLI_ARGS}}
+      - bazel test --config=ci --config=dcgm-runtime //pkg/dcgm:dcgm_test --test_filter='^(TestSelectedErrorMeta|TestNativeFailuresRetainStatus|TestLinkFieldMetadataInventory|TestGroupAdmissionPreservesNativeStatus)$' --test_output=all --test_arg=-test.v --cache_test_results=no {{.CLI_ARGS}}
 
   test:gpu:prereqs:
     desc: Check that the DCGM library is installed and DCGM finds a physical GPU
