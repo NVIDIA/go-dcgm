@@ -103,3 +103,32 @@ defer cleanup()
 - [Integration tests](tests/README.md): GPU tests that mirror the samples.
 - [Contributing](CONTRIBUTING.md): building, field updates and sign-off.
 - [Agent rules](AGENTS.md): working in this repository.
+
+Host engine administration and topology:
+- `InitEmbedded(EmbeddedOptions)` starts an automatically updating embedded host
+  engine with a log file, severity, and module denylist. Empty log files use
+  `DCGM_LOG_FILE` or DCGM's default path; `LoggingNone` disables logging.
+  It requires no existing
+  session and returns cleanup like `Init`. Existing `Init(Embedded)` is unchanged;
+  later `Init` callers share the active session and must call their cleanup.
+- `HostengineIsHealthy`, `HostengineEnvironmentVariable`, `ModuleGetStatuses`,
+  and `ModuleIDToName` read host engine administration data. Environment reads
+  accept a single variable name; DCGM restricts allowed names and reports unset
+  variables through a typed DCGM error.
+- `HostengineSetLoggingSeverity` and `ModuleDenylist` affect every client of the
+  host engine. Denylist modules before using them; test state changes in an
+  isolated embedded process.
+- `GroupGetAllIDs` lists groups; `RemoveFromGroup` removes a GPU. These calls do
+  not transfer ownership of listed groups. Only destroy groups you created.
+- `FieldGroupGetAll` and `FieldGroupGetInfo` return handles, names, and field IDs.
+  Listed field groups remain owned by their creators.
+- `GetGroupTopology` retains CPU affinity words and DCGM's raw slowest-path mask.
+  `SelectGPUsByTopology` takes candidate GPU IDs, desired count, and topology
+  hints; empty candidates consider all GPUs. IDs above 63 and counts outside
+  1 through 64 are rejected before calling DCGM. DCGM can return fewer GPUs.
+- `GetGPUChipArchitecture` returns the typed DCGM chip architecture.
+- New administration calls require an initialized session and return
+  errors for which `IsFeatureUnavailable` reports true before initialization
+  or after shutdown.
+  They preserve DCGM error codes in `*Error`; a missing
+  native function is reported by `IsFeatureUnavailable`.

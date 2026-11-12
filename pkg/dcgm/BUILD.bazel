@@ -1,6 +1,11 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# gazelle:exclude administration_native_unit_test.go
+# gazelle:exclude administration_session_test.go
+# gazelle:exclude admin_api_unit_test.go
+# gazelle:exclude admin_api_test_helpers.go
+# gazelle:exclude public_api_inventory_test.go
 # gazelle:exclude admin_input_unit_test.go
 # gazelle:exclude admin_test.go
 # gazelle:exclude alias_resolution_test.go
@@ -76,6 +81,7 @@ go_library(
     name = "dcgm",
     srcs = [
         "admin.go",
+        "administration_native.go",
         "api.go",
         "callback.c",
         "const.go",
@@ -93,6 +99,7 @@ go_library(
         "device_info.go",
         "device_status.go",
         "diag.go",
+        "doc.go",
         "error.go",
         "field_policy.go",
         "field_policy_callback.c",
@@ -103,7 +110,9 @@ go_library(
         "field_values_cb.h",
         "fields.go",
         "gpu_group.go",
+        "group_admin.go",
         "health.go",
+        "hostengine.go",
         "hostengine_status.go",
         "internal.go",
         "mig.go",
@@ -115,6 +124,7 @@ go_library(
         "profile.go",
         "structs.go",
         "topology.go",
+        "topology_admin.go",
         "utils.go",
         "version_info.go",
     ],
@@ -149,6 +159,8 @@ go_library(
 go_test(
     name = "dcgm_test",
     srcs = [
+        "admin_api_runtime_test.go",
+        "administration_session_test.go",  # keep: session lifecycle checks are shared with the unit target.
         "api_test.go",
         "api_unit_test.go",  # keep: shared counter helpers and tests.
         "bind_unbind_test.go",
@@ -191,8 +203,12 @@ go_test(
 go_test(
     name = "dcgm_unit_test",
     srcs = [
+        "admin_api_test_helpers.go",
+        "admin_api_unit_test.go",
         "admin_input_unit_test.go",  # keep
         "admin_test.go",
+        "administration_native_unit_test.go",
+        "administration_session_test.go",
         "alias_resolution_test.go",
         "api_unit_test.go",  # keep
         "base_unit_fields_test.go",
@@ -230,20 +246,22 @@ go_test(
         "process_info_unit_test.go",
         "profile_test_helpers.go",
         "profile_unit_test.go",
+        "public_api_inventory_test.go",
         "pure_helpers_test.go",  # keep
         "topology_test.go",
         "utils_unit_test.go",
         "watch_unit_test.go",
     ],
-    data = [
-        "const_fields.go",
+    data = glob([
+        "*.go",
+        "*.c",
+    ]) + [
         "dcgm_agent.h",
         "dcgm_errors.h",
         "dcgm_fields.h",
         "dcgm_structs.h",
         "dcgm_structs_internal.h",
-        "internal.go",
-        "topology.go",
+        "testdata/public_api.csv",
     ],
     embed = [":dcgm"],
     deps = [

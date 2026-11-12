@@ -109,3 +109,41 @@ type topologyOps interface {
 	readDeviceTopology(uint) ([]P2PLink, error)
 	entitiesGetLatestValues([]GroupEntityPair, []Short, uint) ([]FieldValue_v2, error)
 }
+
+// embeddedSessionCalls supplies library ownership and typed embedded startup.
+type embeddedSessionCalls interface {
+	loadLibrary() error
+	closeLibrary()
+	startEmbeddedWithOptions(EmbeddedOptions) error
+}
+
+// gpuSelector supplies DCGM's topology mask selection.
+type gpuSelector interface {
+	selectGPUsByTopology(uint64, uint32, TopologyHint) (uint64, error)
+}
+
+// embeddedStartCalls supplies native initialization, startup and failure rollback.
+type embeddedStartCalls interface {
+	initializeDCGM() error
+	startEmbeddedNative(EmbeddedOptions) error
+	shutdownDCGM() error
+}
+
+// administrationNativeCalls supplies native requests, responses and status codes.
+type administrationNativeCalls interface {
+	administrationSymbolAvailable(string) bool
+	administrationErrorText(int32) string
+	hostengineHealthNative(*nativeHostengineHealth) int32
+	loggingSeverityNative(*nativeLoggingSeverity) int32
+	environmentVariableNative(*nativeEnvironmentVariable) int32
+	moduleStatusesNative(*nativeModuleStatuses) int32
+	moduleNameNative(ModuleID) (string, int32)
+	moduleDenylistNative(ModuleID) int32
+	groupIDsNative([]nativeGroupID, *nativeCount) int32
+	removeGPUFromGroupNative(GroupHandle, uint) int32
+	fieldGroupInfoNative(*nativeFieldGroupInfo) int32
+	fieldGroupsNative(*nativeFieldGroups) int32
+	groupTopologyNative(GroupHandle, *nativeGroupTopology) int32
+	chipArchitectureNative(uint) (ChipArchitecture, int32)
+	topologySelectionNative(uint64, uint32, TopologyHint) (uint64, int32)
+}
