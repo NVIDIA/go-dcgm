@@ -64,6 +64,13 @@ func Shutdown() (err error) {
 	return
 }
 
+// dcgmSessionSymbolAvailable requires an active session as well as a loaded symbol.
+func dcgmSessionSymbolAvailable(symbol string) bool {
+	mux.Lock()
+	defer mux.Unlock()
+	return dcgmInitCounter > 0 && dcgmSymbolAvailable(symbol)
+}
+
 // GetAllDeviceCount returns the count of all GPUs in the system
 func GetAllDeviceCount() (uint, error) {
 	return getAllDeviceCount()

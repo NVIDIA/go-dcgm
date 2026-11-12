@@ -1,6 +1,6 @@
 function,status,reason
 dcgmActionValidate,excluded,Deprecated; replaced by dcgmActionValidate_v2.
-dcgmActionValidate_v2,not bound yet,Scheduled public API coverage binding.
+dcgmActionValidate_v2,bound,
 dcgmAttachDriver,bound,
 dcgmConfigEnforce,not bound yet,Scheduled public API coverage binding.
 dcgmConfigGet,not bound yet,Scheduled public API coverage binding.
@@ -10,7 +10,7 @@ dcgmConnect,excluded,Replaced by dcgmConnect_v2 and dcgmConnect_v3.
 dcgmConnect_v2,bound,
 dcgmConnect_v3,bound,
 dcgmDetachDriver,bound,
-dcgmDiagSendHeartbeat,not bound yet,Scheduled public API coverage binding.
+dcgmDiagSendHeartbeat,bound,
 dcgmDisconnect,bound,
 dcgmEngineRun,excluded,Host engine listener for nv-hostengine rather than client libraries.
 dcgmEntitiesGetLatestValues,bound,
@@ -87,8 +87,8 @@ dcgmPolicyUnregister,bound,
 dcgmPolicyUnregister_v3,bound,
 dcgmPowerProfileIdToName,not bound yet,Scheduled public API coverage binding.
 dcgmProfGetSupportedMetricGroups,bound,
-dcgmProfPause,not bound yet,Scheduled public API coverage binding.
-dcgmProfResume,not bound yet,Scheduled public API coverage binding.
+dcgmProfPause,bound,
+dcgmProfResume,bound,
 dcgmRunDiagnostic,bound,
 dcgmRunMnDiagnostic,bound,
 dcgmSelectGpusByTopology,bound,
@@ -100,7 +100,7 @@ dcgmStatusCreate,not bound yet,Scheduled public API coverage binding.
 dcgmStatusDestroy,not bound yet,Scheduled public API coverage binding.
 dcgmStatusGetCount,not bound yet,Scheduled public API coverage binding.
 dcgmStatusPopError,not bound yet,Scheduled public API coverage binding.
-dcgmStopDiagnostic,not bound yet,Scheduled public API coverage binding.
+dcgmStopDiagnostic,bound,
 dcgmStopEmbedded,bound,
 dcgmStopMnDiagnostic,bound,
 dcgmUnwatchFields,bound,

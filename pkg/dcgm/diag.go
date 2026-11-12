@@ -282,6 +282,11 @@ func diagLevel(diagType DiagType) C.dcgmDiagnosticLevel_t {
 //   - DiagResults containing the results of all diagnostic tests
 //   - error if the diagnostics failed to run
 func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
+	return runDiagWithCalls(cgoAdapter{}, diagType, groupID)
+}
+
+// runDiagNative runs the level-based diagnostic and decodes its structured response.
+func (cgoAdapter) runDiagNative(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
 	diagResults := new(C.dcgmDiagResponse_v12)
 	diagResults.version = C.dcgmDiagResponse_version12
 

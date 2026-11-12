@@ -157,3 +157,11 @@ type jobStatsCalls interface {
 	jobRemoveNative(string) error
 	jobRemoveAllNative() error
 }
+
+// diagnosticCalls supplies guarded diagnostic runs and concurrent control calls.
+type diagnosticCalls interface {
+	requireDiagnosticSymbol(string) error
+	actionValidateNative(DiagnosticRequest) (DiagResults, error)
+	runDiagNative(DiagType, GroupHandle) (DiagResults, error)
+	diagnosticControlNative(string) error
+}

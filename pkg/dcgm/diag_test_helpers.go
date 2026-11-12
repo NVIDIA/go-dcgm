@@ -26,6 +26,7 @@ package dcgm
 import "C"
 
 import (
+	"time"
 	"unsafe"
 )
 
@@ -60,6 +61,17 @@ func createFullTestDiagResponse() C.dcgmDiagResponse_v12 {
 	setDiagCString(&response.entities[0].skuDeviceId[0], "27B8")
 	response.numEntities = 1
 
+	addSoftwareDiagnosticResult(&response)
+	addMemoryDiagnosticResult(&response)
+	response.numTests = 2
+	response.numErrors = 2
+	response.numInfo = 2
+	response.numResults = 2
+	return response
+}
+
+// addSoftwareDiagnosticResult fills the software warning and system error in a decoder fixture.
+func addSoftwareDiagnosticResult(response *C.dcgmDiagResponse_v12) {
 	software := &response.tests[0]
 	setDiagCString(&software.name[0], "software")
 	setDiagCString(&software.pluginName[0], "software")
@@ -87,7 +99,6 @@ func createFullTestDiagResponse() C.dcgmDiagResponse_v12 {
 	response.errors[1].severity = C.DCGM_ERROR_ISOLATE
 	response.errors[1].testId = C.DCGM_DIAG_RESPONSE_SYSTEM_ERROR
 	setDiagCString(&response.errors[1].msg[0], "system failure")
-	response.numErrors = 2
 
 	response.info[0].entity.entityGroupId = C.DCGM_FE_NONE
 	response.info[0].testId = 0
@@ -97,7 +108,10 @@ func createFullTestDiagResponse() C.dcgmDiagResponse_v12 {
 	response.results[0].entity.entityId = 7
 	response.results[0].result = C.DCGM_DIAG_RESULT_WARN
 	response.results[0].testId = 0
+}
 
+// addMemoryDiagnosticResult adds a successful GPU memory test beside the software warning.
+func addMemoryDiagnosticResult(response *C.dcgmDiagResponse_v12) {
 	memory := &response.tests[1]
 	setDiagCString(&memory.name[0], "memory")
 	setDiagCString(&memory.pluginName[0], "memory")
@@ -112,20 +126,15 @@ func createFullTestDiagResponse() C.dcgmDiagResponse_v12 {
 	response.info[1].entity.entityId = 7
 	response.info[1].testId = 1
 	setDiagCString(&response.info[1].msg[0], "memory ok")
-	response.numInfo = 2
 
 	response.results[1].entity.entityGroupId = C.DCGM_FE_GPU
 	response.results[1].entity.entityId = 7
 	response.results[1].result = C.DCGM_DIAG_RESULT_PASS
 	response.results[1].testId = 1
-
-	response.numTests = 2
-	response.numResults = 2
-	return response
 }
 
-// createDiagResponseWithRuntimeInfo adds a per-test info message, as DCGM 4.7.1
-// reports "Test runtime: <s.mmm> seconds", to the "memory" test of the full test response.
+// createDiagResponseWithRuntimeInfo adds a per-test runtime message to the memory result.
+// DCGM reports elapsed time as "Test runtime: <s.mmm> seconds".
 func createDiagResponseWithRuntimeInfo(message string, entityGroup Field_Entity_Group, entityID uint) C.dcgmDiagResponse_v12 {
 	response := createFullTestDiagResponse()
 	index := response.numInfo
@@ -153,3 +162,57 @@ const (
 	testDiagLevelXLong   = C.DCGM_DIAG_LVL_XLONG
 	testDiagLevelInvalid = C.DCGM_DIAG_LVL_INVALID
 )
+
+// diagnosticRequestForTest converts a request through the C layout and returns its decoded fields for comparison.
+func diagnosticRequestForTest(request DiagnosticRequest) (converted DiagnosticRequest, entitySelector string, nativeVersion, expectedVersion uint, conversionErr error) {
+	native, err := cDiagnosticRequest(request)
+	if err != nil {
+		return DiagnosticRequest{}, "", 0, 0, err
+	}
+	decoded := DiagnosticRequest{
+		Level:           DiagType(native.validate),
+		Timeout:         time.Duration(native.timeoutSeconds) * time.Second,
+		EnableHeartbeat: native.flags&C.DCGM_RUN_FLAGS_ENABLE_HEARTBEAT != 0,
+	}
+	group := GroupHandle{native.groupId}
+	decoded.Group = &group
+
+	for i := range native.testNames {
+		if name := C.GoString(&native.testNames[i][0]); name != "" {
+			decoded.TestNames = append(decoded.TestNames, name)
+		}
+	}
+
+	for i := range native.testParms {
+		if parameter := C.GoString(&native.testParms[i][0]); parameter != "" {
+			decoded.TestParameters = append(decoded.TestParameters, parameter)
+		}
+	}
+
+	return decoded, C.GoString(&native.entityIds[0]), uint(native.version), uint(C.dcgmRunDiag_version10), nil
+}
+
+// diagnosticBoundsForTest returns the native request limits used by boundary cases.
+func diagnosticBoundsForTest() (names, nameBytes, parameters, parameterBytes, entities int) {
+	return int(C.DCGM_MAX_TEST_NAMES), int(C.DCGM_MAX_TEST_NAMES_LEN), int(C.DCGM_MAX_TEST_PARMS), int(C.DCGM_MAX_TEST_PARMS_LEN_V2), int(C.DCGM_DIAG_RESPONSE_ENTITIES_MAX)
+}
+
+// diagnosticNativeErrorForTest builds a typed native failure without starting DCGM.
+func diagnosticNativeErrorForTest(code int) error {
+	return dcgmFeatureResult(diagnosticFeature, "dcgmActionValidate_v2", C.dcgmReturn_t(code), "native diagnostic error")
+}
+
+// diagnosticNullGroupForTest returns the native sentinel for an explicit entity selector.
+func diagnosticNullGroupForTest() uintptr { return uintptr(C.DCGM_GROUP_NULL) }
+
+// createConnectXDiagResponseForTest retargets the decoder fixture to a network device while preserving its result data.
+func createConnectXDiagResponseForTest() DiagResults {
+	response := createFullTestDiagResponse()
+	response.entities[0].entity.entityGroupId = C.DCGM_FE_CONNECTX
+	response.entities[0].entity.entityId = 17
+	response.results[0].entity = response.entities[0].entity
+	response.errors[0].entity = response.entities[0].entity
+	setDiagCString(&response.tests[0].name[0], "nic_eud")
+	setDiagCString(&response.tests[0].pluginName[0], "nic_eud")
+	return newDiagResults(&response)
+}

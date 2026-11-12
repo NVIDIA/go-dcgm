@@ -19,6 +19,8 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude device_info_unit_test.go
 # gazelle:exclude device_status_cleanup_unit_test.go
 # gazelle:exclude device_status_unit_test.go
+# gazelle:exclude diagnostic_runtime_test.go
+# gazelle:exclude diagnostic_control_test.go
 # gazelle:exclude diag_test.go
 # gazelle:exclude diag_test_helpers.go
 # gazelle:exclude field_policy_test.go
@@ -101,6 +103,7 @@ go_library(
         "device_info.go",
         "device_status.go",
         "diag.go",
+        "diagnostic_control.go",
         "doc.go",
         "error.go",
         "field_policy.go",
@@ -167,6 +170,7 @@ go_test(
         "api_test.go",
         "api_unit_test.go",  # keep: shared counter helpers and tests.
         "bind_unbind_test.go",
+        "diagnostic_runtime_test.go",  # keep: opt-in native diagnostic checks.
         "error_runtime_test.go",
         "error_test.go",
         "field_policy_runtime_test.go",  # keep: live adapter test belongs only in the runtime target.
@@ -226,6 +230,7 @@ go_test(
         "device_status_unit_test.go",
         "diag_test.go",
         "diag_test_helpers.go",
+        "diagnostic_control_test.go",
         "error_test.go",  # keep: shared with the runtime test target.
         "field_policy_test.go",
         "field_policy_test_helpers.go",

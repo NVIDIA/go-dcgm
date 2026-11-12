@@ -92,6 +92,55 @@ defer cleanup()
   not as a failure.
 - Use `GetHostengineVersionInfo` to report the connected DCGM version.
 
+## Diagnostics and profiling control
+
+- `RunDiag(level, group)` keeps its level/group API. `ActionValidate` accepts
+  `DiagnosticRequest` for named tests, `testName.parameterName=value` strings,
+  a level, a group or explicit entities, and a timeout. A nil group and empty
+  entities use DCGM's default selection: all GPUs for GPU tests. Group and
+  explicit entities cannot be combined.
+- `DiagnosticRequest.Timeout` is zero for DCGM's default or a whole number
+  of seconds (at most 4,294,967). DCGM converts `timeoutSeconds` to uint32
+  milliseconds internally; this bound prevents overflow in that conversion.
+  Names and parameters have native count and byte limits, exclude embedded
+  NULs, and are checked before the native call. DCGM decides whether a test,
+  numeric parameter, or hardware combination is supported; Go does not parse
+  numeric parameter values.
+
+```go
+results, err := dcgm.ActionValidate(dcgm.DiagnosticRequest{
+    TestNames: []string{"diagnostic"},
+    TestParameters: []string{"diagnostic.test_duration=1"},
+    Entities: []dcgm.GroupEntityPair{{EntityGroupId: dcgm.FE_GPU, EntityId: 0}},
+    Timeout: 2 * time.Minute,
+})
+```
+
+- For NIC-EUD, use `TestNames: []string{"nic_eud"}` with `Group` and `Entities`
+  unset. The current runtime tests all NICs and does not support explicit
+  ConnectX selectors. It requires supported ConnectX hardware and the matching
+  proprietary diagnostic plugin. Read `results.Tests` for non-GPU results,
+  errors, and auxiliary data; the legacy `Software` view contains GPUs only.
+- `StopDiag()` can run from another goroutine while `RunDiag` or
+  `ActionValidate` blocks. Keep the DCGM session open until both calls finish.
+  Cancellation errors retain their DCGM code, including `DCGM_ST_DIAG_STOPPED`
+  on runtimes that report it. A subsequent diagnostic can then be started.
+- Set `DiagnosticRequest.EnableHeartbeat` only when another goroutine calls
+  `DiagSendHeartbeat()` before the host engine's configured heartbeat timeout
+  expires (ten minutes by default). On runtimes that support it,
+  `DCGM_DIAG_HEARTBEAT_TIMEOUT_SEC` overrides this timeout in seconds.
+- `ProfPause()` temporarily pauses DCGM profiling when another profiler needs
+  the GPU counters. Pair it with `ProfResume()` and check both errors.
+- These APIs check native symbols before use and return Go errors without
+  `Init`; unavailable symbols satisfy `IsFeatureUnavailable`. Other native
+  failures are `*dcgm.Error`, accessible with `errors.As`.
+- Exact stopped-code and strict numeric-parameter acceptance require DCGM
+  4.8 with the corresponding runtime fixes; older engines report those checks
+  as skipped while retaining basic stop/restart and named-test checks.
+- `task test:diagnostics` opts into cancellation, heartbeat, and numeric
+  parameter runtime tests in bounded subprocesses. NIC-EUD additionally needs
+  `-- --test_env=DCGM_TEST_NIC_EUD=1` after its hardware and plugin are checked.
+
 ## Docs
 
 - [README](README.md): installation, requirements and a first example.

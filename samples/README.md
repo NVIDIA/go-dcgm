@@ -204,3 +204,26 @@ Legend:
 reads its statistics and removes it. Run GPU work during that interval to
 collect workload data. It uses a private embedded engine and cleans up its
 job and group. Job watches may require root for accounting mode.
+
+### Named diagnostics
+
+The `diag` sample defaults to `RunDiag(DiagQuick, GroupAllGPUs())`. To run a
+named test with a parameter through `ActionValidate`:
+
+```bash
+bazel run //samples/diag -- -test diagnostic -parameter diagnostic.test_duration=1 -timeout 2m
+```
+
+For explicit GPU selection, construct `DiagnosticRequest.Entities` using
+`GroupEntityPair` and `FE_GPU`. For `nic_eud`, leave `Group` and `Entities` unset:
+the current runtime tests all NICs and does not support explicit ConnectX
+selectors. It requires the matching proprietary plugin and supported ConnectX
+hardware:
+
+```bash
+bazel run //samples/diag -- -test nic_eud -timeout 2m
+```
+
+Its results, errors, and auxiliary data are retained in `DiagResults.Tests` and
+printed by the sample's result template. `StopDiag` may be called from another
+goroutine while the request blocks; keep the session open until both calls return.

@@ -1499,3 +1499,85 @@ func (mr *MockJobStatsCallsMockRecorder) watchJobFieldsNative(arg0, arg1, arg2, 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "watchJobFieldsNative", reflect.TypeOf((*MockJobStatsCalls)(nil).watchJobFieldsNative), arg0, arg1, arg2, arg3)
 }
+
+// MockdiagnosticCalls is a mock of diagnosticCalls interface.
+type MockdiagnosticCalls struct {
+	ctrl     *gomock.Controller
+	recorder *MockdiagnosticCallsMockRecorder
+	isgomock struct{}
+}
+
+// MockdiagnosticCallsMockRecorder is the mock recorder for MockdiagnosticCalls.
+type MockdiagnosticCallsMockRecorder struct {
+	mock *MockdiagnosticCalls
+}
+
+// NewMockdiagnosticCalls creates a new mock instance.
+func NewMockdiagnosticCalls(ctrl *gomock.Controller) *MockdiagnosticCalls {
+	mock := &MockdiagnosticCalls{ctrl: ctrl}
+	mock.recorder = &MockdiagnosticCallsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockdiagnosticCalls) EXPECT() *MockdiagnosticCallsMockRecorder {
+	return m.recorder
+}
+
+// actionValidateNative mocks base method.
+func (m *MockdiagnosticCalls) actionValidateNative(arg0 DiagnosticRequest) (DiagResults, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "actionValidateNative", arg0)
+	ret0, _ := ret[0].(DiagResults)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// actionValidateNative indicates an expected call of actionValidateNative.
+func (mr *MockdiagnosticCallsMockRecorder) actionValidateNative(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "actionValidateNative", reflect.TypeOf((*MockdiagnosticCalls)(nil).actionValidateNative), arg0)
+}
+
+// diagnosticControlNative mocks base method.
+func (m *MockdiagnosticCalls) diagnosticControlNative(arg0 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "diagnosticControlNative", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// diagnosticControlNative indicates an expected call of diagnosticControlNative.
+func (mr *MockdiagnosticCallsMockRecorder) diagnosticControlNative(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "diagnosticControlNative", reflect.TypeOf((*MockdiagnosticCalls)(nil).diagnosticControlNative), arg0)
+}
+
+// requireDiagnosticSymbol mocks base method.
+func (m *MockdiagnosticCalls) requireDiagnosticSymbol(arg0 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "requireDiagnosticSymbol", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// requireDiagnosticSymbol indicates an expected call of requireDiagnosticSymbol.
+func (mr *MockdiagnosticCallsMockRecorder) requireDiagnosticSymbol(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "requireDiagnosticSymbol", reflect.TypeOf((*MockdiagnosticCalls)(nil).requireDiagnosticSymbol), arg0)
+}
+
+// runDiagNative mocks base method.
+func (m *MockdiagnosticCalls) runDiagNative(arg0 DiagType, arg1 GroupHandle) (DiagResults, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "runDiagNative", arg0, arg1)
+	ret0, _ := ret[0].(DiagResults)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// runDiagNative indicates an expected call of runDiagNative.
+func (mr *MockdiagnosticCallsMockRecorder) runDiagNative(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "runDiagNative", reflect.TypeOf((*MockdiagnosticCalls)(nil).runDiagNative), arg0, arg1)
+}
