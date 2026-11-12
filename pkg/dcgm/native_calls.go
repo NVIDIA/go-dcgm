@@ -147,3 +147,13 @@ type administrationNativeCalls interface {
 	chipArchitectureNative(uint) (ChipArchitecture, int32)
 	topologySelectionNative(uint64, uint32, TopologyHint) (uint64, int32)
 }
+
+// jobStatsCalls supplies job recording and statistics operations.
+type jobStatsCalls interface {
+	watchJobFieldsNative(GroupHandle, time.Duration, time.Duration, int) error
+	jobStartNative(GroupHandle, string) error
+	jobStopNative(string) error
+	jobGetStatsNative(string) (JobInfo, error)
+	jobRemoveNative(string) error
+	jobRemoveAllNative() error
+}

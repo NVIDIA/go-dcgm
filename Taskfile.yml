@@ -246,7 +246,7 @@ tasks:
       - |
         set +e
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/policy.json" \
-          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility|TestAdministrationRuntime|TestModuleDenylistIsolated|TestAdministrationNativeErrors|TestAdministrationAfterShutdown|TestAdministrationAfterFailedInit)$'
+          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility|TestAdministrationRuntime|TestModuleDenylistIsolated|TestAdministrationNativeErrors|TestAdministrationAfterShutdown|TestAdministrationAfterFailedInit|TestJobStatsAfterFailedInit)$'
         policy_status=$?
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/suite.json" \
           --test_env=DCGM_SKIP_DIAGNOSTICS=1 //tests:tests_test {{.CLI_ARGS}}
@@ -285,7 +285,7 @@ tasks:
             dcgmi diag --run 1 --verbose --json || true
           fi
       - task: test:gpu:prereqs
-      - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostics.json" //tests:tests_test --test_filter='^(TestDiagnostics|TestDiagnosticsLong|TestDiagTestNameFormat)$' {{.CLI_ARGS}}
+      - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostics.json" //tests:tests_test --test_filter='^(TestDiagnostics|TestDiagnosticsLong|TestDiagTestNameFormat|TestJobStats)$' {{.CLI_ARGS}}
       - task: test:reports
         if: '{{eq .REPORTS "true"}}'
 

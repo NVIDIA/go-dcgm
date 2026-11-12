@@ -1,6 +1,6 @@
 # DCGM Samples
 
-Modeled on [dcgmi (Data Center GPU Manager Interface)](https://developer.nvidia.com/data-center-gpu-manager-dcgm) and [nvidia-smi (NVIDIA System Management Interface)](https://developer.nvidia.com/nvidia-system-management-interface), seven samples and a [REST API](https://github.com/NVIDIA/go-dcgm/samples/dcgm/restApi/README.md) have been provided to show how to use DCGM go bindings.
+The sample programs and [REST API](restApi/README.md) show how to use the go-dcgm bindings.
 
 ## DCGM running modes
 
@@ -197,3 +197,10 @@ Legend:
  NV#  = Connection traversing a bonded set of # NVLinks
  2018/06/25 15:36:38 Successfully terminated nv-hostengine.
 ```
+
+### Jobs
+
+`samples/jobs` watches one GPU, starts a job, stops it after three seconds,
+reads its statistics and removes it. Run GPU work during that interval to
+collect workload data. It uses a private embedded engine and cleans up its
+job and group. Job watches may require root for accounting mode.

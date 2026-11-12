@@ -36,6 +36,8 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude gpu_group_unit_test.go
 # gazelle:exclude health_test_helpers.go
 # gazelle:exclude health_unit_test.go
+# gazelle:exclude job_stats_test_helpers.go
+# gazelle:exclude job_stats_unit_test.go
 # gazelle:exclude mig_test.go
 # gazelle:exclude mndiag_test.go
 # gazelle:exclude mndiag_test_helpers.go
@@ -115,6 +117,7 @@ go_library(
         "hostengine.go",
         "hostengine_status.go",
         "internal.go",
+        "job_stats.go",
         "mig.go",
         "mndiag.go",
         "native_calls.go",
@@ -177,6 +180,7 @@ go_test(
         "group_lifecycle_test.go",
         "health_test.go",
         "instances_test.go",
+        "job_stats_runtime_test.go",
         "metric_compatibility_runtime_test.go",
         "policy_test.go",
         "process_info_test.go",  # keep: native PID boundary test requires the runtime.
@@ -236,6 +240,8 @@ go_test(
         "gpu_group_unit_test.go",  # keep
         "health_test_helpers.go",
         "health_unit_test.go",
+        "job_stats_test_helpers.go",
+        "job_stats_unit_test.go",
         "mig_test.go",
         "mndiag_test.go",
         "mndiag_test_helpers.go",

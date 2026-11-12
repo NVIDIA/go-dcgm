@@ -18,6 +18,7 @@ go_test(
         "dmon_test.go",
         "health_test.go",
         "hostengine_test.go",
+        "job_stats_test.go",
         "policy_test.go",
         "processinfo_test.go",
         "restapi_test.go",

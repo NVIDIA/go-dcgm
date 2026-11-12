@@ -236,3 +236,24 @@ When adding new tests:
    capabilities that are optional on an otherwise qualified system
 4. Include both positive and negative test cases
 5. Update this README with new test descriptions
+
+### Job statistics with GPU load
+
+`TestJobStats` runs only with diagnostics enabled and as root. It uses a private
+embedded engine, creates its own group and job, and removes both on every path.
+It snapshots and restores GPU accounting mode using `nvidia-smi`.
+It also checks `JobRemoveAll` within that engine. Run with:
+
+```sh
+task test:diagnostics -- --test_filter='^TestJobStats$' --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
+```
+
+The executable is invoked directly without arguments or a shell. It must read
+`DCGM_JOB_GPU_ID` (the DCGM physical GPU ID), `DCGM_JOB_GPU_UUID` and
+`DCGM_JOB_LOAD_SECONDS=3`, run
+real compute work on that GPU for about three seconds, synchronize, and exit
+successfully. The test kills it after 15 seconds and allows one second for
+output pipes to close. The executable must not fork child processes. A small
+CUDA program matching `DCGM_JOB_GPU_UUID` to a CUDA device and running a
+timed kernel is suitable; no load generator is bundled or downloaded.
+Without `DCGM_JOB_LOAD_COMMAND` the test reports a skip, not a lifecycle pass.

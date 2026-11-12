@@ -132,3 +132,24 @@ Host engine administration and topology:
   or after shutdown.
   They preserve DCGM error codes in `*Error`; a missing
   native function is reported by `IsFeatureUnavailable`.
+
+Job statistics:
+- `WatchJobFields(group, updateFreq, maxKeepAge, maxKeepSamples)` enables job
+  collection on a caller-owned GPU group. Frequency and age use `time.Duration`.
+  Frequency must be a positive whole number of microseconds; age is passed as
+  fractional seconds. Retention age and sample count must be nonnegative; zero
+  leaves that limit to DCGM.
+- `JobStart(group, jobID)`, `JobStop(jobID)`, `JobGetStats(jobID)` and
+  `JobRemove(jobID)` record, read and remove a job. IDs must contain 1–63 bytes
+  and no NUL. Remove a job before reusing its ID.
+- `JobRemoveAll()` removes every job on the connected hostengine, including
+  jobs belonging to other clients.
+- `JobInfo` contains summary and per-GPU `GPUJobStats`, with concrete summaries,
+  processes and health incidents. Values retain DCGM units and blank sentinels.
+  Job and XID timestamps are Unix microseconds; violation durations are
+  nanoseconds and energy is milliwatt seconds. While running, EndTime is the
+  current collection endpoint; after JobStop it is the stop time.
+  PCIe bandwidth is KB/s, power is watts, clocks are MHz and utilization is percent.
+  Summary min/max values for bandwidth, utilization and clocks are not applicable.
+- See `samples/jobs` for a complete lifecycle and `tests/README.md` for the
+  opt-in GPU load test. Job field watches may require root to enable accounting.

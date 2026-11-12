@@ -61,11 +61,11 @@ dcgmHostengineVersionInfo,bound,
 dcgmInit,bound,
 dcgmIntrospectGetHostengineCpuUtilization,bound,
 dcgmIntrospectGetHostengineMemoryUsage,bound,
-dcgmJobGetStats,not bound yet,Scheduled public API coverage binding.
-dcgmJobRemove,not bound yet,Scheduled public API coverage binding.
-dcgmJobRemoveAll,not bound yet,Scheduled public API coverage binding.
-dcgmJobStartStats,not bound yet,Scheduled public API coverage binding.
-dcgmJobStopStats,not bound yet,Scheduled public API coverage binding.
+dcgmJobGetStats,bound,
+dcgmJobRemove,bound,
+dcgmJobRemoveAll,bound,
+dcgmJobStartStats,bound,
+dcgmJobStopStats,bound,
 dcgmModuleDenylist,bound,
 dcgmModuleGetStatuses,bound,
 dcgmModuleIdToName,bound,
@@ -107,6 +107,6 @@ dcgmUnwatchFields,bound,
 dcgmUpdateAllFields,bound,
 dcgmVersionInfo,bound,
 dcgmWatchFields,bound,
-dcgmWatchJobFields,not bound yet,Scheduled public API coverage binding.
+dcgmWatchJobFields,bound,
 dcgmWatchPidFields,bound,
 errorString,bound,
