@@ -25,6 +25,7 @@ go_test(
         "topology_test.go",
     ],
     embed = [":tests"],
+    env = {"DCGM_ENABLE_INJECTION_APIS": "1"},
     tags = [
         "manual",
         "requires-dcgm",

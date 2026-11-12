@@ -2,6 +2,7 @@ package dcgm
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -250,5 +251,33 @@ func TestWatchErrorsRetainDCGMStatus(t *testing.T) {
 				require.Equal(t, prefix+native.Error(), err.Error())
 			})
 		}
+	}
+}
+
+func TestNativeWatchErrorsRetainDCGMStatus(t *testing.T) {
+	for _, code := range []int{DCGM_ST_OK, DCGM_ST_BADPARAM, DCGM_ST_WATCH_FREQUENCY} {
+		t.Run(strconv.Itoa(code), func(t *testing.T) {
+			api := NewMockfieldWatchCalls(gomock.NewController(t))
+			if code != DCGM_ST_OK {
+				api.EXPECT().nativeErrorText(code).Return("runtime message").Times(2)
+			}
+			api.EXPECT().watchFieldsResult(FieldHandle{}, GroupHandle{}, int64(1), float64(1), int32(0)).Return(code)
+			api.EXPECT().watchFieldValueResult(uint(0), Short(1011), time.Microsecond, time.Second, 0).Return(code)
+			results := []error{
+				watchFieldsWithCalls(api, FieldHandle{}, GroupHandle{}, 1, 1, 0),
+				watchFieldValueWithCalls(api, 0, 1011, time.Microsecond, time.Second, 0),
+			}
+			for i, err := range results {
+				if code == DCGM_ST_OK {
+					require.NoError(t, err)
+					continue
+				}
+				var native *Error
+				require.ErrorAs(t, err, &native)
+				require.Equal(t, code, int(native.Code))
+				prefix := []string{"error watching fields: ", "error watching field value: "}[i]
+				require.Equal(t, prefix+native.Error(), err.Error())
+			}
+		})
 	}
 }

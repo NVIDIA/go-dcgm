@@ -79,8 +79,9 @@ func GetAllDeviceCount() (uint, error) {
 // GetEntityGroupEntities returns the entities of the specified group type, up to
 // DCGM_ENTITY_GROUP_ENTITIES_MAX of them.
 //
-// The DCGM library and the host engine must run the same DCGM version. A 4.7.1
-// library and a 4.7.0 host engine reject each other's entity-listing request.
+// The client library and hostengine must use compatible enumeration protocols.
+// Incompatible pairings can return DCGM_ST_VER_MISMATCH. The DCGM 4.8 client
+// retries the v2 protocol when a hostengine rejects v3; v2 holds at most 1,024 entities.
 func GetEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 	return getEntityGroupEntities(entityGroup)
 }

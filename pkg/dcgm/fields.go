@@ -186,6 +186,9 @@ func watchFieldsWithOps(api watchGroupOps, gpuID uint, fieldsGroup FieldHandle, 
 // It returns an error if the watch fails, or a wrapped refresh error if the
 // refresh fails; the watch stays in place in that case. To add many watches,
 // use WatchFieldsWithGroupExNoRefresh.
+// A failed watch wraps *Error. DCGM 4.8 rejects
+// profiling and GPM update frequencies below 100,000 microseconds (10 Hz)
+// with DCGM_ST_WATCH_FREQUENCY.
 func WatchFieldsWithGroupEx(
 	fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
 ) error {
@@ -242,13 +245,30 @@ func watchFieldsWithGroupExNoRefreshWithOps(
 // watchFieldsNative adds a native field watch only; refreshing the values is up
 // to the caller.
 func (cgoAdapter) watchFieldsNative(fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) error {
-	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
-		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
+	return watchFieldsWithCalls(cgoAdapter{}, fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples)
+}
 
-	if err := errorString(result); err != nil {
-		return fmt.Errorf("error watching fields: %w", &Error{msg: err.Error(), Code: result})
+// watchFieldsWithCalls starts a group watch and preserves any native failure.
+func watchFieldsWithCalls(api fieldWatchCalls, fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) error {
+	result := api.watchFieldsResult(fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples)
+	if result == DCGM_ST_OK {
+		return nil
 	}
-	return nil
+	return watchResult("error watching fields", result, api.nativeErrorText(result))
+}
+
+// watchFieldsResult starts a native group watch and returns its status.
+func (cgoAdapter) watchFieldsResult(fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) int {
+	return int(C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
+		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples)))
+}
+
+// nativeErrorText returns the native description for a status code.
+func (cgoAdapter) nativeErrorText(result int) string { return dcgmErrorText(C.dcgmReturn_t(result)) }
+
+// watchResult adds operation context while preserving the native status code.
+func watchResult(context string, result int, message string) error {
+	return fmt.Errorf("%s: %w", context, &Error{msg: message, Code: C.dcgmReturn_t(result)})
 }
 
 // WatchFieldsWithGroup starts monitoring fields using default parameters.
@@ -277,28 +297,38 @@ func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
 // updateFreq controls how often DCGM updates the field. DCGM retains samples
 // for maxKeepAge or maxKeepSamples, whichever bound is reached first. At least
 // one retention bound must be positive. maxKeepSamples must fit in DCGM's
-// 32-bit C API count argument.
+// 32-bit C API count argument. Runtime errors wrap *Error. DCGM 4.8 rejects
+// profiling and GPM intervals below 100 ms with DCGM_ST_WATCH_FREQUENCY.
 func WatchFieldValue(
 	gpuID uint, fieldID Short, updateFreq, maxKeepAge time.Duration, maxKeepSamples int,
 ) error {
+	return watchFieldValueWithCalls(cgoAdapter{}, gpuID, fieldID, updateFreq, maxKeepAge, maxKeepSamples)
+}
+
+// watchFieldValueWithCalls validates a single-field watch before native dispatch.
+func watchFieldValueWithCalls(api fieldWatchCalls, gpuID uint, fieldID Short, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
 	if updateFreq < time.Microsecond || maxKeepAge < 0 || maxKeepSamples < 0 ||
 		maxKeepSamples > maxWatchFieldValueSamples || (maxKeepAge == 0 && maxKeepSamples == 0) {
 		return newBadParameterError()
 	}
 
-	result := C.dcgmWatchFieldValue(
+	result := api.watchFieldValueResult(gpuID, fieldID, updateFreq, maxKeepAge, maxKeepSamples)
+	if result == DCGM_ST_OK {
+		return nil
+	}
+	return watchResult("error watching field value", result, api.nativeErrorText(result))
+}
+
+// watchFieldValueResult converts watch settings to native units and returns the status.
+func (cgoAdapter) watchFieldValueResult(gpuID uint, fieldID Short, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) int {
+	return int(C.dcgmWatchFieldValue(
 		handle.handle,
 		C.int(gpuID),
 		C.ushort(fieldID),
 		C.longlong(updateFreq.Microseconds()),
 		C.double(maxKeepAge.Seconds()),
 		C.int(maxKeepSamples),
-	)
-	if err := errorString(result); err != nil {
-		return fmt.Errorf("error watching field value: %w", &Error{msg: err.Error(), Code: result})
-	}
-
-	return nil
+	))
 }
 
 // UnwatchFieldValue stops monitoring a field previously started with

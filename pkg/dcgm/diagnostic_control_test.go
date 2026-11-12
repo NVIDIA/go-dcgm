@@ -26,6 +26,11 @@ func TestDiagnosticRequestNativeEncoding(t *testing.T) {
 	decoded, selector, version, expected, err := diagnosticRequestForTest(request)
 	require.NoError(t, err)
 	require.Equal(t, expected, version)
+	// DCGM requires empty logging and statistics paths for v10 requests.
+	debugLogFile, statsPath, err := diagnosticRequestPathsForTest(request)
+	require.NoError(t, err)
+	require.Empty(t, debugLogFile)
+	require.Empty(t, statsPath)
 	require.Equal(t, request, decoded)
 	require.Empty(t, selector)
 

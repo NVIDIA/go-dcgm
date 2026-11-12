@@ -23,7 +23,8 @@ package dcgm
 // Callers must pass the field's declared entity group from FieldMeta. This
 // function does not replace that metadata or make other GPU fields available
 // for link reads. FE_LINK support is coarse: use FieldSupportsEntityGroupWithParent
-// to distinguish GPU-owned links from switch-owned links.
+// to distinguish GPU-owned links from switch-owned links. XID field 230 also
+// supports GPU and GPU-instance reads when metadata declares compute-instance scope.
 func FieldSupportsEntityGroup(fieldID Short, declaredLevel, entityGroup Field_Entity_Group) bool {
 	if !isKnownFieldID(fieldID) {
 		return false
@@ -31,6 +32,10 @@ func FieldSupportsEntityGroup(fieldID Short, declaredLevel, entityGroup Field_En
 
 	if declaredLevel == entityGroup || declaredLevel == FE_NONE {
 		return true
+	}
+
+	if fieldID == DCGM_FI_DEV_XID_ERROR && declaredLevel == FE_GPU_CI {
+		return entityGroup == FE_GPU || entityGroup == FE_GPU_I
 	}
 
 	if declaredLevel != FE_GPU || entityGroup != FE_LINK {
@@ -86,6 +91,9 @@ func FieldSupportsEntityGroupWithParent(fieldID Short, declaredLevel, entityGrou
 			DCGM_FI_DEV_NVLINK_THROUGHPUT_PER_LINK,
 			DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_PER_LINK,
 			DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_PER_LINK,
+			DCGM_FI_DEV_NVLINK_THROUGHPUT_PER_LINK_BYTES_PER_SECOND,
+			DCGM_FI_DEV_NVLINK_TX_PER_LINK_BYTES_PER_SECOND,
+			DCGM_FI_DEV_NVLINK_RX_PER_LINK_BYTES_PER_SECOND,
 			DCGM_FI_PROF_NVLINK_TX_BYTES_PER_LINK,
 			DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK,
 			DCGM_FI_DEV_NVLINK_PPRM_OPER_RECOVERY,
@@ -179,8 +187,8 @@ func isKnownFieldID(fieldID Short) bool {
 // isNVLinkLinkField matches the GPU-declared link fields accepted by
 // DcgmFieldIsNvLinkCountField and ReadAndCacheNvLinkFields.
 func isNVLinkLinkField(fieldID Short) bool {
-	return fieldID == DCGM_FI_PROF_NVLINK_TX_BYTES ||
-		fieldID == DCGM_FI_PROF_NVLINK_RX_BYTES ||
+	return fieldID == DCGM_FI_PROF_NVLINK_TX_BYTES_PER_SECOND ||
+		fieldID == DCGM_FI_PROF_NVLINK_RX_BYTES_PER_SECOND ||
 		(fieldID >= DCGM_FI_DEV_NVLINK_TX_PACKET_TOTAL &&
 			fieldID <= DCGM_FI_DEV_NVLINK_EFFECTIVE_ERROR_TOTAL) ||
 		(fieldID >= DCGM_FI_DEV_NVLINK_FEC_HISTORY_0_TOTAL &&

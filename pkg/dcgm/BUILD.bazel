@@ -27,6 +27,8 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude field_policy_runtime_test.go
 # gazelle:exclude field_policy_test_helpers.go
 # gazelle:exclude field_scope_test.go
+# gazelle:exclude field_scope_runtime_test.go
+# gazelle:exclude field_scope_runtime_helpers.go
 # gazelle:exclude field_summary_unit_test.go
 # gazelle:exclude field_values_callback_test.go
 # gazelle:exclude field_values_limit_test.go
@@ -108,6 +110,7 @@ go_library(
         "error.go",
         "field_policy.go",
         "field_policy_callback.c",
+        "field_policy_import.h",
         "field_scope.go",
         "field_summary.go",
         "field_values.go",
@@ -174,7 +177,8 @@ go_test(
         "error_runtime_test.go",
         "error_test.go",
         "field_policy_runtime_test.go",  # keep: live adapter test belongs only in the runtime target.
-        "field_scope_runtime_test.go",
+        "field_scope_runtime_helpers.go",  # keep: cgo injection helper for runtime tests.
+        "field_scope_runtime_test.go",  # keep: requires a private host engine.
         "field_scope_test.go",  # keep: shared compatibility inventory and tests.
         "field_summary_test.go",
         "field_values_test.go",
@@ -198,6 +202,7 @@ go_test(
         "topology.go",
     ],
     embed = [":dcgm"],
+    env = {"DCGM_ENABLE_INJECTION_APIS": "1"},
     tags = [
         "manual",
         "requires-dcgm",
@@ -272,6 +277,7 @@ go_test(
         "dcgm_fields.h",
         "dcgm_structs.h",
         "dcgm_structs_internal.h",
+        "field_policy_import.h",
         "testdata/public_api.csv",
     ],
     embed = [":dcgm"],

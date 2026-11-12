@@ -99,6 +99,9 @@ defer cleanup()
   a level, a group or explicit entities, and a timeout. A nil group and empty
   entities use DCGM's default selection: all GPUs for GPU tests. Group and
   explicit entities cannot be combined.
+- Requests use native diagnostic version 10 with empty logging and statistics
+  paths, as required by DCGM 4.8. The Go request does not expose v12 logging
+  or statistics-prefix options.
 - `DiagnosticRequest.Timeout` is zero for DCGM's default or a whole number
   of seconds (at most 4,294,967). DCGM converts `timeoutSeconds` to uint32
   milliseconds internally; this bound prevents overflow in that conversion.
@@ -134,12 +137,77 @@ results, err := dcgm.ActionValidate(dcgm.DiagnosticRequest{
 - These APIs check native symbols before use and return Go errors without
   `Init`; unavailable symbols satisfy `IsFeatureUnavailable`. Other native
   failures are `*dcgm.Error`, accessible with `errors.As`.
+- Native diagnostic qualification tests accept `DCGM_TEST_DIAGNOSTIC_GPU_ID`
+  to select one supported GPU by its numeric DCGM ID for cancellation/restart,
+  heartbeat and named-parameter checks. An invalid or unsupported ID fails the
+  test. When unset, these tests retain their default GPU selection. This does
+  not select NIC-EUD hardware or enable profiling-control tests.
 - Exact stopped-code and strict numeric-parameter acceptance require DCGM
   4.8 with the corresponding runtime fixes; older engines report those checks
   as skipped while retaining basic stop/restart and named-test checks.
 - `task test:diagnostics` opts into cancellation, heartbeat, and numeric
   parameter runtime tests in bounded subprocesses. NIC-EUD additionally needs
   `-- --test_env=DCGM_TEST_NIC_EUD=1` after its hardware and plugin are checked.
+
+## Watches, scopes, and field names
+
+- `WatchFields`, `WatchFieldsWithGroup`, `WatchFieldsWithGroupEx`, and
+  `WatchFieldValue` wrap runtime failures as `*dcgm.Error`; use `errors.As`.
+  DCGM 4.8 rejects profiling and GPM intervals below 100 ms (10 Hz) with
+  `DCGM_ST_WATCH_FREQUENCY`. The runtime enforces this limit.
+- Use `FieldGetByID` and `FieldSupportsEntityGroup` to check scopes. XID
+  field 230 supports GPU, GPU-instance, and compute-instance reads even when
+  metadata declares compute-instance scope. Keep returned entity identities.
+  Profiling NVLink byte fields 1011/1012 support GPU and LINK reads. New
+  per-link byte fields 1714 through 1716 use LINK scope.
+- The 4.8 profiling `*_BYTES_PER_SECOND` names are current. The eight older
+  profiling byte names and eight renamed range markers remain compatible
+  constants and lookups, but move to the legacy map. A numeric field marked
+  only `@deprecated` in DCGM's comments remains current, including GPU_UTIL.
+
+## Field-policy identity and import
+
+- `ImportFieldPolicies(path)` retains its error-only API and original DCGM
+  symbol. `ImportFieldPoliciesWithCounts(path)` uses `dcgmPolicyImport_v2`
+  and returns `(parsed, skipped uint, err error)`. Counts are returned on
+  failure too. Parsed counts never imply partial application: DCGM rejects
+  the entire import when any entry is invalid and retains the prior registry.
+- A missing counted-import symbol is feature unavailable. A DCGM 4.8 client
+  connected to a 4.7 host engine returns `DCGM_ST_VER_MISMATCH`.
+- DCGM 4.8 saves schema 2.0 and identifies explicit GPU targets by UUID:
+
+```yaml
+schema_version: {major: 2, minor: 0}
+policies:
+  - fieldId: 150
+    name: temperature
+    operator: GREATER_THAN
+    threshold: 90
+    entities:
+      GPU:
+        componentUuids: [GPU-00000000-0000-0000-0000-000000000000]
+    channels: [CONSOLE]
+    status: ENABLED
+    rateLimitSeconds: 60
+```
+
+- Legacy flat UUID selectors (`entities: [{entityGroupId: 1, componentUuid: GPU-...}]`)
+  remain accepted, as does the integer `schema_version: 2`. Saved files use
+  grouped selectors and major/minor schema components.
+- Replace the example UUID with a real GPU UUID. Back up policy files before
+  upgrading. Files using numeric `entityId` require explicit recreation with
+  GPU UUIDs; changing `schema_version` alone does not migrate them. Schema-2
+  files cannot be used to downgrade to DCGM 4.7.1.
+- A missing GPU returns `UnresolvedFieldPolicyEntityID` (uint32 maximum) in
+  `FieldPolicy.Entities`. DCGM retains its UUID privately. Preserve every
+  unresolved entry when modifying a read policy; empty entities means all
+  GPUs. Retain all or none of the unresolved targets in an entity group;
+  keeping only some is ambiguous and returns `BADPARAM`. New policies cannot
+  use the sentinel because it supplies no UUID. Resolved targets recover
+  identity and watches when the same GPU is rediscovered.
+- For injection helpers and fake entities, set `DCGM_ENABLE_INJECTION_APIS=1`
+  in the host-engine process before startup (the application in embedded
+  mode). Setting it only in a standalone client does not enable injection.
 
 ## Docs
 

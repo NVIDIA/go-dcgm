@@ -426,6 +426,7 @@ typedef enum dcgmReturn_enum
     DCGM_ST_CALLER_ALREADY_STOPPED          = -65, //!< The caller is already stopped
     DCGM_ST_DIAG_STOPPED                    = -66, //!< The DCGM Diagnostic was stopped
     DCGM_ST_GPUS_DETACHED                   = -67, //!< GPUs are detached
+    DCGM_ST_WATCH_FREQUENCY                 = -68, //!< The requested watch frequency is too high
 } dcgmReturn_t;
 
 const char *errorString(dcgmReturn_t result);
@@ -944,35 +945,44 @@ typedef struct
  */
 typedef struct
 {
-    int version;           //!< Version Number (dcgmClockSet_version)
-    unsigned int memClock; //!< Memory Clock (Memory Clock value OR DCGM_INT32_BLANK to Ignore/Use compatible
+    int version;           //!< Version number (dcgmClockSet_version1).
+    unsigned int memClock; //!< Memory clock in MHz (value OR DCGM_INT32_BLANK to Ignore/Use compatible
                            //!< value with smClk)
-    unsigned int smClock;  //!< SM Clock (SM Clock value OR DCGM_INT32_BLANK to Ignore/Use compatible value with memClk)
+    unsigned int smClock;  //!< SM clock in MHz (value OR DCGM_INT32_BLANK to Ignore/Use compatible value with memClk)
 } dcgmClockSet_v1;
 
-/**
- * Typedef for \ref dcgmClockSet_v1
- */
-typedef dcgmClockSet_v1 dcgmClockSet_t;
+/** Clock settings in hertz. */
+typedef struct
+{
+    int version;        //!< Version number (dcgmClockSet_version2).
+    long long memClock; //!< Memory clock in Hz, or a DCGM_INT64 blank sentinel.
+    long long smClock;  //!< SM clock in Hz, or a DCGM_INT64 blank sentinel.
+} dcgmClockSet_v2;
+
+/** Latest clock settings structure. */
+typedef dcgmClockSet_v2 dcgmClockSet_t;
 
 /**
  * Version 1 for \ref dcgmClockSet_v1
  */
 #define dcgmClockSet_version1 MAKE_DCGM_VERSION(dcgmClockSet_v1, 1)
 
+/** Version 2 for \ref dcgmClockSet_v2. */
+#define dcgmClockSet_version2 MAKE_DCGM_VERSION(dcgmClockSet_v2, 2)
+
 /**
  * Latest version for \ref dcgmClockSet_t
  */
-#define dcgmClockSet_version dcgmClockSet_version1
+#define dcgmClockSet_version dcgmClockSet_version2
 
 /**
  * Represents list of supported clock sets for a device
  */
 typedef struct
 {
-    unsigned int version;                     //!< Version Number (dcgmDeviceSupportedClockSets_version)
-    unsigned int count;                       //!< Number of supported clocks
-    dcgmClockSet_t clockSet[DCGM_MAX_CLOCKS]; //!< Valid clock sets for the device. Upto \ref count entries are filled
+    unsigned int version;                      //!< Version Number (dcgmDeviceSupportedClockSets_version)
+    unsigned int count;                        //!< Number of supported clocks
+    dcgmClockSet_v1 clockSet[DCGM_MAX_CLOCKS]; //!< Valid clock sets for the device. Upto \ref count entries are filled
 } dcgmDeviceSupportedClockSets_v1;
 
 /**
@@ -1119,7 +1129,7 @@ typedef dcgmDeviceIdentifiers_v1 dcgmDeviceIdentifiers_t;
  */
 typedef struct
 {
-    unsigned int version;   //!< Version Number (dcgmDeviceMemoryUsage_version)
+    unsigned int version;   //!< Version Number (dcgmDeviceMemoryUsage_version1)
     unsigned int bar1Total; //!< Total BAR1 size in megabytes
     unsigned int fbTotal;   //!< Total framebuffer memory in megabytes
     unsigned int fbUsed;    //!< Used framebuffer memory in megabytes
@@ -1127,9 +1137,21 @@ typedef struct
 } dcgmDeviceMemoryUsage_v1;
 
 /**
- * Typedef for \ref dcgmDeviceMemoryUsage_v1
+ * Device memory and usage in bytes.
  */
-typedef dcgmDeviceMemoryUsage_v1 dcgmDeviceMemoryUsage_t;
+typedef struct
+{
+    unsigned int version; //!< Version number (dcgmDeviceMemoryUsage_version2).
+    long long bar1Total;  //!< Total BAR1 size in bytes, or a DCGM_INT64 blank sentinel.
+    long long fbTotal;    //!< Total framebuffer memory in bytes, or a DCGM_INT64 blank sentinel.
+    long long fbUsed;     //!< Used framebuffer memory in bytes, or a DCGM_INT64 blank sentinel.
+    long long fbFree;     //!< Free framebuffer memory in bytes, or a DCGM_INT64 blank sentinel.
+} dcgmDeviceMemoryUsage_v2;
+
+/**
+ * Latest device memory usage structure.
+ */
+typedef dcgmDeviceMemoryUsage_v2 dcgmDeviceMemoryUsage_t;
 
 /**
  * Version 1 for \ref dcgmDeviceMemoryUsage_v1
@@ -1137,9 +1159,14 @@ typedef dcgmDeviceMemoryUsage_v1 dcgmDeviceMemoryUsage_t;
 #define dcgmDeviceMemoryUsage_version1 MAKE_DCGM_VERSION(dcgmDeviceMemoryUsage_v1, 1)
 
 /**
+ * Version 2 for \ref dcgmDeviceMemoryUsage_v2.
+ */
+#define dcgmDeviceMemoryUsage_version2 MAKE_DCGM_VERSION(dcgmDeviceMemoryUsage_v2, 2)
+
+/**
  * Latest version for \ref dcgmDeviceMemoryUsage_t
  */
-#define dcgmDeviceMemoryUsage_version dcgmDeviceMemoryUsage_version1
+#define dcgmDeviceMemoryUsage_version dcgmDeviceMemoryUsage_version2
 
 /**
  * Represents utilization values for vGPUs running on the device
@@ -1486,19 +1513,33 @@ typedef dcgmDeviceSettings_v2 dcgmDeviceSettings_t;
 
 typedef struct
 {
-    unsigned int version;                     //!< Version number (dcgmDeviceAttributes_version)
+    unsigned int version;                     //!< Version number (dcgmDeviceAttributes_version3)
     dcgmDeviceSupportedClockSets_t clockSets; //!< Supported clocks for the device
     dcgmDeviceThermals_t thermalSettings;     //!< Thermal settings for the device
     dcgmDevicePowerLimits_t powerLimits;      //!< Various power limits for the device
     dcgmDeviceIdentifiers_t identifiers;      //!< Identifiers for the device
-    dcgmDeviceMemoryUsage_t memoryUsage;      //!< Memory usage info for the device
+    dcgmDeviceMemoryUsage_v1 memoryUsage;     //!< Memory usage info for the device
     dcgmDeviceSettings_v2 settings;           //!< Basic device settings
 } dcgmDeviceAttributes_v3;
 
 /**
- * Typedef for \ref dcgmDeviceAttributes_v3
+ * Device attributes with byte-valued memory measurements.
  */
-typedef dcgmDeviceAttributes_v3 dcgmDeviceAttributes_t;
+typedef struct
+{
+    unsigned int version;                     //!< Version number (dcgmDeviceAttributes_version4).
+    dcgmDeviceSupportedClockSets_t clockSets; //!< Supported clocks for the device.
+    dcgmDeviceThermals_t thermalSettings;     //!< Thermal settings for the device.
+    dcgmDevicePowerLimits_t powerLimits;      //!< Various power limits for the device.
+    dcgmDeviceIdentifiers_t identifiers;      //!< Identifiers for the device.
+    dcgmDeviceMemoryUsage_v2 memoryUsage;     //!< Memory usage info for the device in bytes.
+    dcgmDeviceSettings_v2 settings;           //!< Basic device settings.
+} dcgmDeviceAttributes_v4;
+
+/**
+ * Latest device attributes structure.
+ */
+typedef dcgmDeviceAttributes_v4 dcgmDeviceAttributes_t;
 
 /**
  * Version 3 for \ref dcgmDeviceAttributes_v3
@@ -1506,9 +1547,14 @@ typedef dcgmDeviceAttributes_v3 dcgmDeviceAttributes_t;
 #define dcgmDeviceAttributes_version3 MAKE_DCGM_VERSION(dcgmDeviceAttributes_v3, 3)
 
 /**
+ * Version 4 for \ref dcgmDeviceAttributes_v4.
+ */
+#define dcgmDeviceAttributes_version4 MAKE_DCGM_VERSION(dcgmDeviceAttributes_v4, 4)
+
+/**
  * Latest version for \ref dcgmDeviceAttributes_t
  */
-#define dcgmDeviceAttributes_version dcgmDeviceAttributes_version3
+#define dcgmDeviceAttributes_version dcgmDeviceAttributes_version4
 
 /**
  * Structure to represent attributes info for a MIG device
@@ -1774,11 +1820,21 @@ typedef dcgmDeviceWorkloadPowerProfilesStatus_v1 dcgmDeviceWorkloadPowerProfiles
  */
 typedef struct
 {
-    unsigned int syncBoost;      //!< Sync Boost Mode (0: Disabled, 1 : Enabled, DCGM_INT32_BLANK : Ignored). Note that
-                                 //!< using this setting may result in lower clocks than targetClocks
-    dcgmClockSet_t targetClocks; //!< Target clocks. Set smClock and memClock to DCGM_INT32_BLANK to ignore/use
-                                 //!< compatible values. For GPUs > Maxwell, setting this implies autoBoost=0
-} dcgmConfigPerfStateSettings_t;
+    unsigned int syncBoost;       //!< Sync Boost Mode (0: Disabled, 1 : Enabled, DCGM_INT32_BLANK : Ignored). Note that
+                                  //!< using this setting may result in lower clocks than targetClocks
+    dcgmClockSet_v1 targetClocks; //!< Target clocks. Set smClock and memClock to DCGM_INT32_BLANK to ignore/use
+                                  //!< compatible values. For GPUs > Maxwell, setting this implies autoBoost=0
+} dcgmConfigPerfStateSettings_v1;
+
+/** Performance state settings with clock frequencies in hertz. */
+typedef struct
+{
+    unsigned int syncBoost;       //!< Sync boost setting, or DCGM_INT32_BLANK to ignore.
+    dcgmClockSet_v2 targetClocks; //!< Target frequencies in Hz; use DCGM_INT64_BLANK to ignore.
+} dcgmConfigPerfStateSettings_v2;
+
+/** Latest performance state settings structure. */
+typedef dcgmConfigPerfStateSettings_v2 dcgmConfigPerfStateSettings_t;
 
 /**
  * Used to represents the power capping limit for each GPU in the group or to represent the power
@@ -1799,8 +1855,8 @@ typedef struct
     unsigned int gpuId;       //!< GPU ID
     unsigned int eccMode;     //!< ECC Mode  (0: Disabled, 1 : Enabled, DCGM_INT32_BLANK : Ignored)
     unsigned int computeMode; //!< Compute Mode (One of DCGM_CONFIG_COMPUTEMODE_? OR DCGM_INT32_BLANK to Ignore)
-    dcgmConfigPerfStateSettings_t perfState; //!< Performance State Settings (clocks / boost mode)
-    dcgmConfigPowerLimit_t powerLimit;       //!< Power Limits
+    dcgmConfigPerfStateSettings_v1 perfState; //!< Performance State Settings (clocks / boost mode)
+    dcgmConfigPowerLimit_t powerLimit;        //!< Power Limits
 } dcgmConfig_v1;
 
 typedef struct
@@ -1809,15 +1865,25 @@ typedef struct
     unsigned int gpuId;       //!< GPU ID
     unsigned int eccMode;     //!< ECC Mode  (0: Disabled, 1 : Enabled, DCGM_INT32_BLANK : Ignored)
     unsigned int computeMode; //!< Compute Mode (One of DCGM_CONFIG_COMPUTEMODE_? OR DCGM_INT32_BLANK to Ignore)
-    dcgmConfigPerfStateSettings_t perfState; //!< Performance State Settings (clocks / boost mode)
-    dcgmConfigPowerLimit_t powerLimit;       //!< Power Limits
+    dcgmConfigPerfStateSettings_v1 perfState; //!< Performance State Settings (clocks / boost mode)
+    dcgmConfigPowerLimit_t powerLimit;        //!< Power Limits
     unsigned int workloadPowerProfiles[DCGM_POWER_PROFILE_ARRAY_SIZE]; //!< Configured Workload Power Profiles
 } dcgmConfig_v2;
 
-/**
- * Typedef for \ref dcgmConfig_v1
- */
-typedef dcgmConfig_v2 dcgmConfig_t;
+/** Device configuration with target clock frequencies in hertz. */
+typedef struct
+{
+    unsigned int version;                                              //!< Version number (dcgmConfig_version3).
+    unsigned int gpuId;                                                //!< GPU ID.
+    unsigned int eccMode;                                              //!< ECC mode, or DCGM_INT32_BLANK to ignore.
+    unsigned int computeMode;                                          //!< Compute mode, or DCGM_INT32_BLANK to ignore.
+    dcgmConfigPerfStateSettings_v2 perfState;                          //!< Performance state settings in Hz.
+    dcgmConfigPowerLimit_t powerLimit;                                 //!< Power limit in watts.
+    unsigned int workloadPowerProfiles[DCGM_POWER_PROFILE_ARRAY_SIZE]; //!< Workload power profiles.
+} dcgmConfig_v3;
+
+/** Latest device configuration structure. */
+typedef dcgmConfig_v3 dcgmConfig_t;
 
 /**
  * Version 1 for \ref dcgmConfig_v1
@@ -1825,10 +1891,13 @@ typedef dcgmConfig_v2 dcgmConfig_t;
 #define dcgmConfig_version1 MAKE_DCGM_VERSION(dcgmConfig_v1, 1)
 #define dcgmConfig_version2 MAKE_DCGM_VERSION(dcgmConfig_v2, 2)
 
+/** Version 3 for \ref dcgmConfig_v3. */
+#define dcgmConfig_version3 MAKE_DCGM_VERSION(dcgmConfig_v3, 3)
+
 /**
  * Latest version for \ref dcgmConfig_t
  */
-#define dcgmConfig_version dcgmConfig_version2
+#define dcgmConfig_version dcgmConfig_version3
 
 typedef enum
 {
@@ -2753,14 +2822,14 @@ typedef struct
 
     long long maxGpuMemoryUsed; //!< Maximum amount of GPU memory that was used in bytes
 
-    long long powerViolationTime;       //!< Number of microseconds we were at reduced clocks due to power violation
-    long long thermalViolationTime;     //!< Number of microseconds we were at reduced clocks due to thermal violation
-    long long reliabilityViolationTime; //!< Amount of microseconds we were at reduced clocks
+    long long powerViolationTime;       //!< Number of nanoseconds we were at reduced clocks due to power violation
+    long long thermalViolationTime;     //!< Number of nanoseconds we were at reduced clocks due to thermal violation
+    long long reliabilityViolationTime; //!< Amount of nanoseconds we were at reduced clocks
                                         //!< due to the reliability limit
-    long long boardLimitViolationTime;  //!< Amount of microseconds we were at reduced clocks due to being at the
+    long long boardLimitViolationTime;  //!< Amount of nanoseconds we were at reduced clocks due to being at the
                                         //!< board's max voltage
-    long long lowUtilizationTime;       //!< Amount of microseconds we were at reduced clocks due to low utilization
-    long long syncBoostTime;            //!< Amount of microseconds we were at reduced clocks due to sync boost
+    long long lowUtilizationTime;       //!< Amount of nanoseconds we were at reduced clocks due to low utilization
+    long long syncBoostTime;            //!< Amount of nanoseconds we were at reduced clocks due to sync boost
     dcgmHealthWatchResults_t overallHealth; //!< The overall health of the system. \ref dcgmHealthWatchResults_t
     unsigned int incidentCount;
     struct
@@ -2768,35 +2837,107 @@ typedef struct
         dcgmHealthSystems_t system;      //!< system to which this information belongs
         dcgmHealthWatchResults_t health; //!< health of the specified system on this GPU
     } systems[DCGM_HEALTH_WATCH_COUNT_V1];
-} dcgmPidSingleInfo_t;
+} dcgmPidSingleInfo_v1;
+
+/**
+ * Per-GPU PID statistics in base units, selected by dcgmPidInfo_v3.
+ * Floating-point measurements use DCGM_FP64 blank/error sentinels.
+ * Integer measurements retain the sentinels matching their integer width.
+ */
+typedef struct
+{
+    unsigned int gpuId; //!< ID of the GPU this pertains to. GPU_ID_INVALID = summary information for multiple GPUs
+
+    /* All of the following are during the process's lifetime */
+
+    double energyConsumed;                  //!< Energy consumed by the gpu in joules
+    dcgmStatSummaryInt64_t pcieRxBandwidth; //!< PCI-E receive throughput in bytes per second
+    dcgmStatSummaryInt64_t pcieTxBandwidth; //!< PCI-E transmit throughput in bytes per second
+    long long pcieReplays;                  //!< Count of PCI-E replays that occurred
+    double startTime;                       //!< Process start time in seconds since 1970
+    double endTime; //!< Process end time in seconds since 1970 or reported as 0 if the process is not completed
+    dcgmProcessUtilInfo_t processUtilization; //!< Process SM and Memory Utilization (as a ratio)
+    dcgmStatSummaryFp64_t smUtilization;      //!< GPU SM Utilization as a ratio
+    dcgmStatSummaryFp64_t memoryUtilization;  //!< GPU Memory Utilization as a ratio
+    unsigned int eccSingleBit;                //!< Deprecated - Count of ECC single bit errors that occurred
+    unsigned int eccDoubleBit;                //!< Count of ECC double bit errors that occurred
+    dcgmStatSummaryInt64_t memoryClock;       //!< Memory clock in Hz
+    dcgmStatSummaryInt64_t smClock;           //!< SM clock in Hz
+
+    int numXidCriticalErrors;                      //!< Number of valid entries in xidCriticalErrorsTs
+    double xidCriticalErrorsTs[DCGM_MAX_XID_INFO]; //!< Timestamps of the critical XID errors in seconds since 1970
+
+    int numOtherComputePids;                              //!< Count of otherComputePids entries that are valid
+    unsigned int otherComputePids[DCGM_MAX_PID_INFO_NUM]; //!< Other compute processes that ran. 0=no process
+
+    int numOtherGraphicsPids;                              //!< Count of otherGraphicsPids entries that are valid
+    unsigned int otherGraphicsPids[DCGM_MAX_PID_INFO_NUM]; //!< Other graphics processes that ran. 0=no process
+
+    long long maxGpuMemoryUsed; //!< Maximum amount of GPU memory that was used in bytes
+
+    double powerViolationTime;              //!< Number of seconds we were at reduced clocks due to power violation
+    double thermalViolationTime;            //!< Number of seconds we were at reduced clocks due to thermal violation
+    double reliabilityViolationTime;        //!< Amount of seconds we were at reduced clocks
+                                            //!< due to the reliability limit
+    double boardLimitViolationTime;         //!< Amount of seconds we were at reduced clocks due to being at the
+                                            //!< board's max voltage
+    double lowUtilizationTime;              //!< Amount of seconds we were at reduced clocks due to low utilization
+    double syncBoostTime;                   //!< Amount of seconds we were at reduced clocks due to sync boost
+    dcgmHealthWatchResults_t overallHealth; //!< The overall health of the system. \ref dcgmHealthWatchResults_t
+    unsigned int incidentCount;
+    struct
+    {
+        dcgmHealthSystems_t system;      //!< system to which this information belongs
+        dcgmHealthWatchResults_t health; //!< health of the specified system on this GPU
+    } systems[DCGM_HEALTH_WATCH_COUNT_V1];
+} dcgmPidSingleInfo_v2;
+
+/** Latest per-GPU PID statistics layout. */
+typedef dcgmPidSingleInfo_v2 dcgmPidSingleInfo_t;
 
 /**
  * To store process statistics
  */
 typedef struct
 {
-    unsigned int version; //!< Version of this message  (dcgmPidInfo_version)
+    unsigned int version; //!< Version of this message  (dcgmPidInfo_version2)
     unsigned int pid;     //!< PID of the process
     unsigned int unused;
-    int numGpus;                                    //!< Number of GPUs that are valid in GPUs
-    dcgmPidSingleInfo_t summary;                    //!< Summary information for all GPUs listed in gpus[]
-    dcgmPidSingleInfo_t gpus[DCGM_MAX_NUM_DEVICES]; //!< Per-GPU information for this PID
+    int numGpus;                                     //!< Number of GPUs that are valid in GPUs
+    dcgmPidSingleInfo_v1 summary;                    //!< Summary information for all GPUs listed in gpus[]
+    dcgmPidSingleInfo_v1 gpus[DCGM_MAX_NUM_DEVICES]; //!< Per-GPU information for this PID
 } dcgmPidInfo_v2;
 
 /**
- * Typedef for \ref dcgmPidInfo_v2
+ * Process statistics in base units.
  */
-typedef dcgmPidInfo_v2 dcgmPidInfo_t;
+typedef struct
+{
+    unsigned int version; //!< Version of this message  (dcgmPidInfo_version3)
+    unsigned int pid;     //!< PID of the process
+    unsigned int unused;
+    int numGpus;                                     //!< Number of GPUs that are valid in GPUs
+    dcgmPidSingleInfo_v2 summary;                    //!< Summary information for all GPUs listed in gpus[]
+    dcgmPidSingleInfo_v2 gpus[DCGM_MAX_NUM_DEVICES]; //!< Per-GPU information for this PID
+} dcgmPidInfo_v3;
+
+/**
+ * Typedef for \ref dcgmPidInfo_v3
+ */
+typedef dcgmPidInfo_v3 dcgmPidInfo_t;
 
 /**
  * Version 2 for \ref dcgmPidInfo_v2
  */
 #define dcgmPidInfo_version2 MAKE_DCGM_VERSION(dcgmPidInfo_v2, 2)
 
+/** Version 3 for \ref dcgmPidInfo_v3. */
+#define dcgmPidInfo_version3 MAKE_DCGM_VERSION(dcgmPidInfo_v3, 3)
+
 /**
  * Latest version for \ref dcgmPidInfo_t
  */
-#define dcgmPidInfo_version dcgmPidInfo_version2
+#define dcgmPidInfo_version dcgmPidInfo_version3
 
 /**
  * Info corresponding to the job on a GPU
@@ -3736,9 +3877,50 @@ typedef struct
 
 /**
  * Version 11 uses the v10 layout and interprets debugLogFile as a filename under the nvvs subdirectory beside the
- * configured host engine log, or as "-" to select console logging.
+ * configured host engine log, or as "-" to select NVVS console logging.
  */
 #define dcgmRunDiag_version11 MAKE_DCGM_VERSION(dcgmRunDiag_v10, 11)
+
+/**
+ * Run diagnostic structure v12. Empty statsPrefix preserves the configured prefix (default "stats").
+ * Statistics are written under nvvs beside the hostengine log, or under DCGM_HOME_DIR when file logging is disabled
+ * (default /var/log/nvidia-dcgm/nvvs). Plugin names and format extensions are appended.
+ * debugLogFile retains version 11 semantics.
+ */
+typedef struct
+{
+    unsigned int version;    //!< version of this message
+    unsigned int flags;      //!< flags specifying binary options for running it. See DCGM_RUN_FLAGS_*
+    unsigned int debugLevel; //!< 0-5 for the debug level the GPU diagnostic will use for logging.
+    dcgmGpuGrp_t groupId; //!< group of GPUs to verify. Cannot be specified together with entityIds. When entityIds is
+                          //!< specified, this value should be set to DCGM_GROUP_NULL.
+    dcgmPolicyValidation_t validate;                              //!< 0-3 for which tests to run. Optional.
+    char testNames[DCGM_MAX_TEST_NAMES][DCGM_MAX_TEST_NAMES_LEN]; //!< Specified list of test names. Optional.
+    char testParms[DCGM_MAX_TEST_PARMS]
+                  [DCGM_MAX_TEST_PARMS_LEN_V2]; //!< Parameters to set for specified tests
+                                                //!< in the format:
+                                                //!< testName.parameterName=parameterValue. Optional.
+    char fakeGpuList[DCGM_GPU_LIST_LEN]; //!< Comma-separated list of GPUs. Cannot be specified with the groupId or
+                                         //!< entityIds.
+    char debugLogFile[DCGM_PATH_LEN];    //!< Alternate name for the debug log file that should be used
+    char statsPrefix[DCGM_PATH_LEN];     //!< Optional statistics filename prefix without directory components.
+    char configFileContents[DCGM_MAX_CONFIG_FILE_LEN]; //!< Contents of nvvs config file (likely yaml)
+    char clocksEventMask[DCGM_CLOCKS_EVENT_MASK_LEN];  //!< Clocks event reasons to ignore as either integer mask or
+    //!< csv list of reasons
+    char pluginPath[DCGM_PATH_LEN]; //!< Custom path to the diagnostic plugins - No longer supported as of 2.2.9
+    unsigned int currentIteration;  //!< The current iteration that will be executed
+    unsigned int totalIterations;   //!< The total iterations that will be executed
+    unsigned int timeoutSeconds;    //!< The timeout for the diagnostic in seconds
+    char _unusedBuf[DCGM_PATH_LEN]; //!< No longer used
+    unsigned int failCheckInterval; //!< How often the fail early checks should occur when enabled.
+    char expectedNumEntities[DCGM_EXPECTED_ENTITIES_LEN]; //!< The expected number of entities the diag will run on.
+    char entityIds[DCGM_ENTITY_ID_LIST_LEN]; //!< Comma-separated list of entity ids. Cannot be specified with the
+                                             //!< groupId.
+    unsigned int watchFrequency;             //!< The watch frequency for fields being watched
+    char ignoreErrorCodes[DCGM_IGNORE_ERROR_MAX_LEN]; //!< String of error codes to be ignored on different entities
+} dcgmRunDiag_v12;
+
+#define dcgmRunDiag_version12 MAKE_DCGM_VERSION(dcgmRunDiag_v12, 12)
 
 /**
  * Maximum number of Multi Node Hosts Supported

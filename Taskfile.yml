@@ -246,7 +246,7 @@ tasks:
       - |
         set +e
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/policy.json" \
-          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility|TestAdministrationRuntime|TestModuleDenylistIsolated|TestAdministrationNativeErrors|TestAdministrationAfterShutdown|TestAdministrationAfterFailedInit|TestJobStatsAfterFailedInit|TestProfilingPauseResume|TestDiagnosticAPIsAfterFailedInit|TestDiagnosticChildSkipClassification|TestDiagnosticCleanupWaits|TestDiagnosticProcessCancellation)$'
+          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility|TestAdministrationRuntime|TestModuleDenylistIsolated|TestAdministrationNativeErrors|TestAdministrationAfterShutdown|TestAdministrationAfterFailedInit|TestJobStatsAfterFailedInit|TestProfilingPauseResume|TestDiagnosticAPIsAfterFailedInit|TestDiagnosticChildSkipClassification|TestDiagnosticCleanupWaits|TestDiagnosticProcessCancellation|TestDiagnosticGPUSelection|TestFieldPolicyUUIDImport|TestDCGM48ScopeReads|TestDeviceMemoryMiB|TestDCGM48InjectionGate|TestEntityInjectionHelperWithoutInit|TestCountedPolicyImportAfterFailedInit)$'
         policy_status=$?
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/suite.json" \
           --test_env=DCGM_SKIP_DIAGNOSTICS=1 //tests:tests_test {{.CLI_ARGS}}
@@ -266,6 +266,12 @@ tasks:
         vars:
           RACE: "true"
           REPORTS: '{{.REPORTS | default "false"}}'
+
+  test:policy:rediscovery:
+    desc: Run opt-in policy driver detach/reattach checks on a dedicated GPU host
+    cmds:
+      - task: test:gpu:prereqs
+      - bazel test --config=ci --config=dcgm-runtime --cache_test_results=no --test_env=DCGM_TEST_POLICY_REDISCOVERY=1 //pkg/dcgm:dcgm_test --test_filter='^TestFieldPolicyRediscovery$' {{.CLI_ARGS}}
 
   test:diagnostics:
     desc: Run hardware-sensitive diagnostic tests; REPORTS=true writes the reports

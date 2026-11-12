@@ -383,12 +383,13 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmGetAllSupportedDevices(dcgmHandle_t pDcgmHandle
 /**
  * Gets device attributes corresponding to the \a gpuId. If operation is not successful for any of
  * the requested fields then the field is populated with one of DCGM_BLANK_VALUES defined in
- * dcgm_structs.h.
+ * dcgm_structs.h. Version 4 returns memory measurements in bytes with DCGM_INT64 sentinels;
+ * version 3 retains MiB measurements with DCGM_INT32 sentinels.
  *
  * @param pDcgmHandle    IN: DCGM Handle
  * @param gpuId          IN: GPU Id corresponding to which the attributes should be fetched
  * @param pDcgmAttr  IN/OUT: Device attributes corresponding to \a gpuId.<br> pDcgmAttr->version should be set to
- *                           \ref dcgmDeviceAttributes_version before this call.
+ *                           \ref dcgmDeviceAttributes_version4 or \ref dcgmDeviceAttributes_version3 before this call.
  *
  * @return
  *        - \ref DCGM_ST_OK            if the call was successful.
@@ -598,7 +599,8 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmGroupCreate(dcgmHandle_t pDcgmHandle,
 /**
  * Used to destroy a group represented by \a groupId.
  * Since DCGM group is a logical grouping of entities, the properties applied on the group stay intact
- * for the individual entities even after the group is destroyed.
+ * for the individual entities even after the group is destroyed. The health systems set on the group
+ * with \ref dcgmHealthSet are cleared.
  *
  * @param pDcgmHandle   IN: DCGM Handle
  * @param groupId       IN: Group ID
@@ -921,6 +923,13 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmStatusClear(dcgmStatus_t statusHandle);
 *
 * To find out valid supported clock values that can be passed to dcgmConfigSet, look at the device
 * attributes of a GPU in the group using the API dcgmGetDeviceAttributes.
+*
+* Version 2 uses MHz clocks and DCGM_INT32 blank sentinels. Version 3 uses Hz clocks
+* and DCGM_INT64 blank sentinels. Power limits remain in watts in every version.
+* Supported-clock attributes are in MHz; multiply those values by 1000000 for version 3.
+* Except for blank/error sentinels, version 3 clock values must be nonnegative whole multiples
+* of 1000000 Hz. The equivalent MHz value must be below DCGM_INT32_BLANK.
+* Values that violate these requirements cause the call to return DCGM_ST_BADPARAM.
 
 * @param pDcgmHandle            IN: DCGM Handle
 * @param groupId                IN: Group ID representing collection of one or more GPUs. Look at \ref dcgmGroupCreate
@@ -946,6 +955,10 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmConfigSet(dcgmHandle_t pDcgmHandle,
 
 /**
 * Used to get configuration for all the GPUs present in the group.
+*
+* Initialize every output entry to the same supported version. Version 2 returns MHz
+* clocks with DCGM_INT32 blank sentinels; version 3 returns Hz clocks with DCGM_INT64 blank
+* sentinels. Array entries use the size of the requested version. Power limits remain in watts.
 *
 * This API can get the most recent target or desired configuration set by \ref dcgmConfigSet.
 * Set type as \a DCGM_CONFIG_TARGET_STATE to get target configuration. The target configuration
@@ -1055,6 +1068,32 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmConfigEnforce(dcgmHandle_t pDcgmHandle,
                                                dcgmGpuGrp_t groupId,
                                                dcgmStatus_t statusHandle);
 
+/**
+ * Clears any previously set target configuration for all the GPUs present in the group, reverting each
+ * GPU's target configuration back to blank, as if \ref dcgmConfigSet had never been called for it.
+ *
+ * This does not change the GPUs' current/live configuration; it only clears what DCGM is tracking as the
+ * desired target configuration, so a subsequent \ref dcgmConfigGet with \ref DCGM_CONFIG_TARGET_STATE
+ * will report blank values again.
+ *
+ * @param pDcgmHandle            IN: DCGM Handle
+ * @param groupId                IN: Group ID representing collection of one or more GPUs. Look at \ref dcgmGroupCreate
+ *                                   for details on creating the group. Alternatively, pass in the group id as
+ *                                   \a DCGM_GROUP_ALL_GPUS to perform operation on all the GPUs.
+ * @param statusHandle       IN/OUT: Resulting error status for multiple operations. Pass it as NULL if the detailed
+ *                                   error information is not needed. Look at \ref dcgmStatusCreate for details on
+ *                                   creating status handle.
+ *
+ * @return
+ *        - \ref DCGM_ST_OK                   if the target configuration has been successfully reset.
+ *        - \ref DCGM_ST_BADPARAM             if \a groupId is invalid.
+ *        - \ref DCGM_ST_NOT_CONFIGURED       if the group has no GPUs.
+ *        - \ref DCGM_ST_GENERIC_ERROR        if an unknown error has occurred.
+ *        - \ref DCGM_ST_GPU_IS_LOST          if GPU in group is no longer alive
+ *
+ */
+dcgmReturn_t DCGM_PUBLIC_API dcgmConfigReset(dcgmHandle_t pDcgmHandle, dcgmGpuGrp_t groupId, dcgmStatus_t statusHandle);
+
 /** @} */ // Closing for DCGMAPI_DC_MI
 
 /** @} */ // Closing for DCGMAPI_DC
@@ -1088,6 +1127,7 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmConfigEnforce(dcgmHandle_t pDcgmHandle,
  * @return
  *        - \ref DCGM_ST_OK                   if the call was successful
  *        - \ref DCGM_ST_BADPARAM             if a parameter is invalid
+ *        - \ref DCGM_ST_WATCH_FREQUENCY      if a profiling/GPM field is requested faster than 10Hz
  *
  */
 
@@ -1386,7 +1426,11 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmWatchPidFields(dcgmHandle_t pDcgmHandle,
  *                        for details on creating the group. Alternatively, pass in the group id as
  *                        \a DCGM_GROUP_ALL_GPUS to perform operation on all the GPUs.
  * @param pidInfo IN/OUT: Structure to return information about pid in. pidInfo->pid must be set to the pid in question.
- *                        pidInfo->version should be set to dcgmPidInfo_version.
+ *                        Set version to dcgmPidInfo_version3 for base units, or dcgmPidInfo_version2 for
+ *                        the legacy layout and units. Version 3 uses Hz, joules, seconds, bytes per second,
+ *                        and utilization ratios. Version 2 retains MHz, millijoules, microsecond timestamps,
+ *                        nanosecond violation durations, kB/s, and percentages. Blank/error sentinels match
+ *                        each member's numeric type.
  *
  * @return
  *       - \ref DCGM_ST_OK                  if the call was successful
@@ -1640,6 +1684,7 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmHealthGetSupportedSystems(dcgmHandle_t pDcgmHan
  *       - \ref DCGM_ST_OK                  if the call was successful
  *       - \ref DCGM_ST_BADPARAM            if a parameter is invalid
  *       - \ref DCGM_ST_VER_MISMATCH        if results->version is not dcgmHealthResponse_version
+ *       - other DCGM_ST_* codes            the first error a health system hit while checking the group
  *
  */
 dcgmReturn_t DCGM_PUBLIC_API dcgmHealthCheck(dcgmHandle_t pDcgmHandle,
@@ -1757,6 +1802,29 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyGetAll(dcgmHandle_t pDcgmHandle,
 
 dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyImport(dcgmHandle_t pDcgmHandle, const char *path);
 
+/**
+ * Import field-based policies from a YAML file, reporting per-entry parse counts.
+ *
+ * This call blocks until the policy module responds and field watches are refreshed.
+ * It is identical to dcgmPolicyImport except it also returns the number of entries
+ * that were successfully parsed and the number that were skipped due to errors.
+ *
+ * @param[in]  pDcgmHandle   DCGM Handle
+ * @param[in]  path          NUL-terminated path to the YAML policy file
+ * @param[out] parsedCount   Optional. When non-NULL, set to the number of valid entries parsed.
+ * @param[out] skippedCount  Optional. When non-NULL, set to the number of invalid entries skipped.
+ *
+ * @return
+ *        - \ref DCGM_ST_OK                   if the call was successful
+ *        - \ref DCGM_ST_BADPARAM             if \a path is NULL or invalid
+ *        - \ref DCGM_ST_NOT_CONFIGURED       if the file could not be loaded
+ *        - DCGM_ST_*                         a different error has occurred. Refer to \ref dcgmReturn_t
+ */
+dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyImport_v2(dcgmHandle_t pDcgmHandle,
+                                                 char const *path,
+                                                 unsigned int *parsedCount,
+                                                 unsigned int *skippedCount);
+
 dcgmReturn_t DCGM_PUBLIC_API dcgmPolicyGetViolations(dcgmHandle_t pDcgmHandle,
                                                      int64_t sinceTimestamp,
                                                      dcgm_policy_violation_t *violations,
@@ -1860,14 +1928,32 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate(dcgmHandle_t pDcgmHandle,
 /**
  * Inform the action manager to perform a manual validation of a group of GPUs on the system
  *
+ * Diagnostic logging:
+ * - Request versions 7 through 10 require an empty debugLogFile.
+ * - Versions 11 and 12 accept a filename, or "-" to forward NVVS output through hostengine logging.
+ *
+ * Filenames must be shorter than DCGM_PATH_LEN and contain only alphanumeric characters,
+ * underscores, dashes and dots. Leading dots or dashes, ".." substrings and path components
+ * are not allowed.
+ *
+ * A disk logfile requires hostengine file logging. Diagnostic logs go in an nvvs directory
+ * beside the hostengine log; an empty debugLogFile selects nvvs.log there.
+ * When hostengine logs to "-", an empty debugLogFile retains the existing NVVS default.
+ *
+ * Diagnostic statistics:
+ * - Request versions 7 through 11 require an empty statsPath.
+ * - Version 12 uses statsPrefix as a filename prefix using the filename rules above.
+ * Statistics use the same nvvs directory. With hostengine file logging disabled, statistics instead use
+ * DCGM_HOME_DIR/nvvs (default /var/log/nvidia-dcgm/nvvs).
+ * Plugin names and format extensions are appended to the prefix.
+ * Requests are interpreted according to their version field. Cast a dcgmRunDiag_v12 pointer to
+ * dcgmRunDiag_v10 * when calling this function.
+ *
  * @param pDcgmHandle        IN: DCGM Handle
  * @param drd                IN: Contains the group id, test names, test parameters, struct version, and the validation
  *                               that should be performed. Look at \ref dcgmGroupCreate for details on creating the
  *                               group. Alternatively, pass in the group id as \a DCGM_GROUP_ALL_GPUS to perform
  *                               operation on all the GPUs.
- *                               For supported versions 10 and 11, debugLogFile must be a filename. The host engine
- *                               writes it under an nvvs directory beside its configured log file. Older run messages
- *                               are rejected by the host engine.
  * @param response          OUT: Result of the validation process. Refer to \ref dcgmDiagResponse_t for details.
  *                               Note: It's a caller's responsibility to make sure the response is zero-initialized,
  *                                     except for the version field.
@@ -1876,7 +1962,8 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate(dcgmHandle_t pDcgmHandle,
  *        - \ref DCGM_ST_OK                   if the call was successful
  *        - \ref DCGM_ST_NOT_SUPPORTED        if running the specified \a validate is not supported. This is usually
  *                                            due to the Tesla recommended driver not being installed on the system.
- *        - \ref DCGM_ST_BADPARAM             if \a groupId, \a validate, or \a statusHandle is invalid
+ *        - \ref DCGM_ST_BADPARAM             if an argument or diagnostic parameter is invalid, including a
+ *                                            debugLogFile value not allowed for the selected request version
  *        - \ref DCGM_ST_GENERIC_ERROR        an internal error has occurred
  *        - \ref DCGM_ST_GROUP_INCOMPATIBLE   if \a groupId refers to a group of non-homogeneous GPUs. This is
  *                                            currently not allowed.
@@ -1884,7 +1971,6 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate(dcgmHandle_t pDcgmHandle,
 dcgmReturn_t DCGM_PUBLIC_API dcgmActionValidate_v2(dcgmHandle_t pDcgmHandle,
                                                    dcgmRunDiag_v10 *drd,
                                                    dcgmDiagResponse_v12 *response);
-
 
 /**
  * Run a diagnostic on a group of GPUs

@@ -51,6 +51,7 @@ type MigHierarchyInfo struct {
 }
 
 // CreateFakeEntities creates test entities with the specified MIG hierarchy information.
+// DCGM 4.8 requires DCGM_ENABLE_INJECTION_APIS=1 in the host engine at startup.
 // This function is intended for testing purposes only.
 // Returns a slice of Entity IDs for the created entities and any error encountered.
 func CreateFakeEntities(entities []MigHierarchyInfo) ([]uint, error) {
@@ -100,7 +101,8 @@ func boundedFakeEntities(entities []MigHierarchyInfo) []MigHierarchyInfo {
 }
 
 // InjectFieldValue injects a test value for a specific field into DCGM's field manager.
-// This function is intended for testing purposes only.
+// This function is intended for testing purposes only. DCGM 4.8 requires
+// DCGM_ENABLE_INJECTION_APIS=1 in the host engine at startup.
 //
 // Parameters:
 //   - gpu: The GPU ID to inject the field value for

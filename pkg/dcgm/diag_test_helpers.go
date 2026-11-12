@@ -192,6 +192,15 @@ func diagnosticRequestForTest(request DiagnosticRequest) (converted DiagnosticRe
 	return decoded, C.GoString(&native.entityIds[0]), uint(native.version), uint(C.dcgmRunDiag_version10), nil
 }
 
+// diagnosticRequestPathsForTest decodes native diagnostic log and statistics paths.
+func diagnosticRequestPathsForTest(request DiagnosticRequest) (debugLogFile, statsPath string, err error) {
+	native, err := cDiagnosticRequest(request)
+	if err != nil {
+		return "", "", err
+	}
+	return C.GoString(&native.debugLogFile[0]), C.GoString(&native.statsPath[0]), nil
+}
+
 // diagnosticBoundsForTest returns the native request limits used by boundary cases.
 func diagnosticBoundsForTest() (names, nameBytes, parameters, parameterBytes, entities int) {
 	return int(C.DCGM_MAX_TEST_NAMES), int(C.DCGM_MAX_TEST_NAMES_LEN), int(C.DCGM_MAX_TEST_PARMS), int(C.DCGM_MAX_TEST_PARMS_LEN_V2), int(C.DCGM_DIAG_RESPONSE_ENTITIES_MAX)

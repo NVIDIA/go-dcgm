@@ -165,3 +165,17 @@ type diagnosticCalls interface {
 	runDiagNative(DiagType, GroupHandle) (DiagResults, error)
 	diagnosticControlNative(string) error
 }
+
+// fieldWatchCalls supplies raw watch results so DCGM status codes remain available.
+type fieldWatchCalls interface {
+	nativeErrorText(int) string
+	watchFieldsResult(FieldHandle, GroupHandle, int64, float64, int32) int
+	watchFieldValueResult(uint, Short, time.Duration, time.Duration, int) int
+}
+
+// fieldPolicyImportCalls supplies counted imports and library capability checks.
+type fieldPolicyImportCalls interface {
+	nativeErrorText(int) string
+	requireFieldPolicySymbol(string) error
+	importFieldPoliciesNative(string) (uint, uint, int)
+}

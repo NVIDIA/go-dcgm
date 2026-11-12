@@ -132,6 +132,39 @@ dcgmReturn_t DCGM_PUBLIC_API dcgmUnwatchFieldValue(dcgmHandle_t pDcgmHandle,
                                                    unsigned short fieldId,
                                                    int clearCache);
 
+/**
+ * Clear recorded XID history for the given GPUs.
+ *
+ * Devastating and subsystem XID errors are recorded per GPU the first time they are seen and
+ * influence every subsequent \ref dcgmHealthCheck_v5 result for that GPU, even after the field
+ * value that triggered them has changed. Use this call to clear that history, for example after
+ * a test intentionally injects an XID error and wants later checks unaffected.
+ *
+ * This is a test-only function. The environment variable DCGM_ENABLE_TEST_FUNCTIONALITY must be set (to any
+ * value) in the environment of the hostengine, or of the process hosting it when embedded, when the hostengine
+ * starts; it is read once, when the health module is created. Otherwise the call fails with
+ * \ref DCGM_ST_NO_PERMISSION.
+ *
+ * The GPU IDs are not checked against the GPUs DCGM knows. An ID with no recorded history, whether the GPU
+ * does not exist or has not hit an XID, is ignored, so the call can be repeated and used for GPUs that have
+ * since been detached.
+ *
+ * @param[in] pDcgmHandle  DCGM handle.
+ * @param[in] gpuIds       GPU IDs whose XID history should be cleared.
+ * @param[in] numGpuIds    Number of entries in gpuIds. Must be in [1, DCGM_MAX_NUM_DEVICES].
+ *
+ * @return
+ *       - \ref DCGM_ST_OK                 if the call was successful
+ *       - \ref DCGM_ST_BADPARAM           if gpuIds is null, or numGpuIds is 0 or exceeds
+ *                                         DCGM_MAX_NUM_DEVICES
+ *       - \ref DCGM_ST_NO_PERMISSION      if DCGM_ENABLE_TEST_FUNCTIONALITY was not set in the
+ *                                         hostengine's environment when it started
+ *       - \ref DCGM_ST_FUNCTION_NOT_FOUND if the connected hostengine does not provide this API
+ */
+dcgmReturn_t DCGM_PUBLIC_API dcgmHealthClearXidHistory(dcgmHandle_t pDcgmHandle,
+                                                       unsigned int const *gpuIds,
+                                                       unsigned int numGpuIds);
+
 /*************************************************************************/
 /**
  * Used to set vGPU configuration for the group of one or more GPUs identified by \a groupId.

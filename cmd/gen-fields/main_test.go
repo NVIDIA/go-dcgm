@@ -72,7 +72,7 @@ func TestParseHeader_IntegerDefines(t *testing.T) {
 }
 
 func TestGeneratedFieldCommentDocumentsNVLinkScopes(t *testing.T) {
-	comment := generatedFieldComment("DCGM_FI_PROF_NVLINK_TX_BYTES", "ignored")
+	comment := generatedFieldComment("DCGM_FI_PROF_NVLINK_TX_BYTES_PER_SECOND", "ignored")
 	if !strings.Contains(comment, "aggregate") || !strings.Contains(comment, "DCGM_FE_LINK") {
 		t.Fatalf("NVLink field comment = %q, want GPU and link semantics", comment)
 	}
@@ -1088,6 +1088,20 @@ func TestReadLegacyFieldsCSVAdditionalErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if _, err := readLegacyFieldsCSV(writeLegacyCSV(t, tt.contents)); err == nil {
 				t.Fatal("expected error")
+			}
+		})
+	}
+}
+
+func TestParseHeaderSkipsDoxygenTags(t *testing.T) {
+	for _, tag := range []string{"@deprecated use a new field", "@note details", "@see another field"} {
+		t.Run(tag, func(t *testing.T) {
+			fields, _, err := parseHeader(writeHeader(t, "/**\n * GPU temperature in Celsius\n * "+tag+"\n */\n#define DCGM_FI_DEV_EXAMPLE 42\n"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(fields) != 1 || fields[0].Comment != "represents GPU temperature in Celsius" {
+				t.Fatalf("fields = %+v", fields)
 			}
 		})
 	}

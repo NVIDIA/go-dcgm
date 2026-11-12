@@ -57,10 +57,12 @@ type TemplateData struct {
 	LegacyFields      map[string]int
 }
 
+// main generates field constants or exits with a diagnostic.
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
 
+// run reads the header and compatibility data, then writes generated constants.
 func run(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("gen-fields", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -140,6 +142,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// legacyFieldsCSVPath uses the explicit path or the compatibility list beside the output.
 func legacyFieldsCSVPath(flagPath, outputPath string) string {
 	if flagPath != "" {
 		return flagPath
@@ -304,8 +307,8 @@ func (p *headerParser) parseCommentLine(line, trimmed string) bool {
 		return true
 	}
 	if p.inCommentBlock {
-		if matches := fieldCommentPattern.FindStringSubmatch(line); len(matches) > 1 {
-			p.lastComment = strings.TrimSpace(matches[1])
+		if content := fieldCommentText(line); content != "" {
+			p.lastComment = content
 		}
 		p.noteDeprecated(line)
 		return true
@@ -313,6 +316,20 @@ func (p *headerParser) parseCommentLine(line, trimmed string) bool {
 	return false
 }
 
+// fieldCommentText extracts the description from the comment preceding a field definition.
+func fieldCommentText(line string) string {
+	matches := fieldCommentPattern.FindStringSubmatch(line)
+	if len(matches) < 2 {
+		return ""
+	}
+	content := strings.TrimSpace(matches[1])
+	if strings.HasPrefix(content, "@") || strings.HasPrefix(content, `\`) {
+		return ""
+	}
+	return content
+}
+
+// parseNumericFieldID parses a field identifier without accepting expressions.
 func parseNumericFieldID(value string) (int, error) {
 	value = strings.TrimSpace(value)
 	// Peel complete pairs only; malformed parentheses still fail numeric parsing.
@@ -374,10 +391,10 @@ func (p *headerParser) recordSkippedExpression(line string) {
 // generatedFieldComment replaces known incomplete upstream comments and keeps others.
 func generatedFieldComment(name, comment string) string {
 	switch name {
-	case "DCGM_FI_PROF_NVLINK_TX_BYTES":
-		return "represents aggregate NVLink transmit bytes for a GPU. For a DCGM_FE_LINK entity, dcgm_link_t selects the GPU and link whose traffic is reported."
-	case "DCGM_FI_PROF_NVLINK_RX_BYTES":
-		return "represents aggregate NVLink receive bytes for a GPU. For a DCGM_FE_LINK entity, dcgm_link_t selects the GPU and link whose traffic is reported."
+	case "DCGM_FI_PROF_NVLINK_TX_BYTES_PER_SECOND":
+		return "represents aggregate NVLink transmit bytes per second for a GPU. For a DCGM_FE_LINK entity, dcgm_link_t selects the GPU and link whose traffic is reported."
+	case "DCGM_FI_PROF_NVLINK_RX_BYTES_PER_SECOND":
+		return "represents aggregate NVLink receive bytes per second for a GPU. For a DCGM_FE_LINK entity, dcgm_link_t selects the GPU and link whose traffic is reported."
 	default:
 		return comment
 	}
@@ -432,6 +449,7 @@ func resolveDeprecatedFieldAliases(fields []Field, aliases map[string]string) ([
 	return resolved, nil
 }
 
+// readLegacyFieldsCSV loads field definitions retained for compatibility.
 func readLegacyFieldsCSV(path string) (map[string]int, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -536,6 +554,7 @@ func curatedFieldAliases(
 	return aliases, nil
 }
 
+// generateOutput renders the field constants and their descriptions as Go source.
 func generateOutput(data TemplateData, outputPath string) error {
 	tmpl, err := template.New("fields").Parse(fileTemplate)
 	if err != nil {

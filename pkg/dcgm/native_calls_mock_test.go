@@ -1581,3 +1581,137 @@ func (mr *MockdiagnosticCallsMockRecorder) runDiagNative(arg0, arg1 any) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "runDiagNative", reflect.TypeOf((*MockdiagnosticCalls)(nil).runDiagNative), arg0, arg1)
 }
+
+// MockfieldWatchCalls is a mock of fieldWatchCalls interface.
+type MockfieldWatchCalls struct {
+	ctrl     *gomock.Controller
+	recorder *MockfieldWatchCallsMockRecorder
+	isgomock struct{}
+}
+
+// MockfieldWatchCallsMockRecorder is the mock recorder for MockfieldWatchCalls.
+type MockfieldWatchCallsMockRecorder struct {
+	mock *MockfieldWatchCalls
+}
+
+// NewMockfieldWatchCalls creates a new mock instance.
+func NewMockfieldWatchCalls(ctrl *gomock.Controller) *MockfieldWatchCalls {
+	mock := &MockfieldWatchCalls{ctrl: ctrl}
+	mock.recorder = &MockfieldWatchCallsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockfieldWatchCalls) EXPECT() *MockfieldWatchCallsMockRecorder {
+	return m.recorder
+}
+
+// nativeErrorText mocks base method.
+func (m *MockfieldWatchCalls) nativeErrorText(arg0 int) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "nativeErrorText", arg0)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// nativeErrorText indicates an expected call of nativeErrorText.
+func (mr *MockfieldWatchCallsMockRecorder) nativeErrorText(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "nativeErrorText", reflect.TypeOf((*MockfieldWatchCalls)(nil).nativeErrorText), arg0)
+}
+
+// watchFieldValueResult mocks base method.
+func (m *MockfieldWatchCalls) watchFieldValueResult(arg0 uint, arg1 Short, arg2, arg3 time.Duration, arg4 int) int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "watchFieldValueResult", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// watchFieldValueResult indicates an expected call of watchFieldValueResult.
+func (mr *MockfieldWatchCallsMockRecorder) watchFieldValueResult(arg0, arg1, arg2, arg3, arg4 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "watchFieldValueResult", reflect.TypeOf((*MockfieldWatchCalls)(nil).watchFieldValueResult), arg0, arg1, arg2, arg3, arg4)
+}
+
+// watchFieldsResult mocks base method.
+func (m *MockfieldWatchCalls) watchFieldsResult(arg0 FieldHandle, arg1 GroupHandle, arg2 int64, arg3 float64, arg4 int32) int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "watchFieldsResult", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// watchFieldsResult indicates an expected call of watchFieldsResult.
+func (mr *MockfieldWatchCallsMockRecorder) watchFieldsResult(arg0, arg1, arg2, arg3, arg4 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "watchFieldsResult", reflect.TypeOf((*MockfieldWatchCalls)(nil).watchFieldsResult), arg0, arg1, arg2, arg3, arg4)
+}
+
+// MockfieldPolicyImportCalls is a mock of fieldPolicyImportCalls interface.
+type MockfieldPolicyImportCalls struct {
+	ctrl     *gomock.Controller
+	recorder *MockfieldPolicyImportCallsMockRecorder
+	isgomock struct{}
+}
+
+// MockfieldPolicyImportCallsMockRecorder is the mock recorder for MockfieldPolicyImportCalls.
+type MockfieldPolicyImportCallsMockRecorder struct {
+	mock *MockfieldPolicyImportCalls
+}
+
+// NewMockfieldPolicyImportCalls creates a new mock instance.
+func NewMockfieldPolicyImportCalls(ctrl *gomock.Controller) *MockfieldPolicyImportCalls {
+	mock := &MockfieldPolicyImportCalls{ctrl: ctrl}
+	mock.recorder = &MockfieldPolicyImportCallsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockfieldPolicyImportCalls) EXPECT() *MockfieldPolicyImportCallsMockRecorder {
+	return m.recorder
+}
+
+// importFieldPoliciesNative mocks base method.
+func (m *MockfieldPolicyImportCalls) importFieldPoliciesNative(arg0 string) (uint, uint, int) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "importFieldPoliciesNative", arg0)
+	ret0, _ := ret[0].(uint)
+	ret1, _ := ret[1].(uint)
+	ret2, _ := ret[2].(int)
+	return ret0, ret1, ret2
+}
+
+// importFieldPoliciesNative indicates an expected call of importFieldPoliciesNative.
+func (mr *MockfieldPolicyImportCallsMockRecorder) importFieldPoliciesNative(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "importFieldPoliciesNative", reflect.TypeOf((*MockfieldPolicyImportCalls)(nil).importFieldPoliciesNative), arg0)
+}
+
+// nativeErrorText mocks base method.
+func (m *MockfieldPolicyImportCalls) nativeErrorText(arg0 int) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "nativeErrorText", arg0)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// nativeErrorText indicates an expected call of nativeErrorText.
+func (mr *MockfieldPolicyImportCallsMockRecorder) nativeErrorText(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "nativeErrorText", reflect.TypeOf((*MockfieldPolicyImportCalls)(nil).nativeErrorText), arg0)
+}
+
+// requireFieldPolicySymbol mocks base method.
+func (m *MockfieldPolicyImportCalls) requireFieldPolicySymbol(arg0 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "requireFieldPolicySymbol", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// requireFieldPolicySymbol indicates an expected call of requireFieldPolicySymbol.
+func (mr *MockfieldPolicyImportCallsMockRecorder) requireFieldPolicySymbol(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "requireFieldPolicySymbol", reflect.TypeOf((*MockfieldPolicyImportCalls)(nil).requireFieldPolicySymbol), arg0)
+}

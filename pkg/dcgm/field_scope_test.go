@@ -19,6 +19,8 @@ package dcgm
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDCGM47GPUUtilFieldSemantics(t *testing.T) {
@@ -233,6 +235,9 @@ func linkFieldExpectations() map[Short]struct{ declared, parent Field_Entity_Gro
 		DCGM_FI_DEV_NVLINK_THROUGHPUT_PER_LINK:                      {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_PER_LINK:                   {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_PER_LINK:                   {FE_LINK, FE_GPU},
+		DCGM_FI_DEV_NVLINK_THROUGHPUT_PER_LINK_BYTES_PER_SECOND:     {FE_LINK, FE_GPU},
+		DCGM_FI_DEV_NVLINK_TX_PER_LINK_BYTES_PER_SECOND:             {FE_LINK, FE_GPU},
+		DCGM_FI_DEV_NVLINK_RX_PER_LINK_BYTES_PER_SECOND:             {FE_LINK, FE_GPU},
 		DCGM_FI_PROF_NVLINK_TX_BYTES_PER_LINK:                       {FE_LINK, FE_GPU},
 		DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK:                       {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_PPRM_OPER_RECOVERY:                       {FE_LINK, FE_GPU},
@@ -424,5 +429,26 @@ func TestFieldParentCompatibilityOtherScopes(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestDCGM48FieldScopes(t *testing.T) {
+	for _, group := range []Field_Entity_Group{FE_GPU, FE_GPU_I, FE_GPU_CI, FE_LINK, FE_SWITCH, FE_CPU} {
+		require.Equal(t, group == FE_GPU || group == FE_GPU_I || group == FE_GPU_CI,
+			FieldSupportsEntityGroup(DCGM_FI_DEV_XID_ERROR, FE_GPU_CI, group), "XID scope %v", group)
+	}
+	require.False(t, FieldSupportsEntityGroup(DCGM_FI_DEV_GPU_TEMP, FE_GPU_CI, FE_GPU))
+	require.True(t, FieldSupportsEntityGroup(DCGM_FI_DRIVER_VERSION, FE_NONE, FE_CPU))
+	require.False(t, FieldSupportsEntityGroup(65535, FE_NONE, FE_GPU))
+	for _, name := range []string{"DCGM_FI_PROF_NVLINK_TX_BYTES", "DCGM_FI_PROF_NVLINK_RX_BYTES", "DCGM_FI_PROF_NVLINK_TX_BYTES_PER_SECOND", "DCGM_FI_PROF_NVLINK_RX_BYTES_PER_SECOND"} {
+		id, ok := GetFieldID(name)
+		require.True(t, ok)
+		require.True(t, id == 1011 || id == 1012)
+		require.True(t, FieldSupportsEntityGroup(id, FE_GPU, FE_GPU))
+		require.True(t, FieldSupportsEntityGroup(id, FE_GPU, FE_LINK))
+	}
+	for id := Short(1714); id <= 1716; id++ {
+		require.True(t, FieldSupportsEntityGroup(id, FE_LINK, FE_LINK))
+		require.False(t, FieldSupportsEntityGroup(id, FE_LINK, FE_GPU))
 	}
 }

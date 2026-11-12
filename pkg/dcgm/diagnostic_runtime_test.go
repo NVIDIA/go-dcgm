@@ -283,6 +283,64 @@ func diagnosticSession(t *testing.T) {
 	runOnlyWithLiveGPUs(t)
 }
 
+// parseDiagnosticGPU parses the explicitly selected diagnostic GPU identifier.
+func parseDiagnosticGPU(value string, supported []uint) (uint, error) {
+	id, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid DCGM_TEST_DIAGNOSTIC_GPU_ID %q: %w", value, err)
+	}
+	for _, gpu := range supported {
+		if gpu == uint(id) {
+			return gpu, nil
+		}
+	}
+	return 0, fmt.Errorf("DCGM_TEST_DIAGNOSTIC_GPU_ID %d is not a supported GPU", id)
+}
+
+// diagnosticGPU selects the test GPU and checks that it is supported.
+func diagnosticGPU(t *testing.T) (uint, bool) {
+	t.Helper()
+	gpus, err := GetSupportedDevices()
+	require.NoError(t, err)
+	require.NotEmpty(t, gpus)
+	value, selected := os.LookupEnv("DCGM_TEST_DIAGNOSTIC_GPU_ID")
+	if !selected {
+		return gpus[0], false
+	}
+	gpu, err := parseDiagnosticGPU(value, gpus)
+	require.NoError(t, err)
+	t.Logf("selected diagnostic GPU: %d", gpu)
+	return gpu, true
+}
+
+// TestDiagnosticGPUSelection checks explicit GPU selection and invalid identifiers.
+func TestDiagnosticGPUSelection(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		gpu   uint
+		valid bool
+	}{
+		{"0", 0, true},
+		{"1", 1, true},
+		{"2", 0, false},
+		{"", 0, false},
+		{"-1", 0, false},
+		{" 1", 0, false},
+		{"gpu:1", 0, false},
+		{"4294967296", 0, false},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			gpu, err := parseDiagnosticGPU(tc.value, []uint{0, 1})
+			if !tc.valid {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.gpu, gpu)
+		})
+	}
+}
+
 // diagnosticUnavailable identifies missing diagnostic prerequisites that runtime tests may skip.
 func diagnosticUnavailable(err error) bool {
 	if IsFeatureUnavailable(err) {
@@ -404,14 +462,23 @@ func assertDiagnosticStopped(t *testing.T, err error) {
 func TestDiagnosticCancellationAndRestart(t *testing.T) {
 	diagnosticProcess(t, func() {
 		diagnosticSession(t)
+		gpu, selected := diagnosticGPU(t)
+		group := GroupAllGPUs()
+		if selected {
+			var err error
+			group, err = CreateGroup(fmt.Sprintf("diagnostic-%d", time.Now().UnixNano()))
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, DestroyGroup(group)) })
+			require.NoError(t, AddToGroup(group, gpu))
+		}
 		done := startDiagnostic(t, func() error {
-			_, err := RunDiag(DiagLong, GroupAllGPUs())
+			_, err := RunDiag(DiagLong, group)
 			return err
 		})
 		waitDiagnosticStart(t, done)
 		err := stopAndWaitDiagnostic(t, done)
 		assertDiagnosticStopped(t, err)
-		restarted, err := RunDiag(DiagQuick, GroupAllGPUs())
+		restarted, err := RunDiag(DiagQuick, group)
 		require.NoError(t, err)
 		require.NotEmpty(t, restarted.Tests, "next diagnostic did not produce results")
 	})
@@ -422,7 +489,11 @@ func TestDiagnosticHeartbeat(t *testing.T) {
 	t.Setenv("DCGM_DIAG_HEARTBEAT_TIMEOUT_SEC", "2")
 	diagnosticProcess(t, func() {
 		diagnosticSession(t)
+		gpu, selected := diagnosticGPU(t)
 		request := DiagnosticRequest{TestNames: []string{"diagnostic"}, TestParameters: []string{"diagnostic.test_duration=60"}, Timeout: 2 * time.Minute, EnableHeartbeat: true}
+		if selected {
+			request.Entities = []GroupEntityPair{{EntityGroupId: FE_GPU, EntityId: gpu}}
+		}
 		done := startDiagnostic(t, func() error {
 			_, err := ActionValidate(request)
 			return err
@@ -492,9 +563,8 @@ func diagnosticRejected(result DiagResults, err error) bool {
 func TestDiagnosticNamedParameters(t *testing.T) {
 	diagnosticProcess(t, func() {
 		diagnosticSession(t)
-		gpus, err := GetSupportedDevices()
-		require.NoError(t, err)
-		request := DiagnosticRequest{TestNames: []string{"diagnostic"}, Entities: []GroupEntityPair{{EntityGroupId: FE_GPU, EntityId: gpus[0]}}, Timeout: 2 * time.Minute}
+		gpu, _ := diagnosticGPU(t)
+		request := DiagnosticRequest{TestNames: []string{"diagnostic"}, Entities: []GroupEntityPair{{EntityGroupId: FE_GPU, EntityId: gpu}}, Timeout: 2 * time.Minute}
 		request.TestParameters = []string{"diagnostic.test_duration=1"}
 		result, err := ActionValidate(request)
 		if diagnosticUnavailable(err) {

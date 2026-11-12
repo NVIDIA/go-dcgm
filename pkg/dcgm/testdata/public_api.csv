@@ -4,6 +4,7 @@ dcgmActionValidate_v2,bound,
 dcgmAttachDriver,bound,
 dcgmConfigEnforce,not bound yet,Scheduled public API coverage binding.
 dcgmConfigGet,not bound yet,Scheduled public API coverage binding.
+dcgmConfigReset,not bound yet,Scheduled public API coverage binding.
 dcgmConfigSet,not bound yet,Scheduled public API coverage binding.
 dcgmConfigSetWorkloadPowerProfile,not bound yet,Scheduled public API coverage binding.
 dcgmConnect,excluded,Replaced by dcgmConnect_v2 and dcgmConnect_v3.
@@ -78,6 +79,7 @@ dcgmPolicyGetAll,bound,
 dcgmPolicyGetOne,bound,
 dcgmPolicyGetViolations,bound,
 dcgmPolicyImport,bound,
+dcgmPolicyImport_v2,bound,
 dcgmPolicyModify,bound,
 dcgmPolicyRegister_v2,bound,
 dcgmPolicyRegister_v3,bound,
