@@ -3,6 +3,12 @@ package dcgm
 /*
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
+
+// The API prototype follows the latest typedef. The version inside pidInfo
+// selects the legacy response layout and its encoded size.
+static inline dcgmReturn_t getPidInfoV2(dcgmHandle_t dcgmHandle, dcgmGpuGrp_t groupId, dcgmPidInfo_v2 *pidInfo) {
+	return dcgmGetPidInfo(dcgmHandle, groupId, (dcgmPidInfo_t *)pidInfo);
+}
 */
 import "C"
 
@@ -12,7 +18,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 // Time represents a Unix timestamp in seconds
@@ -171,11 +176,10 @@ func (cgoAdapter) watchPidFieldsNative(group GroupHandle, updateFreq, maxKeepAge
 // getProcessInfo asks DCGM for one process, looks up its operating-system name,
 // and converts the per-GPU response into Go values.
 func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, err error) {
-	var pidInfo C.dcgmPidInfo_t
-	pidInfo.version = makeVersion2(unsafe.Sizeof(pidInfo))
-	pidInfo.pid = C.uint(pid)
+	var pidInfo C.dcgmPidInfo_v2
+	initializePIDInfo(&pidInfo, pid)
 
-	result := C.dcgmGetPidInfo(handle.handle, groupID.handle, &pidInfo)
+	result := C.getPidInfoV2(handle.handle, groupID.handle, &pidInfo)
 
 	if err = errorString(result); err != nil {
 		return processInfo, &Error{msg: dcgmErrorText(result), Code: result}
@@ -189,9 +193,15 @@ func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, e
 	return processInfoFromResponse(&pidInfo, name)
 }
 
+// initializePIDInfo selects the legacy layout and units exposed by ProcessInfo.
+func initializePIDInfo(pidInfo *C.dcgmPidInfo_v2, pid uint) {
+	pidInfo.version = C.dcgmPidInfo_version2
+	pidInfo.pid = C.uint(pid)
+}
+
 // processInfoFromResponse validates a native process response and copies each
 // GPU's utilization, health, and error data into Go-owned ProcessInfo values.
-func processInfoFromResponse(pidInfo *C.dcgmPidInfo_t, name string) ([]ProcessInfo, error) {
+func processInfoFromResponse(pidInfo *C.dcgmPidInfo_v2, name string) ([]ProcessInfo, error) {
 	gpuCount := int(pidInfo.numGpus)
 	maxGPUCount := len(pidInfo.gpus)
 	if gpuCount < 0 || gpuCount > maxGPUCount {

@@ -277,10 +277,10 @@ func getDeviceInfo(gpuID uint) (Device, error) {
 
 // readDeviceAttributes converts native GPU attributes into values used to build a Device.
 func (cgoAdapter) readDeviceAttributes(gpuID uint) (deviceAttributes, error) {
-	var device C.dcgmDeviceAttributes_t
+	var device C.dcgmDeviceAttributes_v3
 	device.version = makeVersion3(unsafe.Sizeof(device))
 
-	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), &device)
+	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), (*C.dcgmDeviceAttributes_t)(unsafe.Pointer(&device)))
 	if err := errorString(result); err != nil {
 		return deviceAttributes{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
@@ -289,7 +289,7 @@ func (cgoAdapter) readDeviceAttributes(gpuID uint) (deviceAttributes, error) {
 }
 
 // deviceAttributesFromNative converts native GPU attributes into Go-owned values.
-func deviceAttributesFromNative(device *C.dcgmDeviceAttributes_t) deviceAttributes {
+func deviceAttributesFromNative(device *C.dcgmDeviceAttributes_v3) deviceAttributes {
 	return deviceAttributes{
 		busID:   *stringPtr(&device.identifiers.pciBusId[0]),
 		uuid:    *stringPtr(&device.identifiers.uuid[0]),

@@ -75,7 +75,7 @@ func nvLinkGPUCapacityForTest() int {
 // deviceAttributesFromValuesForTest builds native GPU attributes and passes
 // them through the production response converter.
 func deviceAttributesFromValuesForTest(input deviceAttributes) deviceAttributes {
-	var response C.dcgmDeviceAttributes_t
+	var response C.dcgmDeviceAttributes_v3
 	copyCStringForTest(response.identifiers.pciBusId[:], input.busID)
 	copyCStringForTest(response.identifiers.uuid[:], input.uuid)
 	response.powerLimits.defaultPowerLimit = C.uint(input.power)

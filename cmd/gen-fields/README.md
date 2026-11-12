@@ -6,7 +6,8 @@ This tool generates Go constants from the DCGM C header file `dcgm_fields.h`.
 
 The generator parses `dcgm_fields.h` and generates a Go file with:
 
-- Typed constants for each `#define DCGM_FI_X <int>` in the header.
+- Typed constants for decimal or hexadecimal field IDs, optionally wrapped
+  in parentheses, such as `42`, `(42)`, or `(0x2A)`.
 - Typed const aliases for deprecated header aliases and for curated
   `DCGM_FI_*` names the header no longer defines, so old names remain
   source-compatible.
@@ -55,13 +56,16 @@ Arguments:
    - `#define DCGM_FI_X <int>` -> canonical field, with preceding comment
      captured as its description.
    - `#define DCGM_FI_OLD DCGM_FI_NEW` -> deprecated alias. Recorded only
-     when the alias is inside an `#ifdef DCGM_DEPRECATED` block OR its
-     preceding comment contains `Deprecated:`. Other alias-style
+     when the alias is inside a deprecated guard (`#ifdef DCGM_DEPRECATED`,
+     `#if DCGM_DEPRECATED`, `#if defined(DCGM_DEPRECATED)`, or
+     `#if defined DCGM_DEPRECATED`) OR its preceding comment contains
+     `Deprecated:`. Other alias-style
      `#define`s (e.g. range sentinels) are silently skipped.
 2. **Resolve aliases**: each recorded alias is mapped to its target
-   field's canonical ID. The resolved alias feeds both Go const alias
-   generation and legacy string lookup. If a target isn't a known field,
-   generation fails so header churn can't silently drop previously-exposed names.
+   field's canonical ID. Arithmetic expression definitions and aliases that
+   target those omitted expressions are left out. The remaining aliases feed
+   both Go constants and legacy string lookup. Any unrelated unknown target
+   still fails generation so header churn cannot silently drop exposed names.
 3. **Read curated legacy names**: lowercase DCGM 1.x names and `DCGM_FI_*`
    compatibility names are read from `legacy_fields.csv`. A curated
    `DCGM_FI_*` name that the header still defines must have the header's ID,

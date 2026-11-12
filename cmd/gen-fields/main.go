@@ -155,6 +155,29 @@ func containsDeprecatedMarker(line string) bool {
 	return strings.Contains(strings.ToLower(line), "deprecated:")
 }
 
+var (
+	// Decimal or hexadecimal IDs, optionally wrapped in parentheses.
+	numericFieldPattern = regexp.MustCompile(`^#define\s+(DCGM_FI_\w+)\s+([()\s]*(?:0[xX][0-9a-fA-F]+|[0-9]+)[()\s]*)(?:\s*(?://.*|/\*.*\*/))?\s*$`)
+	// Renamed aliases may have a trailing comment containing their numeric ID.
+	fieldAliasPattern         = regexp.MustCompile(`^#define\s+(DCGM_FI_\w+)\s+(DCGM_FI_\w+)(?:\s*(?://.*|/\*.*\*/))?\s*$`)
+	fieldExpressionPattern    = regexp.MustCompile(`^#define\s+(DCGM_FI_\w+)\s+[\w\s()+*/-]+$`)
+	inlineBlockCommentPattern = regexp.MustCompile(`/\*.*?\*/`)
+	fieldCommentPattern       = regexp.MustCompile(`^\s*\*\s*(.+)$`)
+)
+
+type headerParser struct {
+	fields               []Field
+	aliases              map[string]string
+	skippedExpressions   map[string]bool
+	lastComment          string
+	inCommentBlock       bool
+	commentHasDeprecated bool
+	inDeprecatedBlock    bool
+	deprecatedBlockDepth int
+}
+
+// parseHeader returns numeric fields sorted by ID and deprecated symbolic aliases.
+// Arithmetic definitions and aliases referring to them are excluded after scanning.
 func parseHeader(path string) ([]Field, map[string]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -162,188 +185,193 @@ func parseHeader(path string) ([]Field, map[string]string, error) {
 	}
 	defer file.Close()
 
-	// #define DCGM_FI_XXX 123
-	definePattern := regexp.MustCompile(`^#define\s+(DCGM_FI_\w+)\s+(\d+)`)
-	// #define DCGM_FI_OLD DCGM_FI_NEW -- deprecated-alias shape. A
-	// trailing line or block comment is allowed because DCGM 4.6 annotates
-	// renamed aliases with their numeric ID.
-	aliasPattern := regexp.MustCompile(`^#define\s+(DCGM_FI_\w+)\s+(DCGM_FI_\w+)(?:\s*(?://.*|/\*.*\*/))?\s*$`)
-	// Content of a block-comment interior line: " * <content>".
-	commentPattern := regexp.MustCompile(`^\s*\*\s*(.+)$`)
-
-	var fields []Field
-	aliases := make(map[string]string)
-
-	var lastComment string
-	// inCommentBlock tracks /** ... */ spans so the closing */ never feeds
-	// commentPattern (which would otherwise capture "/" and corrupt
-	// lastComment -- the origin of the "// X represents /" artefacts in the
-	// previously-generated output).
-	var inCommentBlock bool
-	// commentHasDeprecated is set to true when any line inside the current
-	// comment block contains case-insensitive "deprecated:". Consumed by the
-	// alias handler to include outside-#ifdef-block cases like
-	// DCGM_FI_DEV_CLOCK_THROTTLE_REASONS.
-	var commentHasDeprecated bool
-	// inDeprecatedBlock tracks the #ifdef DCGM_DEPRECATED ... #endif span.
-	// A small nesting counter handles any nested #ifdef/#ifndef/#if inside.
-	var inDeprecatedBlock bool
-	var deprecatedBlockDepth int
-
+	parser := headerParser{aliases: make(map[string]string), skippedExpressions: make(map[string]bool)}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-
-		// Blank line preserves comment state.
-		if trimmed == "" {
-			continue
+		if err := parser.parseLine(scanner.Text()); err != nil {
+			return nil, nil, err
 		}
-
-		// Deprecated-block entry/exit. Track nesting so any #ifdef/#ifndef/#if
-		// inside the block doesn't prematurely close it on its #endif.
-		if isDeprecatedBlockStart(trimmed) {
-			inDeprecatedBlock = true
-			deprecatedBlockDepth = 1
-			lastComment = ""
-			commentHasDeprecated = false
-			continue
-		}
-		if inDeprecatedBlock {
-			if strings.HasPrefix(trimmed, "#ifdef ") ||
-				strings.HasPrefix(trimmed, "#ifndef ") ||
-				strings.HasPrefix(trimmed, "#if ") {
-				deprecatedBlockDepth++
-				lastComment = ""
-				commentHasDeprecated = false
-				continue
-			}
-			if strings.HasPrefix(trimmed, "#endif") {
-				deprecatedBlockDepth--
-				if deprecatedBlockDepth == 0 {
-					inDeprecatedBlock = false
-				}
-				lastComment = ""
-				commentHasDeprecated = false
-				continue
-			}
-		}
-
-		if strings.HasPrefix(trimmed, "//") {
-			if containsDeprecatedMarker(trimmed) {
-				commentHasDeprecated = true
-			}
-			continue
-		}
-
-		hasOpen := strings.Contains(line, "/*")
-		hasClose := strings.Contains(line, "*/")
-
-		// Single-line comment block like "/** @} */" or "/** Deprecated: X */":
-		// inspect for the deprecated marker, do not enter block mode, do not
-		// capture as field-describing content. Keep #define lines with inline
-		// block comments for define/alias parsing below.
-		if hasOpen && hasClose && strings.HasPrefix(trimmed, "/*") {
-			lastComment = ""
-			commentHasDeprecated = containsDeprecatedMarker(line)
-			inCommentBlock = false
-			continue
-		}
-		if hasOpen && hasClose && containsDeprecatedMarker(line) {
-			commentHasDeprecated = true
-		}
-
-		// Block opener without a matching close on the same line.
-		if hasOpen && !hasClose {
-			inCommentBlock = true
-			lastComment = ""
-			commentHasDeprecated = false
-			continue
-		}
-
-		// Block closer. Explicitly does NOT update lastComment; "*/" trimmed
-		// would match commentPattern as " * /" and capture "/".
-		if hasClose && inCommentBlock {
-			inCommentBlock = false
-			continue
-		}
-
-		// Interior of a block comment.
-		if inCommentBlock {
-			if matches := commentPattern.FindStringSubmatch(line); len(matches) > 1 {
-				lastComment = strings.TrimSpace(matches[1])
-			}
-			if containsDeprecatedMarker(line) {
-				commentHasDeprecated = true
-			}
-			continue
-		}
-
-		// Integer #define DCGM_FI_*.
-		if matches := definePattern.FindStringSubmatch(line); len(matches) == 3 {
-			name := matches[1]
-			idStr := matches[2]
-
-			id, err := strconv.Atoi(idStr)
-			if err != nil {
-				lastComment = ""
-				commentHasDeprecated = false
-				continue
-			}
-
-			comment := lastComment
-			if comment != "" {
-				comment = strings.TrimSpace(comment)
-				if !strings.HasPrefix(comment, "represents") {
-					comment = "represents " + comment
-				}
-			}
-
-			fields = append(fields, Field{
-				Name:    name,
-				ID:      id,
-				Comment: generatedFieldComment(name, comment),
-			})
-
-			lastComment = ""
-			commentHasDeprecated = false
-			continue
-		}
-
-		// Alias #define DCGM_FI_OLD DCGM_FI_NEW. Accept only if deprecated
-		// either by position (inside #ifdef DCGM_DEPRECATED) or by an explicit
-		// "Deprecated:" comment. Everything else is silently dropped -- the
-		// common case is range sentinels like DCGM_FI_PROF_NVLINK_THROUGHPUT_FIRST
-		// and it is not useful to log one per run.
-		if matches := aliasPattern.FindStringSubmatch(line); len(matches) == 3 {
-			aliasName := matches[1]
-			targetName := matches[2]
-			if inDeprecatedBlock || commentHasDeprecated {
-				aliases[aliasName] = targetName
-			}
-			lastComment = ""
-			commentHasDeprecated = false
-			continue
-		}
-
-		// Any other non-blank line resets comment state so a comment meant for
-		// one field never leaks onto a later construct.
-		lastComment = ""
-		commentHasDeprecated = false
 	}
-
 	if err := scanner.Err(); err != nil {
 		return nil, nil, fmt.Errorf("error reading header file: %w", err)
 	}
 
-	// Sort by ID for deterministic output.
-	sort.Slice(fields, func(i, j int) bool {
-		return fields[i].ID < fields[j].ID
-	})
-
-	return fields, aliases, nil
+	// Check after scanning so aliases may precede their expression targets.
+	for alias, target := range parser.aliases {
+		if parser.skippedExpressions[target] {
+			delete(parser.aliases, alias)
+		}
+	}
+	sort.Slice(parser.fields, func(i, j int) bool { return parser.fields[i].ID < parser.fields[j].ID })
+	return parser.fields, parser.aliases, nil
 }
 
+// parseLine processes one header line, preserving comment and guard state between calls.
+func (p *headerParser) parseLine(line string) error {
+	trimmed := strings.TrimSpace(line)
+	// Blank lines preserve comment state.
+	if trimmed == "" {
+		return nil
+	}
+	if p.parseDeprecatedDirective(trimmed) {
+		return nil
+	}
+	if p.parseCommentLine(line, trimmed) {
+		return nil
+	}
+	// Remove complete block comments before classifying definitions; code after them still counts.
+	line = inlineBlockCommentPattern.ReplaceAllString(line, " ")
+	if matched, err := p.parseNumericDefinition(line); matched {
+		return err
+	}
+	if p.parseAliasDefinition(line) {
+		return nil
+	}
+	p.recordSkippedExpression(line)
+	// Unrelated constructs must not inherit a preceding field's comment.
+	p.clearComment()
+	return nil
+}
+
+// clearComment prevents a field's documentation from leaking into a later definition.
+func (p *headerParser) clearComment() {
+	p.lastComment = ""
+	p.commentHasDeprecated = false
+}
+
+// parseDeprecatedDirective tracks nested guards within a deprecated block.
+// Its result tells the caller whether the directive was handled.
+func (p *headerParser) parseDeprecatedDirective(line string) bool {
+	if !p.inDeprecatedBlock && isDeprecatedBlockStart(line) {
+		p.inDeprecatedBlock = true
+		p.deprecatedBlockDepth = 1
+		p.clearComment()
+		return true
+	}
+	if !p.inDeprecatedBlock {
+		return false
+	}
+	// Nested guards must not close the surrounding deprecated block early.
+	if strings.HasPrefix(line, "#ifdef ") || strings.HasPrefix(line, "#ifndef ") || strings.HasPrefix(line, "#if ") {
+		p.deprecatedBlockDepth++
+		p.clearComment()
+		return true
+	}
+	if strings.HasPrefix(line, "#endif") {
+		p.deprecatedBlockDepth--
+		if p.deprecatedBlockDepth == 0 {
+			p.inDeprecatedBlock = false
+		}
+		p.clearComment()
+		return true
+	}
+	return false
+}
+
+// noteDeprecated retains a deprecation marker across lines of the current comment.
+func (p *headerParser) noteDeprecated(line string) {
+	if containsDeprecatedMarker(line) {
+		p.commentHasDeprecated = true
+	}
+}
+
+// parseCommentLine collects comment lines, leaving trailing comments for definition parsing.
+func (p *headerParser) parseCommentLine(line, trimmed string) bool {
+	if strings.HasPrefix(trimmed, "//") {
+		p.noteDeprecated(line)
+		return true
+	}
+	hasOpen := strings.Contains(line, "/*")
+	hasClose := strings.Contains(line, "*/")
+	if hasOpen && hasClose {
+		if strings.HasPrefix(trimmed, "/*") {
+			p.lastComment = ""
+			p.commentHasDeprecated = containsDeprecatedMarker(line)
+			p.inCommentBlock = false
+			return true
+		}
+		// Inline block comments stay on the line for definition parsing.
+		p.noteDeprecated(line)
+	}
+	if hasOpen && !hasClose {
+		p.inCommentBlock = true
+		p.clearComment()
+		return true
+	}
+	if hasClose && p.inCommentBlock {
+		// Never capture the closing slash as a field description.
+		p.inCommentBlock = false
+		return true
+	}
+	if p.inCommentBlock {
+		if matches := fieldCommentPattern.FindStringSubmatch(line); len(matches) > 1 {
+			p.lastComment = strings.TrimSpace(matches[1])
+		}
+		p.noteDeprecated(line)
+		return true
+	}
+	return false
+}
+
+func parseNumericFieldID(value string) (int, error) {
+	value = strings.TrimSpace(value)
+	// Peel complete pairs only; malformed parentheses still fail numeric parsing.
+	for strings.HasPrefix(value, "(") && strings.HasSuffix(value, ")") {
+		value = strings.TrimSpace(value[1 : len(value)-1])
+	}
+	// Leading zeroes on decimal IDs do not select octal notation.
+	base := 10
+	if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+		base = 16
+		value = value[2:]
+	}
+	id, err := strconv.ParseInt(value, base, strconv.IntSize)
+	return int(id), err
+}
+
+// parseNumericDefinition records a literal field ID with its pending documentation.
+// Invalid numeric IDs abort parsing rather than silently dropping a field.
+func (p *headerParser) parseNumericDefinition(line string) (bool, error) {
+	matches := numericFieldPattern.FindStringSubmatch(line)
+	if len(matches) != 3 {
+		return false, nil
+	}
+	id, err := parseNumericFieldID(matches[2])
+	if err != nil {
+		return true, fmt.Errorf("invalid numeric field %s with ID %q: %w", matches[1], matches[2], err)
+	}
+	comment := strings.TrimSpace(p.lastComment)
+	if comment != "" && !strings.HasPrefix(comment, "represents") {
+		comment = "represents " + comment
+	}
+	p.fields = append(p.fields, Field{Name: matches[1], ID: id, Comment: generatedFieldComment(matches[1], comment)})
+	p.clearComment()
+	return true, nil
+}
+
+// parseAliasDefinition records deprecated symbolic aliases and omits ordinary aliases.
+func (p *headerParser) parseAliasDefinition(line string) bool {
+	matches := fieldAliasPattern.FindStringSubmatch(line)
+	if len(matches) != 3 {
+		return false
+	}
+	if p.inDeprecatedBlock || p.commentHasDeprecated {
+		p.aliases[matches[1]] = matches[2]
+	}
+	p.clearComment()
+	return true
+}
+
+// recordSkippedExpression marks arithmetic macros so their aliases are excluded too.
+func (p *headerParser) recordSkippedExpression(line string) {
+	// Comment punctuation must not turn an unrelated macro into arithmetic.
+	definition, _, _ := strings.Cut(line, "//")
+	if matches := fieldExpressionPattern.FindStringSubmatch(definition); len(matches) == 2 && strings.ContainsAny(definition, "+*/-") {
+		p.skippedExpressions[matches[1]] = true
+	}
+}
+
+// generatedFieldComment replaces known incomplete upstream comments and keeps others.
 func generatedFieldComment(name, comment string) string {
 	switch name {
 	case "DCGM_FI_PROF_NVLINK_TX_BYTES":
@@ -355,11 +383,13 @@ func generatedFieldComment(name, comment string) string {
 	}
 }
 
+// isDeprecatedBlockStart recognizes supported spellings of DCGM's deprecated guard.
 func isDeprecatedBlockStart(trimmed string) bool {
 	switch trimmed {
 	case "#ifdef DCGM_DEPRECATED",
 		"#if DCGM_DEPRECATED",
-		"#if defined(DCGM_DEPRECATED)":
+		"#if defined(DCGM_DEPRECATED)",
+		"#if defined DCGM_DEPRECATED":
 		return true
 	default:
 		return false

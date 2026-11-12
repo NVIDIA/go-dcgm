@@ -246,7 +246,7 @@ tasks:
       - |
         set +e
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/policy.json" \
-          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle)$'
+          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility)$'
         policy_status=$?
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/suite.json" \
           --test_env=DCGM_SKIP_DIAGNOSTICS=1 //tests:tests_test {{.CLI_ARGS}}

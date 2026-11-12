@@ -165,7 +165,9 @@ go_test(
         "group_lifecycle_test.go",
         "health_test.go",
         "instances_test.go",
+        "metric_compatibility_runtime_test.go",
         "policy_test.go",
+        "process_info_test.go",  # keep: native PID boundary test requires the runtime.
         "test_utils_test.go",  # keep: used by the runtime test target.
     ],
     data = glob(["testdata/**"]) + [
