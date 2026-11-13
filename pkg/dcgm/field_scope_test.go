@@ -218,6 +218,27 @@ func TestFieldSupportsEntityGroup(t *testing.T) {
 	}
 }
 
+func TestDCGM48FieldScopes(t *testing.T) {
+	for _, group := range []Field_Entity_Group{FE_GPU, FE_GPU_I, FE_GPU_CI, FE_LINK, FE_SWITCH, FE_CPU} {
+		require.Equal(t, group == FE_GPU || group == FE_GPU_I || group == FE_GPU_CI,
+			FieldSupportsEntityGroup(DCGM_FI_DEV_XID_ERROR, FE_GPU_CI, group), "XID scope %v", group)
+	}
+	require.False(t, FieldSupportsEntityGroup(DCGM_FI_DEV_GPU_TEMP, FE_GPU_CI, FE_GPU))
+	require.True(t, FieldSupportsEntityGroup(DCGM_FI_DRIVER_VERSION, FE_NONE, FE_CPU))
+	require.False(t, FieldSupportsEntityGroup(65535, FE_NONE, FE_GPU))
+	for _, name := range []string{"DCGM_FI_PROF_NVLINK_TX_BYTES", "DCGM_FI_PROF_NVLINK_RX_BYTES", "DCGM_FI_PROF_NVLINK_TX_BYTES_PER_SECOND", "DCGM_FI_PROF_NVLINK_RX_BYTES_PER_SECOND"} {
+		id, ok := GetFieldID(name)
+		require.True(t, ok)
+		require.True(t, id == 1011 || id == 1012)
+		require.True(t, FieldSupportsEntityGroup(id, FE_GPU, FE_GPU))
+		require.True(t, FieldSupportsEntityGroup(id, FE_GPU, FE_LINK))
+	}
+	for id := Short(1714); id <= 1716; id++ {
+		require.True(t, FieldSupportsEntityGroup(id, FE_LINK, FE_LINK))
+		require.False(t, FieldSupportsEntityGroup(id, FE_LINK, FE_GPU))
+	}
+}
+
 // linkFieldExpectations lists the binding's link-capable fields in DCGM 4.8.0 metadata
 // (dcgmlib/src/dcgm_fields.cpp), plus the GPU-declared fields accepted by
 // ReadAndCacheNvLinkFields and DcgmFieldIsNvLinkCountField. Parent expectations
@@ -226,6 +247,9 @@ func TestFieldSupportsEntityGroup(t *testing.T) {
 // when its generated field definitions are updated.
 func linkFieldExpectations() map[Short]struct{ declared, parent Field_Entity_Group } {
 	return map[Short]struct{ declared, parent Field_Entity_Group }{
+		DCGM_FI_DEV_NVLINK_THROUGHPUT_PER_LINK_BYTES_PER_SECOND:     {FE_LINK, FE_GPU},
+		DCGM_FI_DEV_NVLINK_TX_PER_LINK_BYTES_PER_SECOND:             {FE_LINK, FE_GPU},
+		DCGM_FI_DEV_NVLINK_RX_PER_LINK_BYTES_PER_SECOND:             {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_LINK_STATUS:                              {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_PPCNT_IBPC_TX_WAIT_TOTAL:                 {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_CRC_FLIT_ERROR_PER_LINK_TOTAL:            {FE_LINK, FE_GPU},
@@ -235,9 +259,6 @@ func linkFieldExpectations() map[Short]struct{ declared, parent Field_Entity_Gro
 		DCGM_FI_DEV_NVLINK_THROUGHPUT_PER_LINK:                      {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_TX_THROUGHPUT_PER_LINK:                   {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_RX_THROUGHPUT_PER_LINK:                   {FE_LINK, FE_GPU},
-		DCGM_FI_DEV_NVLINK_THROUGHPUT_PER_LINK_BYTES_PER_SECOND:     {FE_LINK, FE_GPU},
-		DCGM_FI_DEV_NVLINK_TX_PER_LINK_BYTES_PER_SECOND:             {FE_LINK, FE_GPU},
-		DCGM_FI_DEV_NVLINK_RX_PER_LINK_BYTES_PER_SECOND:             {FE_LINK, FE_GPU},
 		DCGM_FI_PROF_NVLINK_TX_BYTES_PER_LINK:                       {FE_LINK, FE_GPU},
 		DCGM_FI_PROF_NVLINK_RX_BYTES_PER_LINK:                       {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_PPRM_OPER_RECOVERY:                       {FE_LINK, FE_GPU},
@@ -254,6 +275,8 @@ func linkFieldExpectations() map[Short]struct{ declared, parent Field_Entity_Gro
 		DCGM_FI_DEV_NVLINK_PPCNT_PLR_TX_RETRY_EVENT_TOTAL:           {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_PPCNT_PLR_SYNC_EVENT_TOTAL:               {FE_LINK, FE_GPU},
 		DCGM_FI_DEV_NVLINK_PPCNT_RECOVERY_LAST_GAP_SECONDS:          {FE_LINK, FE_GPU},
+		DCGM_FI_DEV_NVSWITCH_LINK_TX_BYTES_TOTAL:                    {FE_LINK, FE_SWITCH},
+		DCGM_FI_DEV_NVSWITCH_LINK_RX_BYTES_TOTAL:                    {FE_LINK, FE_SWITCH},
 		DCGM_FI_DEV_NVSWITCH_LINK_ID:                                {FE_LINK, FE_SWITCH},
 		DCGM_FI_DEV_NVSWITCH_LINK_STATUS:                            {FE_LINK, FE_SWITCH},
 		DCGM_FI_DEV_NVSWITCH_LINK_TYPE:                              {FE_LINK, FE_SWITCH},
@@ -429,26 +452,5 @@ func TestFieldParentCompatibilityOtherScopes(t *testing.T) {
 				}
 			}
 		}
-	}
-}
-
-func TestDCGM48FieldScopes(t *testing.T) {
-	for _, group := range []Field_Entity_Group{FE_GPU, FE_GPU_I, FE_GPU_CI, FE_LINK, FE_SWITCH, FE_CPU} {
-		require.Equal(t, group == FE_GPU || group == FE_GPU_I || group == FE_GPU_CI,
-			FieldSupportsEntityGroup(DCGM_FI_DEV_XID_ERROR, FE_GPU_CI, group), "XID scope %v", group)
-	}
-	require.False(t, FieldSupportsEntityGroup(DCGM_FI_DEV_GPU_TEMP, FE_GPU_CI, FE_GPU))
-	require.True(t, FieldSupportsEntityGroup(DCGM_FI_DRIVER_VERSION, FE_NONE, FE_CPU))
-	require.False(t, FieldSupportsEntityGroup(65535, FE_NONE, FE_GPU))
-	for _, name := range []string{"DCGM_FI_PROF_NVLINK_TX_BYTES", "DCGM_FI_PROF_NVLINK_RX_BYTES", "DCGM_FI_PROF_NVLINK_TX_BYTES_PER_SECOND", "DCGM_FI_PROF_NVLINK_RX_BYTES_PER_SECOND"} {
-		id, ok := GetFieldID(name)
-		require.True(t, ok)
-		require.True(t, id == 1011 || id == 1012)
-		require.True(t, FieldSupportsEntityGroup(id, FE_GPU, FE_GPU))
-		require.True(t, FieldSupportsEntityGroup(id, FE_GPU, FE_LINK))
-	}
-	for id := Short(1714); id <= 1716; id++ {
-		require.True(t, FieldSupportsEntityGroup(id, FE_LINK, FE_LINK))
-		require.False(t, FieldSupportsEntityGroup(id, FE_LINK, FE_GPU))
 	}
 }

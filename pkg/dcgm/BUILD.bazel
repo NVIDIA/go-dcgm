@@ -32,6 +32,8 @@ exports_files(["const_fields.go"])
 # gazelle:exclude field_policy_test.go
 # gazelle:exclude field_policy_runtime_test.go
 # gazelle:exclude field_policy_test_helpers.go
+# gazelle:exclude entity_identity_test.go
+# gazelle:exclude field_applicability_test.go
 # gazelle:exclude field_scope_test.go
 # gazelle:exclude field_scope_runtime_test.go
 # gazelle:exclude field_scope_runtime_helpers.go
@@ -114,7 +116,9 @@ go_library(
         "diag.go",
         "diagnostic_control.go",
         "doc.go",
+        "entity_identity.go",
         "error.go",
+        "field_applicability.go",
         "field_policy.go",
         "field_policy_callback.c",
         "field_policy_import.h",
@@ -184,9 +188,10 @@ go_test(
         "diagnostic_runtime_test.go",  # keep: opt-in native diagnostic checks.
         "error_runtime_test.go",
         "error_test.go",
+        "field_applicability_test.go",  # keep: independent alias expectations shared with the metadata gate.
         "field_policy_runtime_test.go",  # keep: live adapter test belongs only in the runtime target.
         "field_scope_runtime_helpers.go",  # keep: cgo injection helper for runtime tests.
-        "field_scope_runtime_test.go",  # keep: requires a private host engine.
+        "field_scope_runtime_test.go",  # keep: runtime metadata and private-hostengine cases.
         "field_scope_test.go",  # keep: shared compatibility inventory and tests.
         "field_summary_test.go",
         "field_values_test.go",
@@ -246,7 +251,9 @@ go_test(
         "diag_test.go",
         "diag_test_helpers.go",
         "diagnostic_control_test.go",
+        "entity_identity_test.go",
         "error_test.go",  # keep: shared with the runtime test target.
+        "field_applicability_test.go",
         "field_policy_test.go",
         "field_policy_test_helpers.go",
         "field_scope_test.go",

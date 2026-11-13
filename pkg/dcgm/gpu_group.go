@@ -8,7 +8,6 @@ import "C"
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 )
 
@@ -90,18 +89,23 @@ func (cgoAdapter) addToGroup(groupID GroupHandle, gpuID uint) (err error) {
 	return
 }
 
-// AddLinkEntityToGroup adds a link entity to the group.
+// AddLinkEntityToGroup adds a link entity to the group. It checks the native
+// GPU/switch parent and dcgm_link_t bounds through LinkEntityPair.
 // Native failures wrap *Error, preserving the native status in Error.Code.
 func AddLinkEntityToGroup(groupID GroupHandle, index uint, entityGroupID Field_Entity_Group, parentID uint) (err error) {
-	/* Only supported on little-endian systems currently */
-	slice := make([]byte, 4)
-	slice[0] = uint8(entityGroupID)
-	binary.LittleEndian.PutUint16(slice[1:3], uint16(index))
-	slice[3] = uint8(parentID)
+	return addLinkEntityToGroup(groupID, index, entityGroupID, parentID, AddEntityToGroup)
+}
 
-	entityId := binary.LittleEndian.Uint32(slice)
+// addLinkEntityToGroup shares checked native identity conversion with link reads.
+func addLinkEntityToGroup(groupID GroupHandle, index uint, parentType Field_Entity_Group, parentID uint,
+	add func(GroupHandle, Field_Entity_Group, uint) error,
+) error {
+	entity, err := LinkEntityPair(index, parentType, parentID)
+	if err != nil {
+		return err
+	}
 
-	return AddEntityToGroup(groupID, FE_LINK, uint(entityId))
+	return add(groupID, entity.EntityGroupId, entity.EntityId)
 }
 
 // AddEntityToGroup adds an entity to an existing group.

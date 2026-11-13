@@ -9,7 +9,6 @@ package dcgm
 import "C"
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -505,17 +504,24 @@ func (cgoAdapter) getLatestValuesForFields(gpu uint, fields []Short) ([]FieldVal
 }
 
 // LinkGetLatestValues retrieves the latest values for specified fields of a link entity.
-// index is the link index.
-// parentId is the ID of the parent entity.
+// index is the physical link index (at most 65535).
+// parentId is the native GPU or switch ID (at most 255); zero is valid.
 // fields is a slice of field IDs to retrieve.
 // Returns a slice of field values and any error encountered.
 func LinkGetLatestValues(index uint, parentType Field_Entity_Group, parentId uint, fields []Short) ([]FieldValue_v1, error) {
-	slice := make([]byte, 4)
-	slice[0] = uint8(parentType)
-	binary.LittleEndian.PutUint16(slice[1:3], uint16(index))
-	slice[3] = uint8(parentId)
-	entityId := binary.LittleEndian.Uint32(slice)
-	return EntityGetLatestValues(FE_LINK, uint(entityId), fields)
+	return linkGetLatestValues(index, parentType, parentId, fields, EntityGetLatestValues)
+}
+
+// linkGetLatestValues shares checked native identity conversion with group admission.
+func linkGetLatestValues(index uint, parentType Field_Entity_Group, parentID uint, fields []Short,
+	read func(Field_Entity_Group, uint, []Short) ([]FieldValue_v1, error),
+) ([]FieldValue_v1, error) {
+	entity, err := LinkEntityPair(index, parentType, parentID)
+	if err != nil {
+		return nil, err
+	}
+
+	return read(entity.EntityGroupId, entity.EntityId, fields)
 }
 
 // EntityGetLatestValues retrieves the latest values for specified fields of any entity.

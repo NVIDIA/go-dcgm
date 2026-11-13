@@ -68,11 +68,38 @@ defer cleanup()
   `WatchFieldsWithGroupExNoRefresh`: DCGM samples a new watch's fields once
   before the call returns, and a refresh after each of many watches adds one
   wait for a full DCGM update pass per call.
-- For structural field/entity selection, pass the field's `FieldMeta.EntityLevel`
-  to `FieldSupportsEntityGroupWithParent`. For `FE_LINK`, also pass the packed
-  link's parent type (`FE_GPU` or `FE_SWITCH`). The helper rejects unknown
-  parents and incompatible fields; it does not guarantee runtime capability.
-  `FieldSupportsEntityGroup` remains a coarse query without a parent dimension.
+- For precise structural applicability, pass the complete native `FieldMeta`
+  from `FieldGetByID` to `FieldSupportsTarget(meta, entity, parent)`. `entity`
+  is a native `GroupEntityPair`; for `FE_LINK`, `parent` is the GPU or switch
+  encoded in that key. Invalid metadata/identities and unclassified link fields
+  return errors. A known incompatible target returns `false, nil`. Fully
+  described non-link metadata can come from a newer runtime than the generated
+  field catalog. This is structural compatibility, not a hardware capability
+  probe; native operation errors and sample statuses still apply.
+- `LinkEntityPair(index, parentType, parentID)` converts a discovered physical
+  link index and native GPU/switch parent ID into its packed native key.
+  It checks `dcgm_link_t`'s 16-bit index and 8-bit parent ID before conversion;
+  zero is valid. `AddLinkEntityToGroup` and `LinkGetLatestValues` use the same
+  conversion. Keep native IDs separate from NVML indices and output labels.
+- Native GPU/GI/CI aliases accepted by `FieldSupportsTarget` do not choose
+  reporting cardinality or merge event histories. A GPU field requested on a
+  GI/CI can resolve to its physical GPU. XID GPU, GI and CI histories remain
+  independent. Sysmon utilization supports both CPU aggregate and core targets;
+  core clock speed does not support a CPU aggregate. The reviewed socket
+  temperature/power and vendor/model fields also accept core targets. NVSDM
+  can aggregate the reviewed switch-port throughput and replay/recovery fields
+  on a switch, and exposes the switch UUID there. It also accepts the reviewed
+  switch-declared throughput/byte counters on switch-owned links. These aliases
+  do not add GPU-link support. Backend availability remains a runtime condition.
+  The reviewed vGPU license-status and ten binary vGPU inventory/utilization
+  fields also accept GPU/GI/CI targets through the physical GPU reader while
+  retaining the requested cache identity. Other vGPU declarations require a
+  vGPU instance. Structural support does not make binary values scalar metrics
+  or select the caller's reporting scopes.
+- `FieldSupportsEntityGroupWithParent` and `FieldSupportsEntityGroup` retain
+  their catalog-based declared-scope contracts, including XID's GPU/GI/CI
+  support. The parent-aware helper rejects unknown link parents; the coarse
+  helper has no parent dimension. Neither promises runtime capability.
 - Release what you create: `UnwatchFields`, `FieldGroupDestroy` and
   `DestroyGroup`. Do not destroy `GroupAllGPUs`.
 - Process stats need `WatchPidFields` (or `WatchPidFieldsForGroup` on your own
@@ -81,6 +108,19 @@ defer cleanup()
 - Health checks use `HealthSet` and `HealthCheck` on a group, or
   `HealthCheckByGpuId` for one GPU. Diagnostics use `RunDiag`; read
   `DiagResults.Tests`, not the deprecated `Software` view.
+
+Structural rules follow the native `dcgm_link_t` layout and DCGM's
+[`SetPracticalEntityInfo`, link readers and XID recorders](https://github.com/NVIDIA/DCGM/blob/9fae2867e6e5264fa0fca22a07dc898d591baa21/dcgmlib/src/DcgmCacheManager.cpp),
+plus the matching
+[Sysmon CPU/core readers](https://github.com/NVIDIA/DCGM/blob/9fae2867e6e5264fa0fca22a07dc898d591baa21/modules/sysmon/DcgmModuleSysmon.cpp).
+The three bytes-per-second link fields added in DCGM 4.8 follow its
+`ReadAndCacheNvLinkFields` dispatch.
+The bounded vGPU aliases follow `BufferOrCacheLatestGpuValue`,
+`SetPracticalEntityInfo` and cached-read routing in native DCGM 4.7
+(`63d151480cf54e78592861e42a69b786dc73751b`) and 4.8
+(`b6c33f9895bbbc67e531371cb1550fa6abb3ca82`).
+An unclassified new link field needs source review because metadata has no
+parent dimension; a field name or blank sample cannot establish that relation.
 
 ## Errors and optional features
 
@@ -301,3 +341,13 @@ GPU configuration:
 - Configuration requires appropriate hostengine privileges, normally root.
   `samples/configuration` reads configuration without changing GPU state;
   `task test:configuration` opts in to state-changing checks on a dedicated GPU.
+
+## Metadata qualification
+
+The library-only metadata gate uses `GetVersionInfo` from the loaded library.
+DCGM 4.7 must lack the seven reviewed DCGM 4.8 additions (1655, 1656, 1695,
+1696, 1714–1716); those explicit exclusions are asserted and reported while the
+remaining inventory and aliases are checked. DCGM 4.8 and newer must provide
+the complete reviewed inventory. Unknown native link declarations, malformed
+versions and unsupported older runtimes fail the gate. These test rules do
+not change the production applicability API or promise runtime capability.
