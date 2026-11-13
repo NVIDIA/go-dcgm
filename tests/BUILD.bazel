@@ -12,6 +12,7 @@ go_library(
 go_test(
     name = "tests_test",
     srcs = [
+        "configuration_test.go",
         "dcgm_test.go",
         "deviceinfo_test.go",
         "diag_test.go",

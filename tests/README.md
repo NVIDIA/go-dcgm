@@ -276,3 +276,24 @@ task test:race -- --test_filter='^TestProcessInfoWithGPUFixture$' --test_env=DCG
 Absent opt-in, root access, or PID/accounting capability is reported as a skip;
 it does not qualify the PID runtime path. Native query errors or missing data
 cannot pass this case. `TestJobStats` alone does not prove live PID queries.
+
+### GPU configuration
+
+`task test:configuration` opts in to the root-only configuration suite. Normal
+integration and race tasks skip these checks. The suite uses a private embedded
+engine and an owned single-GPU group. It snapshots both live and target state,
+records and enforces the current power limit without changing its watts, clears
+the target with `ConfigReset`, restores the original live and target settings,
+and compares both snapshots. It skips before mutation if a preexisting target
+would make enforcing or restoring it change unrelated settings.
+
+The workload profile case reads metadata and profile names, then reapplies the
+existing requested mask without selecting a different policy. It restores the
+mask and target even on failure, and checks both live and target configuration.
+A GPU or driver without workload profiles reports a separate capability skip;
+that skip is not proof that profile configuration works.
+
+```sh
+task test:configuration
+task test:configuration -- --config=race
+```

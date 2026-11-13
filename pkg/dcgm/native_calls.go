@@ -179,3 +179,19 @@ type fieldPolicyImportCalls interface {
 	requireFieldPolicySymbol(string) error
 	importFieldPoliciesNative(string) (uint, uint, int)
 }
+
+// configCalls supplies native configuration buffers and per-GPU status operations.
+type configCalls interface {
+	configGetNative(GroupHandle, ConfigType, []nativeGPUConfig, configStatusHandle) error
+	configSetNative(GroupHandle, *nativeGPUConfig, configStatusHandle) error
+	configEnforceNative(GroupHandle, configStatusHandle) error
+	configResetNative(GroupHandle, configStatusHandle) error
+	configSetWorkloadPowerProfileNative(*nativeWorkloadPowerProfile) error
+	workloadPowerProfileInfoNative(uint, *nativeWorkloadProfilesInfo, *nativeWorkloadProfilesStatus) error
+	powerProfileNameNative(PowerProfileID) (string, error)
+	configStatusCreate() (configStatusHandle, error)
+	configStatusDestroy(configStatusHandle) error
+	configStatusClear(configStatusHandle) error
+	configStatusCount(configStatusHandle) (uint, error)
+	configStatusPop(configStatusHandle) (ConfigFieldError, error)
+}

@@ -11,6 +11,8 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude alias_resolution_test.go
 # gazelle:exclude api_unit_test.go
 # gazelle:exclude base_unit_fields_test.go
+# gazelle:exclude config_test_helpers.go
+# gazelle:exclude config_unit_test.go
 # gazelle:exclude const_fields_test.go
 # gazelle:exclude const_test.go
 # gazelle:exclude cpu_test.go
@@ -90,6 +92,7 @@ go_library(
         "administration_native.go",
         "api.go",
         "callback.c",
+        "config.go",
         "const.go",
         "const_fields.go",
         "cpu.go",
@@ -173,6 +176,7 @@ go_test(
         "api_test.go",
         "api_unit_test.go",  # keep: shared counter helpers and tests.
         "bind_unbind_test.go",
+        "config_session_runtime_test.go",
         "diagnostic_runtime_test.go",  # keep: opt-in native diagnostic checks.
         "error_runtime_test.go",
         "error_test.go",
@@ -225,6 +229,8 @@ go_test(
         "alias_resolution_test.go",
         "api_unit_test.go",  # keep
         "base_unit_fields_test.go",
+        "config_test_helpers.go",
+        "config_unit_test.go",
         "const_fields_test.go",
         "const_test.go",
         "cpu_test.go",

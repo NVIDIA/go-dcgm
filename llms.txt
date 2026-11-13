@@ -270,3 +270,34 @@ Job statistics:
   Summary min/max values for bandwidth, utilization and clocks are not applicable.
 - See `samples/jobs` for a complete lifecycle and `tests/README.md` for the
   opt-in GPU load test. Job field watches may require root to enable accounting.
+
+GPU configuration:
+- `ConfigGet(group, ConfigCurrentState)` and `ConfigGet(group, ConfigTargetState)`
+  return `[]GPUConfig`. This uses `dcgmConfig_v3`: clocks are int64 Hz, power
+  limits are watts. Client library and hostengine must support the v3 protocol;
+  configuration get/set do not fall back to the pre-4.8 protocol.
+- `GPUConfig` uses nil pointers for unset, unknown or unsupported values. A
+  zero-valued `GPUConfig` changes nothing. `ConfigSet(group, config)` applies
+  non-nil values to all GPUs in the group and saves those values as targets.
+  Clocks must be nonnegative whole MHz expressed in Hz. `GPU` identifies read
+  results and is ignored by ConfigSet. Workload profile words are independent
+  optional 32-bit values; nil words are ignored.
+- `ConfigEnforce(group)` reapplies targets. `ConfigReset(group)` clears targets
+  without changing live GPU settings; missing 4.8 symbols are reported through
+  `IsFeatureUnavailable`. Targets outlive group destruction and can be applied
+  again after GPU resets. Save both live and target configuration before changes.
+- `ConfigGet` returns partial results. Configuration get/set/enforce/reset return
+  `ConfigError` when DCGM reports per-GPU errors.
+  `ConfigError.Fields` contains GPU IDs, field IDs and underlying typed DCGM
+  errors; use errors.As/errors.Is to inspect those and operation/cleanup errors.
+- `ConfigSetWorkloadPowerProfile(group, action, mask)` merges, overwrites or
+  clears profile bits using `WorkloadProfileSet`, `WorkloadProfileOverwrite` or
+  `WorkloadProfileClear`. `PowerProfileMask` contains eight 32-bit words.
+- `GetDeviceWorkloadPowerProfileInfo(gpuID)` returns supported profile metadata
+  and supported/requested/enforced masks. `PowerProfileName(id)` returns DCGM's
+  friendly name for IDs known to DCGM. Newer driver profile IDs remain intact
+  in the returned metadata; naming an unknown ID returns a typed DCGM error.
+  Support depends on the GPU and driver.
+- Configuration requires appropriate hostengine privileges, normally root.
+  `samples/configuration` reads configuration without changing GPU state;
+  `task test:configuration` opts in to state-changing checks on a dedicated GPU.

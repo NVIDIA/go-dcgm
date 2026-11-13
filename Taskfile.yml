@@ -246,7 +246,7 @@ tasks:
       - |
         set +e
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/policy.json" \
-          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility|TestAdministrationRuntime|TestModuleDenylistIsolated|TestAdministrationNativeErrors|TestAdministrationAfterShutdown|TestAdministrationAfterFailedInit|TestJobStatsAfterFailedInit|TestProfilingPauseResume|TestDiagnosticAPIsAfterFailedInit|TestDiagnosticChildSkipClassification|TestDiagnosticCleanupWaits|TestDiagnosticProcessCancellation|TestDiagnosticGPUSelection|TestFieldPolicyUUIDImport|TestDCGM48ScopeReads|TestDeviceMemoryMiB|TestDCGM48InjectionGate|TestEntityInjectionHelperWithoutInit|TestCountedPolicyImportAfterFailedInit)$'
+          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility|TestAdministrationRuntime|TestModuleDenylistIsolated|TestAdministrationNativeErrors|TestAdministrationAfterShutdown|TestAdministrationAfterFailedInit|TestJobStatsAfterFailedInit|TestProfilingPauseResume|TestDiagnosticAPIsAfterFailedInit|TestDiagnosticChildSkipClassification|TestDiagnosticCleanupWaits|TestDiagnosticProcessCancellation|TestDiagnosticGPUSelection|TestFieldPolicyUUIDImport|TestDCGM48ScopeReads|TestDeviceMemoryMiB|TestDCGM48InjectionGate|TestEntityInjectionHelperWithoutInit|TestCountedPolicyImportAfterFailedInit|TestConfigurationAfterFailedInit)$'
         policy_status=$?
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/suite.json" \
           --test_env=DCGM_SKIP_DIAGNOSTICS=1 //tests:tests_test {{.CLI_ARGS}}
@@ -295,6 +295,12 @@ tasks:
       - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostics.json" //tests:tests_test --test_filter='^(TestDiagnostics|TestDiagnosticsLong|TestDiagTestNameFormat|TestJobStats)$' {{.CLI_ARGS}}
       - task: test:reports
         if: '{{eq .REPORTS "true"}}'
+
+  test:configuration:
+    desc: Run opt-in configuration and power-profile checks as root on a dedicated GPU host
+    cmds:
+      - task: test:gpu:prereqs
+      - bazel test --config=ci --config=dcgm-runtime --cache_test_results=no --test_env=DCGM_ENABLE_CONFIGURATION_TESTS=1 //tests:tests_test --test_filter='^TestConfiguration' {{.CLI_ARGS}}
 
   lint:
     desc: Run Go lint; LINT_BASE_REV=<rev> reports only issues new since that revision

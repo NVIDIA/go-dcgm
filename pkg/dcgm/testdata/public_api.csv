@@ -2,11 +2,11 @@ function,status,reason
 dcgmActionValidate,excluded,Deprecated; replaced by dcgmActionValidate_v2.
 dcgmActionValidate_v2,bound,
 dcgmAttachDriver,bound,
-dcgmConfigEnforce,not bound yet,Scheduled public API coverage binding.
-dcgmConfigGet,not bound yet,Scheduled public API coverage binding.
-dcgmConfigReset,not bound yet,Scheduled public API coverage binding.
-dcgmConfigSet,not bound yet,Scheduled public API coverage binding.
-dcgmConfigSetWorkloadPowerProfile,not bound yet,Scheduled public API coverage binding.
+dcgmConfigEnforce,bound,
+dcgmConfigGet,bound,
+dcgmConfigReset,bound,
+dcgmConfigSet,bound,
+dcgmConfigSetWorkloadPowerProfile,bound,
 dcgmConnect,excluded,Replaced by dcgmConnect_v2 and dcgmConnect_v3.
 dcgmConnect_v2,bound,
 dcgmConnect_v3,bound,
@@ -26,7 +26,7 @@ dcgmGetCpuHierarchy,bound,
 dcgmGetCpuHierarchy_v2,bound,
 dcgmGetDeviceAttributes,bound,
 dcgmGetDeviceTopology,bound,
-dcgmGetDeviceWorkloadPowerProfileInfo,not bound yet,Scheduled public API coverage binding.
+dcgmGetDeviceWorkloadPowerProfileInfo,bound,
 dcgmGetEntityGroupEntities,bound,
 dcgmGetFieldSummary,bound,
 dcgmGetGpuChipArchitecture,bound,
@@ -87,7 +87,7 @@ dcgmPolicySet,bound,
 dcgmPolicyTrigger,excluded,Manual operation-mode policy-loop control; embedded initialization uses automatic mode.
 dcgmPolicyUnregister,bound,
 dcgmPolicyUnregister_v3,bound,
-dcgmPowerProfileIdToName,not bound yet,Scheduled public API coverage binding.
+dcgmPowerProfileIdToName,bound,
 dcgmProfGetSupportedMetricGroups,bound,
 dcgmProfPause,bound,
 dcgmProfResume,bound,
@@ -97,11 +97,11 @@ dcgmSelectGpusByTopology,bound,
 dcgmShutdown,bound,
 dcgmStartEmbedded,bound,
 dcgmStartEmbedded_v2,bound,
-dcgmStatusClear,not bound yet,Scheduled public API coverage binding.
-dcgmStatusCreate,not bound yet,Scheduled public API coverage binding.
-dcgmStatusDestroy,not bound yet,Scheduled public API coverage binding.
-dcgmStatusGetCount,not bound yet,Scheduled public API coverage binding.
-dcgmStatusPopError,not bound yet,Scheduled public API coverage binding.
+dcgmStatusClear,bound,
+dcgmStatusCreate,bound,
+dcgmStatusDestroy,bound,
+dcgmStatusGetCount,bound,
+dcgmStatusPopError,bound,
 dcgmStopDiagnostic,bound,
 dcgmStopEmbedded,bound,
 dcgmStopMnDiagnostic,bound,
