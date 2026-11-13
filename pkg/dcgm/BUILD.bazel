@@ -1,6 +1,10 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# The generated field map is public so that other modules can check their own
+# handling of every field ID go-dcgm knows.
+exports_files(["const_fields.go"])
+
 # gazelle:exclude administration_native_unit_test.go
 # gazelle:exclude administration_session_test.go
 # gazelle:exclude admin_api_unit_test.go
