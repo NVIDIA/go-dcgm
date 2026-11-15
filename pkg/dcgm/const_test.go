@@ -124,6 +124,53 @@ func TestSelectedErrorCategoryConstantsMatchCHeader(t *testing.T) {
 	}
 }
 
+func TestBlankStringConstantsMatchCHeader(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+	}{
+		{"DCGM_STR_BLANK", DCGM_FT_STR_BLANK},
+		{"DCGM_STR_NOT_FOUND", DCGM_FT_STR_NOT_FOUND},
+		{"DCGM_STR_NOT_SUPPORTED", DCGM_FT_STR_NOT_SUPPORTED},
+		{"DCGM_STR_NOT_PERMISSIONED", DCGM_FT_STR_NOT_PERMISSIONED},
+	}
+
+	headerStrings := dcgmStructsStringBlankValues(t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			want, ok := headerStrings[tt.name]
+			if !ok {
+				t.Fatalf("%s was not found in dcgm_structs.h", tt.name)
+			}
+			if tt.got != want {
+				t.Fatalf("%s = %q, want %q", tt.name, tt.got, want)
+			}
+		})
+	}
+}
+
+func dcgmStructsStringBlankValues(t *testing.T) map[string]string {
+	t.Helper()
+
+	content, err := os.ReadFile("dcgm_structs.h")
+	if err != nil {
+		t.Fatalf("read dcgm_structs.h: %v", err)
+	}
+
+	stringPattern := regexp.MustCompile(`(?m)^#define\s+(DCGM_STR_[A-Z_]+)\s+"([^"]*)"`)
+	matches := stringPattern.FindAllStringSubmatch(string(content), -1)
+	if len(matches) == 0 {
+		t.Fatal("no DCGM_STR_* values found in dcgm_structs.h")
+	}
+
+	values := make(map[string]string, len(matches))
+	for _, match := range matches {
+		values[match[1]] = match[2]
+	}
+
+	return values
+}
+
 func dcgmStructsStatusCodes(t *testing.T) map[string]int {
 	t.Helper()
 
