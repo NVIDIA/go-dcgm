@@ -116,6 +116,7 @@ type ConfigFieldError struct {
 func (e ConfigFieldError) Error() string {
 	return fmt.Sprintf("GPU %d field %d: %v", e.GPU, e.FieldID, e.Err)
 }
+
 func (e ConfigFieldError) Unwrap() error { return e.Err }
 
 // ConfigError preserves both the operation error and every per-GPU error.
@@ -129,6 +130,7 @@ func (e *ConfigError) Error() string {
 	if err := errors.Join(e.Unwrap()...); err != nil {
 		return "configuration: " + err.Error()
 	}
+
 	return "configuration failed"
 }
 
@@ -137,9 +139,11 @@ func (e *ConfigError) Unwrap() []error {
 	if e.Cause != nil {
 		errs = append(errs, e.Cause)
 	}
+
 	for _, field := range e.Fields {
 		errs = append(errs, field)
 	}
+
 	return errs
 }
 
@@ -149,16 +153,23 @@ func ConfigGet(group GroupHandle, kind ConfigType) ([]GPUConfig, error) {
 	return configGetWithCalls(cgoAdapter{}, group, kind)
 }
 
+// configGetWithCalls keeps populated GPU results even when DCGM reports an error.
 func configGetWithCalls(api configCalls, group GroupHandle, kind ConfigType) ([]GPUConfig, error) {
 	if kind != ConfigTargetState && kind != ConfigCurrentState {
 		return nil, errors.New("invalid configuration type")
 	}
+
 	configs := make([]nativeGPUConfig, C.DCGM_MAX_NUM_DEVICES)
 	for i := range configs {
 		configs[i] = blankNativeConfig()
 		configs[i].gpuId = C.DCGM_INT32_BLANK
 	}
-	err := withConfigStatus(api, func(status configStatusHandle) error { return api.configGetNative(group, kind, configs, status) })
+
+	err := withConfigStatus(api, func(status configStatusHandle) error {
+		return api.configGetNative(group, kind, configs, status)
+	})
+
+	// Untouched slots keep the blank GPU ID; populated slots survive partial failures.
 	result := make([]GPUConfig, 0)
 	for i := range configs {
 		if configs[i].gpuId == C.DCGM_INT32_BLANK {
@@ -166,6 +177,7 @@ func configGetWithCalls(api configCalls, group GroupHandle, kind ConfigType) ([]
 		}
 		result = append(result, configFromNative(&configs[i]))
 	}
+
 	return result, err
 }
 
@@ -175,27 +187,37 @@ func ConfigSet(group GroupHandle, config GPUConfig) error {
 	return configSetWithCalls(cgoAdapter{}, group, config)
 }
 
+// configSetWithCalls validates settings before opening a native status handle.
 func configSetWithCalls(api configCalls, group GroupHandle, config GPUConfig) error {
 	native, err := configToNative(config)
 	if err != nil {
 		return err
 	}
-	return withConfigStatus(api, func(status configStatusHandle) error { return api.configSetNative(group, &native, status) })
+
+	return withConfigStatus(api, func(status configStatusHandle) error {
+		return api.configSetNative(group, &native, status)
+	})
 }
 
 // ConfigEnforce reapplies the stored target to each GPU in group.
 func ConfigEnforce(group GroupHandle) error { return configEnforceWithCalls(cgoAdapter{}, group) }
 
+// configEnforceWithCalls reapplies targets and collects per-GPU failures.
 func configEnforceWithCalls(api configCalls, group GroupHandle) error {
-	return withConfigStatus(api, func(status configStatusHandle) error { return api.configEnforceNative(group, status) })
+	return withConfigStatus(api, func(status configStatusHandle) error {
+		return api.configEnforceNative(group, status)
+	})
 }
 
 // ConfigReset clears the stored target without changing the GPUs' live settings.
 // If the library lacks this DCGM 4.8 function, IsFeatureUnavailable reports true for the returned error.
 func ConfigReset(group GroupHandle) error { return configResetWithCalls(cgoAdapter{}, group) }
 
+// configResetWithCalls clears targets and collects per-GPU failures.
 func configResetWithCalls(api configCalls, group GroupHandle) error {
-	return withConfigStatus(api, func(status configStatusHandle) error { return api.configResetNative(group, status) })
+	return withConfigStatus(api, func(status configStatusHandle) error {
+		return api.configResetNative(group, status)
+	})
 }
 
 // ConfigSetWorkloadPowerProfile updates workload power profiles for group.
@@ -204,16 +226,25 @@ func ConfigSetWorkloadPowerProfile(group GroupHandle, action WorkloadProfileActi
 	return configSetWorkloadPowerProfileWithCalls(cgoAdapter{}, group, action, mask)
 }
 
+// configSetWorkloadPowerProfileWithCalls holds mux to keep the DCGM session alive through the update.
 func configSetWorkloadPowerProfileWithCalls(api configCalls, group GroupHandle, action WorkloadProfileAction, mask PowerProfileMask) error {
 	mux.Lock()
 	defer mux.Unlock()
+
 	if action != WorkloadProfileSet && action != WorkloadProfileOverwrite && action != WorkloadProfileClear {
 		return errors.New("invalid workload profile action")
 	}
-	request := nativeWorkloadPowerProfile{version: C.dcgmWorkloadPowerProfile_version1, groupId: group.handle, action: C.dcgmWorkloadProfileAction_t(action)}
+
+	request := nativeWorkloadPowerProfile{
+		version: C.dcgmWorkloadPowerProfile_version1,
+		groupId: group.handle,
+		action:  C.dcgmWorkloadProfileAction_t(action),
+	}
+
 	for i := range mask {
 		request.profileMask[i] = C.uint(mask[i])
 	}
+
 	return api.configSetWorkloadPowerProfileNative(&request)
 }
 
@@ -222,12 +253,15 @@ func GetDeviceWorkloadPowerProfileInfo(gpuID uint) (WorkloadPowerProfileInfo, er
 	return workloadPowerProfileInfoWithCalls(cgoAdapter{}, gpuID)
 }
 
+// workloadPowerProfileInfoWithCalls holds mux through the native read and result copying.
 func workloadPowerProfileInfoWithCalls(api configCalls, gpuID uint) (WorkloadPowerProfileInfo, error) {
 	mux.Lock()
 	defer mux.Unlock()
+
 	if uint64(gpuID) > uint64(^uint32(0)) {
 		return WorkloadPowerProfileInfo{}, errors.New("GPU ID exceeds uint32")
 	}
+
 	var profiles nativeWorkloadProfilesInfo
 	var status nativeWorkloadProfilesStatus
 	profiles.version = C.dcgmWorkloadPowerProfileProfilesInfo_version1
@@ -235,9 +269,11 @@ func workloadPowerProfileInfoWithCalls(api configCalls, gpuID uint) (WorkloadPow
 	for i := range profiles.workloadPowerProfile {
 		profiles.workloadPowerProfile[i].version = C.dcgmWorkloadPowerProfileInfo_version1
 	}
+
 	if err := api.workloadPowerProfileInfoNative(gpuID, &profiles, &status); err != nil {
 		return WorkloadPowerProfileInfo{}, err
 	}
+
 	return workloadProfileInfoFromNative(&profiles, &status)
 }
 
@@ -246,36 +282,48 @@ func PowerProfileName(id PowerProfileID) (string, error) {
 	return powerProfileNameWithCalls(cgoAdapter{}, id)
 }
 
+// powerProfileNameWithCalls holds mux until the DCGM-owned name has been copied.
 func powerProfileNameWithCalls(api configCalls, id PowerProfileID) (string, error) {
 	mux.Lock()
 	defer mux.Unlock()
+
 	return api.powerProfileNameNative(id)
 }
 
+// withConfigStatus owns a status handle for one operation and collects its per-GPU errors.
+// It holds mux from creation through destruction so Shutdown cannot end the session.
+// The operation must not acquire mux or retain the handle. Cleanup failures join the result.
 func withConfigStatus(api configCalls, operation func(configStatusHandle) error) (err error) {
 	mux.Lock()
 	defer mux.Unlock()
+
 	status, err := api.configStatusCreate()
 	if err != nil {
 		return fmt.Errorf("create configuration status: %w", err)
 	}
+
 	defer func() {
 		if destroyErr := api.configStatusDestroy(status); destroyErr != nil {
 			err = errors.Join(err, fmt.Errorf("destroy configuration status: %w", destroyErr))
 		}
 	}()
+
 	if err = api.configStatusClear(status); err != nil {
 		return fmt.Errorf("clear configuration status: %w", err)
 	}
+
+	// Read per-GPU failures even when the operation itself failed.
 	operationErr := operation(status)
 	count, countErr := api.configStatusCount(status)
 	if countErr != nil {
 		return errors.Join(operationErr, fmt.Errorf("count configuration errors: %w", countErr))
 	}
+
 	// Each native configuration response holds at most DCGM_MAX_NUM_DEVICES status entries.
 	if count > C.DCGM_MAX_NUM_DEVICES {
 		return errors.Join(operationErr, fmt.Errorf("configuration status count %d exceeds %d", count, C.DCGM_MAX_NUM_DEVICES))
 	}
+
 	fields := make([]ConfigFieldError, 0, count)
 	for i := uint(0); i < count; i++ {
 		field, popErr := api.configStatusPop(status)
@@ -285,9 +333,11 @@ func withConfigStatus(api configCalls, operation func(configStatusHandle) error)
 		}
 		fields = append(fields, field)
 	}
+
 	if operationErr != nil || len(fields) > 0 {
 		return &ConfigError{Cause: operationErr, Fields: fields}
 	}
+
 	return nil
 }
 
@@ -299,6 +349,8 @@ type (
 	configStatusHandle           struct{ handle C.dcgmStatus_t }
 )
 
+// blankNativeConfig sets native versions and marks every setting as ignored.
+// Zero is a valid setting; omitted Go fields need DCGM's blank sentinels instead.
 func blankNativeConfig() nativeGPUConfig {
 	var r nativeGPUConfig
 	r.version = C.dcgmConfig_version3
@@ -313,17 +365,22 @@ func blankNativeConfig() nativeGPUConfig {
 	for i := range r.workloadPowerProfiles {
 		r.workloadPowerProfiles[i] = C.DCGM_INT32_BLANK
 	}
+
 	return r
 }
 
+// configToNative validates specified settings and leaves nil fields at their blank sentinels.
+// GPU is a result identifier; native configuration writes apply to the whole group.
 func configToNative(config GPUConfig) (nativeGPUConfig, error) {
 	r := blankNativeConfig()
 	if err := configModesToNative(config, &r); err != nil {
 		return r, err
 	}
+
 	if err := configClocksToNative(config, &r); err != nil {
 		return r, err
 	}
+
 	if config.PowerLimit != nil {
 		power := config.PowerLimit
 		if (power.Type != ConfigPowerCapIndividual && power.Type != ConfigPowerBudgetGroup) || power.Watts >= C.DCGM_INT32_BLANK {
@@ -332,6 +389,7 @@ func configToNative(config GPUConfig) (nativeGPUConfig, error) {
 		r.powerLimit._type = C.dcgmConfigPowerLimitType_t(power.Type)
 		r.powerLimit.val = C.uint(power.Watts)
 	}
+
 	for i, word := range config.WorkloadPowerProfiles {
 		if word != nil {
 			if *word >= C.DCGM_INT32_BLANK {
@@ -340,9 +398,11 @@ func configToNative(config GPUConfig) (nativeGPUConfig, error) {
 			r.workloadPowerProfiles[i] = C.uint(*word)
 		}
 	}
+
 	return r, nil
 }
 
+// configModesToNative validates and copies non-nil modes, leaving other fields unchanged.
 func configModesToNative(config GPUConfig, r *nativeGPUConfig) error {
 	for _, field := range []struct {
 		name   string
@@ -361,9 +421,12 @@ func configModesToNative(config GPUConfig, r *nativeGPUConfig) error {
 			*field.target = C.uint(*field.value)
 		}
 	}
+
 	return nil
 }
 
+// configClocksToNative validates clocks in whole MHz but stores the original Hz for v3.
+// The MHz limit excludes DCGM's reserved 32-bit sentinel range.
 func configClocksToNative(config GPUConfig, r *nativeGPUConfig) error {
 	for _, clock := range []struct {
 		name   string
@@ -381,46 +444,70 @@ func configClocksToNative(config GPUConfig, r *nativeGPUConfig) error {
 			*clock.target = C.longlong(hz)
 		}
 	}
+
 	return nil
 }
 
+// configFromNative copies settings into Go-owned values, preserving Hz and watts.
+// Native blank, unavailable and unsupported values become nil pointers.
 func configFromNative(r *nativeGPUConfig) GPUConfig {
-	result := GPUConfig{GPU: uint(r.gpuId), ECCMode: configUint32(r.eccMode), ComputeMode: configUint32(r.computeMode), SyncBoost: configUint32(r.perfState.syncBoost), MemoryClockHz: configInt64(r.perfState.targetClocks.memClock), SMClockHz: configInt64(r.perfState.targetClocks.smClock)}
-	if value := configUint32(r.powerLimit.val); value != nil {
-		result.PowerLimit = &ConfigPowerLimit{Type: ConfigPowerLimitType(r.powerLimit._type), Watts: *value}
+	result := GPUConfig{
+		GPU:           uint(r.gpuId),
+		ECCMode:       configUint32(r.eccMode),
+		ComputeMode:   configUint32(r.computeMode),
+		SyncBoost:     configUint32(r.perfState.syncBoost),
+		MemoryClockHz: configInt64(r.perfState.targetClocks.memClock),
+		SMClockHz:     configInt64(r.perfState.targetClocks.smClock),
 	}
+
+	if value := configUint32(r.powerLimit.val); value != nil {
+		result.PowerLimit = &ConfigPowerLimit{
+			Type:  ConfigPowerLimitType(r.powerLimit._type),
+			Watts: *value,
+		}
+	}
+
 	for i := range result.WorkloadPowerProfiles {
 		result.WorkloadPowerProfiles[i] = configUint32(r.workloadPowerProfiles[i])
 	}
+
 	return result
 }
 
+// configUint32 copies a native value, mapping the 32-bit sentinel range to nil.
 func configUint32(value C.uint) *uint32 {
 	if value >= C.DCGM_INT32_BLANK {
 		return nil
 	}
+
 	result := uint32(value)
 	return &result
 }
 
+// configInt64 copies a native value, mapping the 64-bit sentinel range to nil.
 func configInt64(value C.longlong) *int64 {
 	if value >= C.DCGM_INT64_BLANK {
 		return nil
 	}
+
 	result := int64(value)
 	return &result
 }
 
+// workloadProfileInfoFromNative copies the bounded profile list and all mask words.
+// These masks are raw bits, not configuration values with blank sentinels.
 func workloadProfileInfoFromNative(profiles *nativeWorkloadProfilesInfo, status *nativeWorkloadProfilesStatus) (WorkloadPowerProfileInfo, error) {
 	if uint64(profiles.profileCount) > uint64(len(profiles.workloadPowerProfile)) {
 		return WorkloadPowerProfileInfo{}, fmt.Errorf("workload profile count %d exceeds %d", profiles.profileCount, len(profiles.workloadPowerProfile))
 	}
+
 	result := WorkloadPowerProfileInfo{Profiles: make([]WorkloadPowerProfile, int(profiles.profileCount))}
 	for i := range result.Supported {
 		result.Supported[i] = uint32(status.profileMask[i])
 		result.Requested[i] = uint32(status.requestedProfileMask[i])
 		result.Enforced[i] = uint32(status.enforcedProfileMask[i])
 	}
+
 	for i := range result.Profiles {
 		native := &profiles.workloadPowerProfile[i]
 		result.Profiles[i].ID = PowerProfileID(native.profileId)
@@ -429,6 +516,7 @@ func workloadProfileInfoFromNative(profiles *nativeWorkloadProfilesInfo, status 
 			result.Profiles[i].ConflictingMask[j] = uint32(native.conflictingMask[j])
 		}
 	}
+
 	return result, nil
 }
 
@@ -437,13 +525,16 @@ func requireConfigSymbol(symbol string) error {
 	if dcgmInitCounter > 0 && dcgmSymbolAvailable(symbol) {
 		return nil
 	}
+
 	return &FeatureUnavailableError{Feature: "DCGM configuration API", Symbol: symbol}
 }
 
+// configResult translates a native status; callers must hold mux through the error lookup.
 func configResult(symbol string, code C.dcgmReturn_t) error {
 	if code == C.DCGM_ST_OK {
 		return nil
 	}
+
 	return dcgmFeatureResult("DCGM configuration API", symbol, code, dcgmErrorText(code))
 }
 
@@ -451,9 +542,11 @@ func (cgoAdapter) configGetNative(group GroupHandle, kind ConfigType, configs []
 	if err := requireConfigSymbol("dcgmConfigGet"); err != nil {
 		return err
 	}
+
 	if len(configs) == 0 || len(configs) > C.DCGM_MAX_NUM_DEVICES {
 		return errors.New("invalid configuration buffer size")
 	}
+
 	return configResult("dcgmConfigGet", C.dcgmConfigGet(handle.handle, group.handle, C.dcgmConfigType_t(kind), C.int(len(configs)), &configs[0], status.handle))
 }
 
@@ -461,6 +554,7 @@ func (cgoAdapter) configSetNative(group GroupHandle, config *nativeGPUConfig, st
 	if err := requireConfigSymbol("dcgmConfigSet"); err != nil {
 		return err
 	}
+
 	return configResult("dcgmConfigSet", C.dcgmConfigSet(handle.handle, group.handle, config, status.handle))
 }
 
@@ -468,6 +562,7 @@ func (cgoAdapter) configEnforceNative(group GroupHandle, status configStatusHand
 	if err := requireConfigSymbol("dcgmConfigEnforce"); err != nil {
 		return err
 	}
+
 	return configResult("dcgmConfigEnforce", C.dcgmConfigEnforce(handle.handle, group.handle, status.handle))
 }
 
@@ -475,6 +570,7 @@ func (cgoAdapter) configResetNative(group GroupHandle, status configStatusHandle
 	if err := requireConfigSymbol("dcgmConfigReset"); err != nil {
 		return err
 	}
+
 	return configResult("dcgmConfigReset", C.go_dcgmConfigReset(dcgmLibHandle, handle.handle, group.handle, status.handle))
 }
 
@@ -482,6 +578,7 @@ func (cgoAdapter) configSetWorkloadPowerProfileNative(request *nativeWorkloadPow
 	if err := requireConfigSymbol("dcgmConfigSetWorkloadPowerProfile"); err != nil {
 		return err
 	}
+
 	return configResult("dcgmConfigSetWorkloadPowerProfile", C.dcgmConfigSetWorkloadPowerProfile(handle.handle, request))
 }
 
@@ -489,6 +586,7 @@ func (cgoAdapter) workloadPowerProfileInfoNative(gpuID uint, profiles *nativeWor
 	if err := requireConfigSymbol("dcgmGetDeviceWorkloadPowerProfileInfo"); err != nil {
 		return err
 	}
+
 	return configResult("dcgmGetDeviceWorkloadPowerProfileInfo", C.dcgmGetDeviceWorkloadPowerProfileInfo(handle.handle, C.uint(gpuID), profiles, status))
 }
 
@@ -496,14 +594,17 @@ func (cgoAdapter) powerProfileNameNative(id PowerProfileID) (string, error) {
 	if err := requireConfigSymbol("dcgmPowerProfileIdToName"); err != nil {
 		return "", err
 	}
+
 	var name *C.char
 	code := C.dcgmPowerProfileIdToName(C.dcgmPowerProfileType_t(id), &name) //nolint:gocritic // Cgo generates a duplicate comparison for this char** argument.
 	if err := configResult("dcgmPowerProfileIdToName", code); err != nil {
 		return "", err
 	}
+
 	if name == nil {
 		return "", errors.New("DCGM returned a nil power profile name")
 	}
+
 	// DCGM owns the static name string.
 	return C.GoString(name), nil
 }
@@ -514,6 +615,7 @@ func (cgoAdapter) configStatusCreate() (configStatusHandle, error) {
 			return configStatusHandle{}, err
 		}
 	}
+
 	var status configStatusHandle
 	err := configResult("dcgmStatusCreate", C.dcgmStatusCreate(&status.handle))
 	return status, err
@@ -523,6 +625,7 @@ func (cgoAdapter) configStatusDestroy(status configStatusHandle) error {
 	if err := requireConfigSymbol("dcgmStatusDestroy"); err != nil {
 		return err
 	}
+
 	return configResult("dcgmStatusDestroy", C.dcgmStatusDestroy(status.handle))
 }
 
@@ -530,6 +633,7 @@ func (cgoAdapter) configStatusClear(status configStatusHandle) error {
 	if err := requireConfigSymbol("dcgmStatusClear"); err != nil {
 		return err
 	}
+
 	return configResult("dcgmStatusClear", C.dcgmStatusClear(status.handle))
 }
 
@@ -537,6 +641,7 @@ func (cgoAdapter) configStatusCount(status configStatusHandle) (uint, error) {
 	if err := requireConfigSymbol("dcgmStatusGetCount"); err != nil {
 		return 0, err
 	}
+
 	var count C.uint
 	err := configResult("dcgmStatusGetCount", C.dcgmStatusGetCount(status.handle, &count))
 	return uint(count), err
@@ -546,13 +651,20 @@ func (cgoAdapter) configStatusPop(status configStatusHandle) (ConfigFieldError, 
 	if err := requireConfigSymbol("dcgmStatusPopError"); err != nil {
 		return ConfigFieldError{}, err
 	}
+
 	var info C.dcgmErrorInfo_t
 	if err := configResult("dcgmStatusPopError", C.dcgmStatusPopError(status.handle, &info)); err != nil {
 		return ConfigFieldError{}, err
 	}
+
 	return configFieldErrorFromNative(info, dcgmErrorText(C.dcgmReturn_t(info.status))), nil
 }
 
+// configFieldErrorFromNative copies the GPU and field identifiers while retaining the native error code.
 func configFieldErrorFromNative(info C.dcgmErrorInfo_t, message string) ConfigFieldError {
-	return ConfigFieldError{GPU: uint(info.gpuId), FieldID: Short(info.fieldId), Err: &Error{Code: C.dcgmReturn_t(info.status), msg: message}}
+	return ConfigFieldError{
+		GPU:     uint(info.gpuId),
+		FieldID: Short(info.fieldId),
+		Err:     &Error{Code: C.dcgmReturn_t(info.status), msg: message},
+	}
 }
