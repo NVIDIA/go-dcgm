@@ -74,7 +74,7 @@ const (
 	// DCGM_FT_STR_NOT_SUPPORTED is the value for not supported in strings
 	DCGM_FT_STR_NOT_SUPPORTED = "<<<NOT_SUPPORTED>>>"
 	// DCGM_FT_STR_NOT_PERMISSIONED is the value for not permissioned in strings
-	DCGM_FT_STR_NOT_PERMISSIONED = "<<<NOT_PERMISSIONED>>>"
+	DCGM_FT_STR_NOT_PERMISSIONED = "<<<NOT_PERM>>>"
 
 	// DCGM_ST_OK is the value for ECC OK
 	DCGM_ST_OK = 0
