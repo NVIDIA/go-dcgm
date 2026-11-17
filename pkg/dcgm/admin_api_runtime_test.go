@@ -175,9 +175,7 @@ func TestAdministrationAfterShutdown(t *testing.T) {
 	require.NoError(t, err)
 	cleanup()
 	require.Nil(t, dcgmLibHandle)
-	for name, call := range administrationCallsWithoutSession() {
-		t.Run(name, func(t *testing.T) { require.True(t, IsFeatureUnavailable(call())) })
-	}
+	checkAdministrationWithoutSession(t)
 }
 
 // requireLoadedLibraryWithoutSession retains a failed-init library reference and restores its cleanup state.
@@ -206,13 +204,7 @@ func TestAdministrationAfterFailedInit(t *testing.T) {
 	require.True(t, dcgmSymbolAvailable("dcgmModuleIdToName"))
 	_, err := ModuleIDToName(ModuleHealth)
 	require.True(t, IsFeatureUnavailable(err), "loaded library without a session must reject administration calls")
-	for name, call := range administrationCallsWithoutSession() {
-		t.Run(name, func(t *testing.T) {
-			callErr := call()
-			var unavailable *FeatureUnavailableError
-			require.ErrorAs(t, callErr, &unavailable)
-		})
-	}
+	checkAdministrationWithoutSession(t)
 	cleanup, err := InitEmbedded(EmbeddedOptions{Severity: LoggingNone})
 	require.NoError(t, err)
 	t.Cleanup(cleanup)

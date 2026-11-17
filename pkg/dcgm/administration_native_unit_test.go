@@ -46,6 +46,7 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 			symbol: "dcgmHostengineIsHealthy",
 			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
 				api.EXPECT().hostengineHealthNative(gomock.Any()).DoAndReturn(func(response *nativeHostengineHealth) int32 {
+					requireAdministrationSessionLocked(t)
 					require.Equal(t, versions["health"], uint32(response.version))
 					response.overallHealth = 0
 					return status
@@ -59,6 +60,7 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 			symbol: "dcgmHostengineSetLoggingSeverity",
 			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
 				api.EXPECT().loggingSeverityNative(gomock.Any()).DoAndReturn(func(request *nativeLoggingSeverity) int32 {
+					requireAdministrationSessionLocked(t)
 					require.Equal(t, versions["logging"], uint32(request.version))
 					require.Equal(t, 1, int(request.targetLogger))
 					require.Equal(t, int32(LoggingDebug), int32(request.targetSeverity))
@@ -75,6 +77,7 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 			symbol: "dcgmHostengineEnvironmentVariableInfo",
 			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
 				api.EXPECT().environmentVariableNative(gomock.Any()).DoAndReturn(func(response *nativeEnvironmentVariable) int32 {
+					requireAdministrationSessionLocked(t)
 					require.Equal(t, versions["environment"], uint32(response.version))
 					require.Equal(t, "DCGM_DIAG_REMOVED", environmentVariableNameFixture(response))
 					setEnvironmentVariableFixture(response, "distinct-value", 0)
@@ -91,6 +94,7 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 			symbol: "dcgmModuleGetStatuses",
 			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
 				api.EXPECT().moduleStatusesNative(gomock.Any()).DoAndReturn(func(response *nativeModuleStatuses) int32 {
+					requireAdministrationSessionLocked(t)
 					require.Equal(t, versions["modules"], uint32(response.version))
 					setModuleStatusFixture(response, ModuleHealth, ModuleDenylisted)
 					return status
@@ -102,8 +106,11 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 		{
 			name:   "module name",
 			symbol: "dcgmModuleIdToName",
-			expect: func(_ *testing.T, api *MockAdministrationNativeCalls, status int32) {
-				api.EXPECT().moduleNameNative(ModuleHealth).Return("Health", status)
+			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
+				api.EXPECT().moduleNameNative(ModuleHealth).DoAndReturn(func(ModuleID) (string, int32) {
+					requireAdministrationSessionLocked(t)
+					return "Health", status
+				})
 			},
 			call: func(api administrationNativeCalls) (any, error) { return moduleIDToNameWithCalls(api, ModuleHealth) },
 			want: "Health",
@@ -111,8 +118,11 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 		{
 			name:   "denylist",
 			symbol: "dcgmModuleDenylist",
-			expect: func(_ *testing.T, api *MockAdministrationNativeCalls, status int32) {
-				api.EXPECT().moduleDenylistNative(ModuleHealth).Return(status)
+			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
+				api.EXPECT().moduleDenylistNative(ModuleHealth).DoAndReturn(func(ModuleID) int32 {
+					requireAdministrationSessionLocked(t)
+					return status
+				})
 			},
 			call: func(api administrationNativeCalls) (any, error) {
 				return nil, moduleDenylistWithCalls(api, ModuleHealth)
@@ -124,6 +134,7 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 			symbol: "dcgmGroupGetAllIds",
 			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
 				api.EXPECT().groupIDsNative(gomock.Any(), gomock.Any()).DoAndReturn(func(ids []nativeGroupID, count *nativeCount) int32 {
+					requireAdministrationSessionLocked(t)
 					require.GreaterOrEqual(t, len(ids), 1)
 					require.Equal(t, len(ids), int(*count))
 					ids[0] = 7
@@ -137,8 +148,11 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 		{
 			name:   "remove GPU",
 			symbol: "dcgmGroupRemoveDevice",
-			expect: func(_ *testing.T, api *MockAdministrationNativeCalls, status int32) {
-				api.EXPECT().removeGPUFromGroupNative(group, uint(3)).Return(status)
+			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
+				api.EXPECT().removeGPUFromGroupNative(group, uint(3)).DoAndReturn(func(GroupHandle, uint) int32 {
+					requireAdministrationSessionLocked(t)
+					return status
+				})
 			},
 			call: func(api administrationNativeCalls) (any, error) { return nil, removeFromGroupWithCalls(api, group, 3) },
 			want: nil,
@@ -148,6 +162,7 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 			symbol: "dcgmFieldGroupGetInfo",
 			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
 				api.EXPECT().fieldGroupInfoNative(gomock.Any()).DoAndReturn(func(response *nativeFieldGroupInfo) int32 {
+					requireAdministrationSessionLocked(t)
 					require.Equal(t, versions["fields"], uint32(response.version))
 					require.Equal(t, uintptr(9), uintptr(response.fieldGroupId))
 					response.numFieldIds = 1
@@ -164,6 +179,7 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 			symbol: "dcgmFieldGroupGetAll",
 			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
 				api.EXPECT().fieldGroupsNative(gomock.Any()).DoAndReturn(func(response *nativeFieldGroups) int32 {
+					requireAdministrationSessionLocked(t)
 					require.Equal(t, versions["fieldGroups"], uint32(response.version))
 					response.numFieldGroups = 1
 					response.fieldGroups[0].fieldGroupId = 9
@@ -180,6 +196,7 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 			symbol: "dcgmGetGroupTopology",
 			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
 				api.EXPECT().groupTopologyNative(group, gomock.Any()).DoAndReturn(func(_ GroupHandle, response *nativeGroupTopology) int32 {
+					requireAdministrationSessionLocked(t)
 					require.Equal(t, versions["topology"], uint32(response.version))
 					response.numaOptimalFlag = 1
 					return status
@@ -194,8 +211,11 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 		{
 			name:   "architecture",
 			symbol: "dcgmGetGpuChipArchitecture",
-			expect: func(_ *testing.T, api *MockAdministrationNativeCalls, status int32) {
-				api.EXPECT().chipArchitectureNative(uint(3)).Return(ChipHopper, status)
+			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
+				api.EXPECT().chipArchitectureNative(uint(3)).DoAndReturn(func(uint) (ChipArchitecture, int32) {
+					requireAdministrationSessionLocked(t)
+					return ChipHopper, status
+				})
 			},
 			call: func(api administrationNativeCalls) (any, error) { return getGPUChipArchitectureWithCalls(api, 3) },
 			want: ChipHopper,
@@ -203,8 +223,11 @@ func administrationNativeCallCases() []administrationNativeCallCase {
 		{
 			name:   "selection",
 			symbol: "dcgmSelectGpusByTopology",
-			expect: func(_ *testing.T, api *MockAdministrationNativeCalls, status int32) {
-				api.EXPECT().topologySelectionNative(uint64(5), uint32(1), TopologyIgnoreHealth).Return(uint64(4), status)
+			expect: func(t *testing.T, api *MockAdministrationNativeCalls, status int32) {
+				api.EXPECT().topologySelectionNative(uint64(5), uint32(1), TopologyIgnoreHealth).DoAndReturn(func(uint64, uint32, TopologyHint) (uint64, int32) {
+					requireAdministrationSessionLocked(t)
+					return uint64(4), status
+				})
 			},
 			call: func(api administrationNativeCalls) (any, error) {
 				return selectGPUMaskWithCalls(api, 5, 1, TopologyIgnoreHealth)
@@ -226,9 +249,13 @@ func TestAdministrationNativeCalls(t *testing.T) {
 
 			t.Run("missing symbol", func(t *testing.T) {
 				api := NewMockAdministrationNativeCalls(gomock.NewController(t))
-				api.EXPECT().administrationSymbolAvailable(test.symbol).Return(false)
+				api.EXPECT().administrationSymbolAvailable(test.symbol).DoAndReturn(func(string) bool {
+					requireAdministrationSessionLocked(t)
+					return false
+				})
 
 				_, err := test.call(api)
+				requireAdministrationSessionUnlocked(t)
 				require.True(t, IsFeatureUnavailable(err))
 			})
 		})
@@ -239,13 +266,20 @@ func TestAdministrationNativeCalls(t *testing.T) {
 func checkAdministrationNativeCall(t *testing.T, test administrationNativeCallCase, status int32) {
 	t.Helper()
 	api := NewMockAdministrationNativeCalls(gomock.NewController(t))
-	api.EXPECT().administrationSymbolAvailable(test.symbol).Return(true)
+	api.EXPECT().administrationSymbolAvailable(test.symbol).DoAndReturn(func(string) bool {
+		requireAdministrationSessionLocked(t)
+		return true
+	})
 	test.expect(t, api, status)
 	if status != 0 {
-		api.EXPECT().administrationErrorText(status).Return("fake native error")
+		api.EXPECT().administrationErrorText(status).DoAndReturn(func(int32) string {
+			requireAdministrationSessionLocked(t)
+			return "fake native error"
+		})
 	}
 
 	got, err := test.call(api)
+	requireAdministrationSessionUnlocked(t)
 	if status == 0 {
 		require.NoError(t, err)
 		require.Equal(t, test.want, got)
@@ -278,6 +312,7 @@ func TestAdministrationEnvironmentPayloadStatus(t *testing.T) {
 			api := NewMockAdministrationNativeCalls(gomock.NewController(t))
 			api.EXPECT().administrationSymbolAvailable("dcgmHostengineEnvironmentVariableInfo").Return(true)
 			api.EXPECT().environmentVariableNative(gomock.Any()).DoAndReturn(func(response *nativeEnvironmentVariable) int32 {
+				requireAdministrationSessionLocked(t)
 				setEnvironmentVariableFixture(response, "", status)
 				return 0
 			})
@@ -303,9 +338,7 @@ func TestAdministrationBeforeInit(t *testing.T) {
 	require.True(t, IsFeatureUnavailable(cgoAdapter{}.initializeDCGM()))
 	require.True(t, IsFeatureUnavailable(cgoAdapter{}.startEmbeddedNative(EmbeddedOptions{})))
 	require.True(t, IsFeatureUnavailable(cgoAdapter{}.shutdownDCGM()))
-	for name, call := range administrationCallsWithoutSession() {
-		t.Run(name, func(t *testing.T) { require.True(t, IsFeatureUnavailable(call())) })
-	}
+	checkAdministrationWithoutSession(t)
 }
 
 // TestAdministrationUnhealthyResponse preserves an unhealthy result from a successful native health call.
@@ -313,6 +346,7 @@ func TestAdministrationUnhealthyResponse(t *testing.T) {
 	api := NewMockAdministrationNativeCalls(gomock.NewController(t))
 	api.EXPECT().administrationSymbolAvailable("dcgmHostengineIsHealthy").Return(true)
 	api.EXPECT().hostengineHealthNative(gomock.Any()).DoAndReturn(func(response *nativeHostengineHealth) int32 {
+		requireAdministrationSessionLocked(t)
 		response.overallHealth = 1
 		return 0
 	})
@@ -321,32 +355,74 @@ func TestAdministrationUnhealthyResponse(t *testing.T) {
 	require.False(t, healthy)
 }
 
-// TestAdministrationSessionLifetime keeps shutdown excluded through native calls and error lookup.
-func TestAdministrationSessionLifetime(t *testing.T) {
-	checkSessionLocked := func(stage string) {
-		t.Helper()
-		if mux.TryLock() {
-			mux.Unlock()
-			t.Errorf("shutdown can acquire the session lock during %s", stage)
-		}
+// TestAdministrationReturnedDataIsOwned checks that later native buffer changes cannot alter results.
+func TestAdministrationReturnedDataIsOwned(t *testing.T) {
+	t.Run("module statuses", func(t *testing.T) {
+		api := NewMockAdministrationNativeCalls(gomock.NewController(t))
+		api.EXPECT().administrationSymbolAvailable("dcgmModuleGetStatuses").Return(true)
+		var native *nativeModuleStatuses
+		api.EXPECT().moduleStatusesNative(gomock.Any()).DoAndReturn(func(response *nativeModuleStatuses) int32 {
+			native = response
+			setModuleStatusFixture(response, ModuleHealth, ModuleLoaded)
+			return 0
+		})
+		got, err := moduleGetStatusesWithCalls(api)
+		require.NoError(t, err)
+
+		setModuleStatusFixture(native, ModuleDiag, ModuleFailed)
+		require.Equal(t, []ModuleStatus{{ModuleHealth, ModuleLoaded}}, got)
+	})
+
+	t.Run("field group", func(t *testing.T) {
+		api := NewMockAdministrationNativeCalls(gomock.NewController(t))
+		api.EXPECT().administrationSymbolAvailable("dcgmFieldGroupGetInfo").Return(true)
+		var native *nativeFieldGroupInfo
+		api.EXPECT().fieldGroupInfoNative(gomock.Any()).DoAndReturn(func(response *nativeFieldGroupInfo) int32 {
+			native = response
+			response.numFieldIds = 1
+			response.fieldIds[0] = 100
+			response.fieldGroupName[0] = 'g'
+			return 0
+		})
+		got, err := fieldGroupGetInfoWithCalls(api, FieldHandle{})
+		require.NoError(t, err)
+
+		native.fieldIds[0] = 200
+		native.fieldGroupName[0] = 'h'
+		require.Equal(t, []Short{100}, got.FieldIDs)
+		require.Equal(t, "g", got.Name)
+	})
+
+	t.Run("group topology", func(t *testing.T) {
+		api := NewMockAdministrationNativeCalls(gomock.NewController(t))
+		api.EXPECT().administrationSymbolAvailable("dcgmGetGroupTopology").Return(true)
+		var native *nativeGroupTopology
+		api.EXPECT().groupTopologyNative(GroupHandle{}, gomock.Any()).DoAndReturn(func(_ GroupHandle, response *nativeGroupTopology) int32 {
+			native = response
+			response.groupCpuAffinityMask[0] = 3
+			return 0
+		})
+		got, err := getGroupTopologyWithCalls(api, GroupHandle{})
+		require.NoError(t, err)
+
+		native.groupCpuAffinityMask[0] = 7
+		require.Equal(t, uint64(3), got.CPUAffinityMask[0])
+	})
+}
+
+// requireAdministrationSessionLocked checks that shutdown cannot unload the library during a call.
+func requireAdministrationSessionLocked(t *testing.T) {
+	t.Helper()
+	if mux.TryLock() {
+		mux.Unlock()
+		t.Error("shutdown can acquire the session lock during administration")
 	}
-	api := NewMockAdministrationNativeCalls(gomock.NewController(t))
-	api.EXPECT().administrationSymbolAvailable("dcgmHostengineIsHealthy").DoAndReturn(func(string) bool {
-		checkSessionLocked("symbol lookup")
-		return true
-	})
-	api.EXPECT().hostengineHealthNative(gomock.Any()).DoAndReturn(func(*nativeHostengineHealth) int32 {
-		checkSessionLocked("native call")
-		return DCGM_ST_BADPARAM
-	})
-	api.EXPECT().administrationErrorText(int32(DCGM_ST_BADPARAM)).DoAndReturn(func(int32) string {
-		checkSessionLocked("native error lookup")
-		return "native failure"
-	})
-	_, err := hostengineIsHealthyWithCalls(api)
-	var native *Error
-	require.ErrorAs(t, err, &native)
-	require.Equal(t, DCGM_ST_BADPARAM, int(native.Code))
-	require.True(t, mux.TryLock(), "operation must release the session lock")
+}
+
+// requireAdministrationSessionUnlocked restores the mutex before reporting a leaked lock.
+func requireAdministrationSessionUnlocked(t *testing.T) {
+	t.Helper()
+	unlocked := mux.TryLock()
 	mux.Unlock()
+	require.True(t, unlocked, "operation must release the session lock")
 }
