@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
 )
@@ -20,58 +21,82 @@ Legend:
  NV#  = Connection traversing a bonded set of # NVLinks`
 )
 
-// based on nvidia-smi topo -m
-// dcgmi topo
+// main prints a topology matrix similar to nvidia-smi topo -m.
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// run reads supported GPUs and prints their peer links and CPU affinities.
+func run() error {
 	// choose dcgm hostengine running mode
 	// 1. dcgm.Embedded
 	// 2. dcgm.Standalone
 	// 3. dcgm.StartHostengine
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	if err != nil {
-		log.Panicln(err)
+		return fmt.Errorf("initialize DCGM: %w", err)
 	}
 	defer cleanup()
 
 	gpus, err := dcgm.GetSupportedDevices()
 	if err != nil {
-		log.Panicln(err)
+		return fmt.Errorf("discover supported GPUs: %w", err)
 	}
+
+	headers := make([]string, len(gpus))
+	for column, gpu := range gpus {
+		headers[column] = fmt.Sprintf("GPU%d", gpu)
+	}
+
+	fmt.Print(formatTopologyRow("", headers, "CPUAffinity"))
 
 	for _, gpu := range gpus {
-		fmt.Printf("%9s%d", "GPU", gpu)
-	}
-
-	fmt.Printf("%5s\n", "CPUAffinity")
-
-	numGpus := len(gpus)
-	gpuTopo := make([]string, numGpus)
-
-	for i := 0; i < numGpus; i++ {
-		topo, err := dcgm.GetDeviceTopology(gpus[i])
+		links, err := dcgm.GetDeviceTopology(gpu)
 		if err != nil {
-			log.Panicln(err)
+			return fmt.Errorf("read topology for GPU %d: %w", gpu, err)
 		}
 
-		fmt.Printf("GPU%d", gpus[i])
-
-		for j := 0; j < len(topo); j++ {
-			// skip current GPU
-			gpuTopo[topo[j].GPU] = topo[j].Link.PCIPaths()
-		}
-
-		gpuTopo[i] = "X"
-		for j := 0; j < numGpus; j++ {
-			fmt.Printf("%5s", gpuTopo[j])
-		}
-
-		deviceInfo, err := dcgm.GetDeviceInfo(gpus[i])
+		deviceInfo, err := dcgm.GetDeviceInfo(gpu)
 		if err != nil {
-			log.Panicln(err)
+			return fmt.Errorf("read device information for GPU %d: %w", gpu, err)
 		}
 
-		fmt.Printf("%5s\n", deviceInfo.CPUAffinity)
+		fmt.Print(formatTopologyRow(fmt.Sprintf("GPU%d", gpu),
+			topologyCells(gpus, gpu, links), deviceInfo.CPUAffinity))
 	}
 
 	fmt.Println(legend)
+	return nil
+}
+
+// topologyCells orders peer links by the displayed GPU IDs, which need not be contiguous.
+func topologyCells(gpus []uint, gpu uint, links []dcgm.P2PLink) []string {
+	paths := make(map[uint]string, len(links))
+	for _, link := range links {
+		paths[link.GPU] = link.Link.PCIPaths()
+	}
+
+	cells := make([]string, len(gpus))
+	for column, peer := range gpus {
+		cells[column] = paths[peer]
+		if peer == gpu {
+			cells[column] = "X"
+		}
+	}
+
+	return cells
+}
+
+// formatTopologyRow gives headers and data the same label, GPU and affinity columns.
+func formatTopologyRow(label string, cells []string, affinity string) string {
+	var row strings.Builder
+	fmt.Fprintf(&row, "%10s", label)
+	for _, cell := range cells {
+		fmt.Fprintf(&row, "%10s", cell)
+	}
+
+	fmt.Fprintf(&row, "  %s\n", affinity)
+	return row.String()
 }

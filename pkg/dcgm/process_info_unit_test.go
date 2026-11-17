@@ -40,9 +40,9 @@ func TestProcessName(t *testing.T) {
 	}
 }
 
-// TestProcessInfoFromResponse verifies that all per-GPU process metrics are
+// TestPIDInfoLegacyValuesAcrossHeaders verifies that all per-GPU process metrics are
 // converted correctly, including blank energy values and XID timestamps.
-func TestProcessInfoFromResponse(t *testing.T) {
+func TestPIDInfoLegacyValuesAcrossHeaders(t *testing.T) {
 	const (
 		pid  = 4242
 		name = "training-process"
@@ -224,4 +224,71 @@ func TestProcessInfoFromResponseEmpty(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Empty(t, got)
+}
+
+// TestPIDInfoLegacyLayoutVersion checks the native query version and allocation
+// against DCGM's explicit legacy type, independently of the latest typedef.
+func TestPIDInfoLegacyLayoutVersion(t *testing.T) {
+	version, expectedVersion, size, expectedSize, pid := processInfoLayoutForTest(4242)
+	assert.Equal(t, expectedVersion, version)
+	assert.Equal(t, expectedSize, size)
+	assert.Equal(t, uint32(2), version>>24)
+	assert.Equal(t, size, uintptr(version&0x00ffffff))
+	assert.Equal(t, uint(4242), pid)
+}
+
+// TestPIDInfoLegacySentinels preserves the legacy handling of DCGM's blank and
+// unavailable values, including the fields that expose the raw sentinel.
+func TestPIDInfoLegacySentinels(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		offset uint8
+	}{
+		{"blank", 0},
+		{"not found", 1},
+		{"not supported", 2},
+		{"not permissioned", 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			int64Blank := int64(dcgmInt64Blank) + int64(tc.offset)
+			int32Blank := int32(dcgmInt32Blank) + int32(tc.offset)
+			unsignedBlank := uint64(dcgmInt64Blank) + uint64(tc.offset)
+			floatBlank := float64(140737488355328) + float64(tc.offset)
+			input := []processGPUInputForTest{{
+				energyConsumed:           int64Blank,
+				startTime:                int64Blank,
+				endTime:                  int64Blank,
+				processSMUtilization:     floatBlank,
+				processMemoryUtilization: floatBlank,
+				smUtilization:            int32Blank,
+				memoryUtilization:        int32Blank,
+				smClock:                  int32Blank,
+				memoryClock:              int32Blank,
+				powerViolationTime:       int64Blank,
+				thermalViolationTime:     int64Blank,
+				reliabilityViolationTime: int64Blank,
+				boardLimitViolationTime:  int64Blank,
+				lowUtilizationTime:       int64Blank,
+				syncBoostTime:            int64Blank,
+			}}
+			got, err := processInfoFromValuesForTest(1, tc.name, 1, input)
+			require.NoError(t, err)
+			require.Len(t, got, 1)
+			assert.Equal(t, uint64(0), *got[0].ProcessUtilization.EnergyConsumed)
+			assert.Equal(t, Time(unsignedBlank/1_000_000), got[0].ProcessUtilization.StartTime)
+			assert.Equal(t, Time(unsignedBlank/1_000_000), got[0].ProcessUtilization.EndTime)
+			assert.Equal(t, floatBlank, *got[0].ProcessUtilization.SmUtil)
+			assert.Equal(t, floatBlank, *got[0].ProcessUtilization.MemUtil)
+			assert.Equal(t, UtilizationInfo{GPU: int64(int32Blank), Memory: int64(int32Blank)}, got[0].GpuUtilization)
+			assert.Equal(t, ClockInfo{Cores: int64(int32Blank), Memory: int64(int32Blank)}, got[0].Clocks)
+			for _, violation := range []*uint64{
+				got[0].Violations.Power, got[0].Violations.Thermal,
+				got[0].Violations.Reliability, got[0].Violations.BoardLimit,
+				got[0].Violations.LowUtilization, got[0].Violations.SyncBoost,
+			} {
+				require.NotNil(t, violation)
+				assert.Equal(t, unsignedBlank, *violation)
+			}
+		})
+	}
 }

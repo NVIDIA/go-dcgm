@@ -1,0 +1,4 @@
+# Optional ShellCheck checks that every script passes.
+enable=require-variable-braces
+enable=quote-safe-variables
+enable=check-unassigned-uppercase

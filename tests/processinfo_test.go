@@ -1,9 +1,13 @@
 package tests
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"strconv"
 	"testing"
 	"time"
 
@@ -180,5 +184,101 @@ func TestWatchPidFieldsForGroup(t *testing.T) {
 	noRecord := errors.As(err, &dcgmErr) && int(dcgmErr.Code) == dcgm.DCGM_ST_NO_DATA
 	if err != nil && !noRecord {
 		t.Fatalf("GetProcessInfo on the watched group failed: %v", err)
+	}
+}
+
+// TestProcessInfoWithGPUFixture requires a live GPU process record, rather than
+// accepting the missing records used by the process-info examples.
+func TestProcessInfoWithGPUFixture(t *testing.T) {
+	load := jobStatsLoadExecutable(t)
+	group, device := jobStatsSession(t)
+	if mode := jobNvidiaSMI(t, "--id="+device.UUID, "--query-gpu=accounting.mode", "--format=csv,noheader,nounits"); mode == "N/A" || mode == "[N/A]" {
+		t.Skip("GPU does not support process accounting")
+	}
+	if err := dcgm.WatchPidFieldsForGroupEx(group, 100*time.Millisecond, time.Minute, 0); err != nil {
+		skipIfPidWatchRequiresRoot(t, err)
+		var nativeErr *dcgm.Error
+		if errors.As(err, &nativeErr) && int(nativeErr.Code) == dcgm.DCGM_ST_NOT_SUPPORTED {
+			t.Skipf("GPU does not support PID field watches: %v", err)
+		}
+		t.Fatalf("watch PID fields: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, load) // #nosec G204,G702 -- explicitly supplied test-only executable, no shell.
+	cmd.Env = append(os.Environ(), "DCGM_JOB_GPU_ID="+strconv.FormatUint(uint64(device.GPU), 10), "DCGM_JOB_GPU_UUID="+device.UUID, "DCGM_JOB_LOAD_SECONDS=10")
+	cmd.WaitDelay = time.Second
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	started := time.Now()
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start GPU fixture: %v", err)
+	}
+	var waitErr error
+	done := make(chan struct{})
+	go func() {
+		waitErr = cmd.Wait()
+		close(done)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+		if t.Failed() {
+			t.Logf("GPU fixture exit: %v; output: %s", waitErr, output.String())
+		}
+	})
+
+	pid := uint(cmd.Process.Pid) // #nosec G115 -- started process IDs are positive.
+	waitForLiveProcessInfo(t, ctx, done, group, dcgm.ProcessInfo{GPU: device.GPU, PID: pid}, started)
+	<-done
+	if waitErr != nil || ctx.Err() != nil {
+		t.Fatalf("GPU fixture did not exit successfully: %v (context: %v): %s", waitErr, ctx.Err(), output.String())
+	}
+}
+
+func waitForLiveProcessInfo(t *testing.T, ctx context.Context, done <-chan struct{}, group dcgm.GroupHandle, want dcgm.ProcessInfo, started time.Time) {
+	t.Helper()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-done:
+			t.Fatal("GPU fixture exited before a live PID record was observed")
+		case <-ctx.Done():
+			t.Fatalf("no live GPU record for PID %d before deadline: %v", want.PID, ctx.Err())
+		case <-ticker.C:
+		}
+		info, err := dcgm.GetProcessInfo(group, want.PID)
+		if err != nil {
+			var nativeErr *dcgm.Error
+			if errors.As(err, &nativeErr) && int(nativeErr.Code) == dcgm.DCGM_ST_NO_DATA {
+				continue // Wait for DCGM to observe the fixture's CUDA context.
+			}
+			t.Fatalf("query live PID %d: %v", want.PID, err)
+		}
+		if len(info) == 0 {
+			continue
+		}
+		checkLiveProcessInfo(t, info, want, started)
+		select {
+		case <-done:
+			t.Fatal("GPU fixture exited before its PID response could be verified live")
+		default:
+		}
+		t.Logf("verified live PID %d on GPU %d with start time %s", want.PID, want.GPU, info[0].ProcessUtilization.StartTime)
+		return
+	}
+}
+
+func checkLiveProcessInfo(t *testing.T, info []dcgm.ProcessInfo, want dcgm.ProcessInfo, started time.Time) {
+	t.Helper()
+	if len(info) != 1 || info[0].GPU != want.GPU || info[0].PID != want.PID {
+		t.Fatalf("expected PID %d on GPU %d, got %+v", want.PID, want.GPU, info)
+	}
+	util := info[0].ProcessUtilization
+	if util.StartTime < dcgm.Time(started.Unix()) || util.StartTime > dcgm.Time(time.Now().Unix()) || util.EndTime != 0 { // #nosec G115 -- contemporary Unix timestamps are positive.
+		t.Fatalf("invalid live process interval: %+v", util)
 	}
 }

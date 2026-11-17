@@ -109,3 +109,89 @@ type topologyOps interface {
 	readDeviceTopology(uint) ([]P2PLink, error)
 	entitiesGetLatestValues([]GroupEntityPair, []Short, uint) ([]FieldValue_v2, error)
 }
+
+// embeddedSessionCalls supplies library ownership and typed embedded startup.
+type embeddedSessionCalls interface {
+	loadLibrary() error
+	closeLibrary()
+	startEmbeddedWithOptions(EmbeddedOptions) error
+}
+
+// gpuSelector supplies DCGM's topology mask selection.
+type gpuSelector interface {
+	selectGPUsByTopology(uint64, uint32, TopologyHint) (uint64, error)
+}
+
+// embeddedStartCalls supplies native initialization, startup and failure rollback.
+type embeddedStartCalls interface {
+	initializeDCGM() error
+	startEmbeddedNative(EmbeddedOptions) error
+	shutdownDCGM() error
+}
+
+// administrationNativeCalls supplies native requests, responses and status codes.
+type administrationNativeCalls interface {
+	administrationSymbolAvailable(string) bool
+	administrationErrorText(int32) string
+	hostengineHealthNative(*nativeHostengineHealth) int32
+	loggingSeverityNative(*nativeLoggingSeverity) int32
+	environmentVariableNative(*nativeEnvironmentVariable) int32
+	moduleStatusesNative(*nativeModuleStatuses) int32
+	moduleNameNative(ModuleID) (string, int32)
+	moduleDenylistNative(ModuleID) int32
+	groupIDsNative([]nativeGroupID, *nativeCount) int32
+	removeGPUFromGroupNative(GroupHandle, uint) int32
+	fieldGroupInfoNative(*nativeFieldGroupInfo) int32
+	fieldGroupsNative(*nativeFieldGroups) int32
+	groupTopologyNative(GroupHandle, *nativeGroupTopology) int32
+	chipArchitectureNative(uint) (ChipArchitecture, int32)
+	topologySelectionNative(uint64, uint32, TopologyHint) (uint64, int32)
+}
+
+// jobStatsCalls supplies job recording and statistics operations.
+type jobStatsCalls interface {
+	watchJobFieldsNative(GroupHandle, time.Duration, time.Duration, int) error
+	jobStartNative(GroupHandle, string) error
+	jobStopNative(string) error
+	jobGetStatsNative(string) (JobInfo, error)
+	jobRemoveNative(string) error
+	jobRemoveAllNative() error
+}
+
+// diagnosticCalls supplies guarded diagnostic runs and concurrent control calls.
+type diagnosticCalls interface {
+	requireDiagnosticSymbol(string) error
+	actionValidateNative(DiagnosticRequest) (DiagResults, error)
+	runDiagNative(DiagType, GroupHandle) (DiagResults, error)
+	diagnosticControlNative(string) error
+}
+
+// fieldWatchCalls supplies raw watch results so DCGM status codes remain available.
+type fieldWatchCalls interface {
+	nativeErrorText(int) string
+	watchFieldsResult(FieldHandle, GroupHandle, int64, float64, int32) int
+	watchFieldValueResult(uint, Short, time.Duration, time.Duration, int) int
+}
+
+// fieldPolicyImportCalls supplies counted imports and library capability checks.
+type fieldPolicyImportCalls interface {
+	nativeErrorText(int) string
+	requireFieldPolicySymbol(string) error
+	importFieldPoliciesNative(string) (uint, uint, int)
+}
+
+// configCalls supplies native configuration buffers and per-GPU status operations.
+type configCalls interface {
+	configGetNative(GroupHandle, ConfigType, []nativeGPUConfig, configStatusHandle) error
+	configSetNative(GroupHandle, *nativeGPUConfig, configStatusHandle) error
+	configEnforceNative(GroupHandle, configStatusHandle) error
+	configResetNative(GroupHandle, configStatusHandle) error
+	configSetWorkloadPowerProfileNative(*nativeWorkloadPowerProfile) error
+	workloadPowerProfileInfoNative(uint, *nativeWorkloadProfilesInfo, *nativeWorkloadProfilesStatus) error
+	powerProfileNameNative(PowerProfileID) (string, error)
+	configStatusCreate() (configStatusHandle, error)
+	configStatusDestroy(configStatusHandle) error
+	configStatusClear(configStatusHandle) error
+	configStatusCount(configStatusHandle) (uint, error)
+	configStatusPop(configStatusHandle) (ConfigFieldError, error)
+}

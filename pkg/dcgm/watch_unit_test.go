@@ -2,6 +2,7 @@ package dcgm
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -217,6 +218,65 @@ func TestWatchFieldsWithGroupExRefreshCount(t *testing.T) {
 				require.ErrorContains(t, err, "error refreshing watched fields")
 			} else {
 				require.Equal(t, tt.watchErr, err)
+			}
+		})
+	}
+}
+
+// TestWatchErrorsRetainDCGMStatus checks native statuses through watch setup and refresh.
+func TestWatchErrorsRetainDCGMStatus(t *testing.T) {
+	for _, native := range []*Error{
+		{Code: DCGM_ST_CONNECTION_NOT_VALID, msg: "connection not valid"},
+		{Code: DCGM_ST_UNINITIALIZED, msg: "uninitialized"},
+		{Code: DCGM_ST_NVML_NOT_LOADED, msg: "NVML not loaded"},
+	} {
+		for _, stage := range []string{"watch", "refresh"} {
+			t.Run(native.Error()+"/"+stage, func(t *testing.T) {
+				api := NewMockWatchGroupOps(gomock.NewController(t))
+				watch := api.EXPECT().watchFieldsNative(FieldHandle{}, GroupHandle{}, int64(1000000), float64(1), int32(0))
+				if stage == "watch" {
+					watch.Return(native)
+				} else {
+					watch.Return(nil)
+					api.EXPECT().updateAllFields().After(watch).Return(native)
+				}
+				err := watchFieldsWithGroupExWithOps(api, FieldHandle{}, GroupHandle{}, 1000000, 1, 0)
+				var got *Error
+				require.ErrorAs(t, err, &got)
+				require.Same(t, native, got)
+				prefix := ""
+				if stage == "refresh" {
+					prefix = "error refreshing watched fields: "
+				}
+				require.Equal(t, prefix+native.Error(), err.Error())
+			})
+		}
+	}
+}
+
+func TestNativeWatchErrorsRetainDCGMStatus(t *testing.T) {
+	for _, code := range []int{DCGM_ST_OK, DCGM_ST_BADPARAM, DCGM_ST_WATCH_FREQUENCY} {
+		t.Run(strconv.Itoa(code), func(t *testing.T) {
+			api := NewMockfieldWatchCalls(gomock.NewController(t))
+			if code != DCGM_ST_OK {
+				api.EXPECT().nativeErrorText(code).Return("runtime message").Times(2)
+			}
+			api.EXPECT().watchFieldsResult(FieldHandle{}, GroupHandle{}, int64(1), float64(1), int32(0)).Return(code)
+			api.EXPECT().watchFieldValueResult(uint(0), Short(1011), time.Microsecond, time.Second, 0).Return(code)
+			results := []error{
+				watchFieldsWithCalls(api, FieldHandle{}, GroupHandle{}, 1, 1, 0),
+				watchFieldValueWithCalls(api, 0, 1011, time.Microsecond, time.Second, 0),
+			}
+			for i, err := range results {
+				if code == DCGM_ST_OK {
+					require.NoError(t, err)
+					continue
+				}
+				var native *Error
+				require.ErrorAs(t, err, &native)
+				require.Equal(t, code, int(native.Code))
+				prefix := []string{"error watching fields: ", "error watching field value: "}[i]
+				require.Equal(t, prefix+native.Error(), err.Error())
 			}
 		})
 	}

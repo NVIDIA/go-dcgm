@@ -1,6 +1,6 @@
 # DCGM Samples
 
-Modeled on [dcgmi (Data Center GPU Manager Interface)](https://developer.nvidia.com/data-center-gpu-manager-dcgm) and [nvidia-smi (NVIDIA System Management Interface)](https://developer.nvidia.com/nvidia-system-management-interface), seven samples and a [REST API](https://github.com/NVIDIA/go-dcgm/samples/dcgm/restApi/README.md) have been provided to show how to use DCGM go bindings.
+The sample programs and [REST API](restApi/README.md) show how to use the go-dcgm bindings.
 
 ## DCGM running modes
 
@@ -197,3 +197,43 @@ Legend:
  NV#  = Connection traversing a bonded set of # NVLinks
  2018/06/25 15:36:38 Successfully terminated nv-hostengine.
 ```
+
+### Jobs
+
+`samples/jobs` watches one GPU, starts a job, stops it after three seconds,
+reads its statistics and removes it. Run GPU work during that interval to
+collect workload data. It uses a private embedded engine and cleans up its
+job and group. Job watches may require root for accounting mode.
+
+### Named diagnostics
+
+The `diag` sample defaults to `RunDiag(DiagQuick, GroupAllGPUs())`. To run a
+named test with a parameter through `ActionValidate`:
+
+```bash
+bazel run //samples/diag -- -test diagnostic -parameter diagnostic.test_duration=1 -timeout 2m
+```
+
+For explicit GPU selection, construct `DiagnosticRequest.Entities` using
+`GroupEntityPair` and `FE_GPU`. For `nic_eud`, leave `Group` and `Entities` unset:
+the current runtime tests all NICs and does not support explicit ConnectX
+selectors. It requires the matching proprietary plugin and supported ConnectX
+hardware:
+
+```bash
+bazel run //samples/diag -- -test nic_eud -timeout 2m
+```
+
+Its results, errors, and auxiliary data are retained in `DiagResults.Tests` and
+printed by the sample's result template. `StopDiag` may be called from another
+goroutine while the request blocks; keep the session open until both calls return.
+
+### Configuration
+
+`samples/configuration` reads live and target configuration from a private
+embedded engine without changing GPU settings. Clocks are in Hz and power is
+in watts; the sample omits unset or unavailable clocks. Configuration reads use
+`dcgmConfig_v3` and require a DCGM 4.8 client library and hostengine; there is no
+fallback to the pre-4.8 protocol. Configuration calls normally require root.
+Use `ConfigSet` only after saving live and target state; targets persist after
+groups are destroyed until `ConfigReset` clears them.

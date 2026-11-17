@@ -28,6 +28,17 @@ tasks:
     cmds:
       - bash hack/validate-versions.sh
 
+  release:tag:check:
+    desc: Check that RELEASE_TAG is v1.<DCGM_VERSION digits><DCGM_PACKAGE_REVISION>.<patch> for the DCGM pin in hack/versions.env (RELEASE_TAG=v1.4712.3 task release:tag:check)
+    requires:
+      vars: [RELEASE_TAG]
+    env:
+      RELEASE_TAG: '{{.RELEASE_TAG}}'
+    cmds:
+      # Source the pin: Task's dotenv does not replace a DCGM_VERSION that is
+      # already in the environment.
+      - . ./hack/versions.env && go run ./cmd/check-release-tag -tag "${RELEASE_TAG}" -dcgm-version "${DCGM_VERSION}" -dcgm-package-revision "${DCGM_PACKAGE_REVISION}"
+
   bazel:gazelle:
     desc: Generate and update Bazel Go targets
     cmds:
@@ -197,9 +208,9 @@ tasks:
         if: '{{and (ne .FAILED_EXIT_CODE "") (eq .REPORTS "true")}}'
 
   test:error-metadata:
-    desc: Run DCGM runtime error metadata tests
+    desc: Run DCGM runtime error, field metadata, and native status tests
     cmds:
-      - bazel test --config=ci --config=dcgm-runtime //pkg/dcgm:dcgm_test --test_filter='^TestSelectedErrorMeta$' --cache_test_results=no {{.CLI_ARGS}}
+      - bazel test --config=ci --config=dcgm-runtime //pkg/dcgm:dcgm_test --test_filter='^(TestSelectedErrorMeta|TestNativeFailuresRetainStatus|TestLinkFieldMetadataInventory|TestGroupAdmissionPreservesNativeStatus)$' --test_output=all --test_arg=-test.v --cache_test_results=no {{.CLI_ARGS}}
 
   test:gpu:prereqs:
     desc: Check that the DCGM library is installed and DCGM finds a physical GPU
@@ -230,7 +241,7 @@ tasks:
       - |
         set +e
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/policy.json" \
-          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle)$'
+          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility|TestAdministrationRuntime|TestModuleDenylistIsolated|TestAdministrationNativeErrors|TestAdministrationAfterShutdown|TestAdministrationAfterFailedInit|TestJobStatsAfterFailedInit|TestProfilingPauseResume|TestDiagnosticAPIsAfterFailedInit|TestDiagnosticChildSkipClassification|TestDiagnosticCleanupWaits|TestDiagnosticProcessCancellation|TestDiagnosticGPUSelection|TestFieldPolicyUUIDImport|TestDCGM48ScopeReads|TestDeviceMemoryMiB|TestDCGM48InjectionGate|TestEntityInjectionHelperWithoutInit|TestCountedPolicyImportAfterFailedInit|TestConfigurationAfterFailedInit)$'
         policy_status=$?
         bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/suite.json" \
           --test_env=DCGM_SKIP_DIAGNOSTICS=1 //tests:tests_test {{.CLI_ARGS}}
@@ -251,6 +262,12 @@ tasks:
           RACE: "true"
           REPORTS: '{{.REPORTS | default "false"}}'
 
+  test:policy:rediscovery:
+    desc: Run opt-in policy driver detach/reattach checks on a dedicated GPU host
+    cmds:
+      - task: test:gpu:prereqs
+      - bazel test --config=ci --config=dcgm-runtime --cache_test_results=no --test_env=DCGM_TEST_POLICY_REDISCOVERY=1 //pkg/dcgm:dcgm_test --test_filter='^TestFieldPolicyRediscovery$' {{.CLI_ARGS}}
+
   test:diagnostics:
     desc: Run hardware-sensitive diagnostic tests; REPORTS=true writes the reports
     vars:
@@ -269,9 +286,16 @@ tasks:
             dcgmi diag --run 1 --verbose --json || true
           fi
       - task: test:gpu:prereqs
-      - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostics.json" //tests:tests_test --test_filter='^(TestDiagnostics|TestDiagnosticsLong|TestDiagTestNameFormat)$' {{.CLI_ARGS}}
+      - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostic-native.json" --test_env=DCGM_TEST_DIAGNOSTICS=1 //pkg/dcgm:dcgm_test --test_filter='^(TestDiagnosticCancellationAndRestart|TestDiagnosticHeartbeat|TestDiagnosticNamedParameters|TestDiagnosticConnectXRuntime)$' {{.CLI_ARGS}}
+      - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostics.json" //tests:tests_test --test_filter='^(TestDiagnostics|TestDiagnosticsLong|TestDiagTestNameFormat|TestJobStats)$' {{.CLI_ARGS}}
       - task: test:reports
         if: '{{eq .REPORTS "true"}}'
+
+  test:configuration:
+    desc: Run opt-in configuration and power-profile checks as root on a dedicated GPU host
+    cmds:
+      - task: test:gpu:prereqs
+      - bazel test --config=ci --config=dcgm-runtime --cache_test_results=no --test_env=DCGM_ENABLE_CONFIGURATION_TESTS=1 //tests:tests_test --test_filter='^TestConfiguration' {{.CLI_ARGS}}
 
   lint:
     desc: Run Go lint; LINT_BASE_REV=<rev> reports only issues new since that revision
@@ -287,7 +311,7 @@ tasks:
     cmds:
       # Left unquoted so the shell expands globs in EXTRA_SHELL_SCRIPTS.
       # ShellCheck takes each script's shell from its first line.
-      - shellcheck -x hack/validate-versions.sh scripts/lint/go-mod-tidy.sh {{.EXTRA_SHELL_SCRIPTS}}
+      - shellcheck -x hack/validate-versions.sh hack/script-template.sh scripts/lint/go-mod-tidy.sh {{.EXTRA_SHELL_SCRIPTS}}
 
   fmt:
     desc: Format Go sources

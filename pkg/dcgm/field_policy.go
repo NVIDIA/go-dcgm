@@ -20,6 +20,7 @@ package dcgm
 #include <stdint.h>
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
+#include "field_policy_import.h"
 
 extern int fieldPolicyViolationNotify(dcgm_policy_violation_t *violation, uint64_t userData);
 */
@@ -36,6 +37,10 @@ import (
 )
 
 const (
+	// UnresolvedFieldPolicyEntityID identifies a policy target whose GPU UUID is absent.
+	// Preserve these entries during read/modify round-trips; an empty target list means all GPUs.
+	UnresolvedFieldPolicyEntityID uint = math.MaxUint32
+
 	// MaxFieldPolicies is the largest number of field policies DCGM v4.7 can return.
 	MaxFieldPolicies = int(C.DCGM_POLICY_MAX_POLICIES)
 
@@ -88,6 +93,10 @@ type FieldPolicySpec struct {
 }
 
 // FieldPolicy is the current state of a field-policy returned by DCGM.
+// Entities with UnresolvedFieldPolicyEntityID retain their UUID internally in DCGM.
+// Modification may retain all or none of the unresolved targets in each entity group;
+// retaining only some is ambiguous and DCGM returns BADPARAM. Creating a policy
+// with an unresolved sentinel also returns BADPARAM because no UUID was supplied.
 type FieldPolicy struct {
 	PolicyID               uint64
 	FieldID                Short
@@ -125,10 +134,12 @@ type FeatureUnavailableError struct {
 	Cause   error
 }
 
+// Error describes the unavailable feature and any native cause.
 func (e *FeatureUnavailableError) Error() string {
 	if e.Cause != nil {
 		return fmt.Sprintf("%s is unavailable (%s): %v", e.Feature, e.Symbol, e.Cause)
 	}
+
 	return fmt.Sprintf("%s is unavailable (%s)", e.Feature, e.Symbol)
 }
 
@@ -145,60 +156,77 @@ func IsFeatureUnavailable(err error) bool {
 
 const fieldPolicyFeature = "DCGM field-policy API"
 
+// requireFieldPolicySymbol checks that the loaded library exports a policy entry point.
 func requireFieldPolicySymbol(symbol string) error {
 	if dcgmSymbolAvailable(symbol) {
 		return nil
 	}
+
 	return &FeatureUnavailableError{Feature: fieldPolicyFeature, Symbol: symbol}
 }
 
+// fieldPolicyResult converts a native policy status into a Go error.
 func fieldPolicyResult(symbol string, result C.dcgmReturn_t) error {
 	return dcgmFeatureResult(fieldPolicyFeature, symbol, result, dcgmErrorText(result))
 }
 
+// dcgmFeatureResult preserves native status and identifies missing feature entry points.
 func dcgmFeatureResult(feature, symbol string, result C.dcgmReturn_t, message string) error {
 	if result == C.DCGM_ST_OK {
 		return nil
 	}
+
 	dcgmErr := &Error{msg: message, Code: result}
 	if result == C.DCGM_ST_FUNCTION_NOT_FOUND {
 		return &FeatureUnavailableError{Feature: feature, Symbol: symbol, Cause: dcgmErr}
 	}
+
 	return dcgmErr
 }
 
+// validateFieldPolicySpec checks values before copying them into native storage.
 func validateFieldPolicySpec(spec FieldPolicySpec) error {
 	if spec.FieldID == 0 {
 		return errors.New("field policy field ID must not be zero")
 	}
+
 	if err := validateCString("field policy name", spec.Name, int(C.DCGM_MAX_STR_LENGTH)); err != nil {
 		return err
 	}
+
 	if spec.Operator > FieldPolicyChanged {
 		return fmt.Errorf("unsupported field policy operator: %d", spec.Operator)
 	}
+
 	if len(spec.Entities) > int(C.DCGM_MAX_NUM_DEVICES) {
 		return fmt.Errorf("field policy has %d entities; DCGM supports at most %d", len(spec.Entities), C.DCGM_MAX_NUM_DEVICES)
 	}
+
 	if spec.RateLimitSeconds > math.MaxUint32 {
 		return fmt.Errorf("field policy rate limit %d exceeds the DCGM maximum of %d seconds", spec.RateLimitSeconds, uint(math.MaxUint32))
 	}
+
 	return nil
 }
 
+// validateCString checks that a nonempty string fits a NUL-terminated native buffer.
 func validateCString(name, value string, maxSize int) error {
 	if value == "" {
 		return fmt.Errorf("%s must not be empty", name)
 	}
+
 	if strings.IndexByte(value, 0) >= 0 {
 		return fmt.Errorf("%s must not contain a NUL byte", name)
 	}
+
 	if len(value) >= maxSize {
 		return fmt.Errorf("%s is too long; maximum length is %d bytes", name, maxSize-1)
 	}
+
 	return nil
 }
 
+// cFieldPolicyEntities copies entity identifiers into native pairs.
 func cFieldPolicyEntities(entities []GroupEntityPair) []C.dcgmGroupEntityPair_t {
 	if len(entities) == 0 {
 		return nil
@@ -209,6 +237,7 @@ func cFieldPolicyEntities(entities []GroupEntityPair) []C.dcgmGroupEntityPair_t 
 		cEntities[i].entityGroupId = C.dcgm_field_entity_group_t(entity.EntityGroupId)
 		cEntities[i].entityId = C.uint(entity.EntityId)
 	}
+
 	return cEntities
 }
 
@@ -218,6 +247,7 @@ func CreateFieldPolicy(spec FieldPolicySpec) (uint64, error) {
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return 0, err
 	}
+
 	if err := validateFieldPolicySpec(spec); err != nil {
 		return 0, err
 	}
@@ -229,6 +259,7 @@ func CreateFieldPolicy(spec FieldPolicySpec) (uint64, error) {
 	if len(cEntities) > 0 {
 		entities = &cEntities[0]
 	}
+
 	var policyID C.uint64_t
 	result := C.dcgmPolicyCreate(
 		handle.handle,
@@ -246,6 +277,7 @@ func CreateFieldPolicy(spec FieldPolicySpec) (uint64, error) {
 	if err := fieldPolicyResult(symbol, result); err != nil {
 		return 0, err
 	}
+
 	return uint64(policyID), nil
 }
 
@@ -255,13 +287,16 @@ func ModifyFieldPolicy(policy FieldPolicy) error {
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return err
 	}
+
 	if policy.PolicyID == 0 {
 		return errors.New("field policy ID must not be zero")
 	}
+
 	cPolicy, err := cFieldPolicyInfo(policy)
 	if err != nil {
 		return err
 	}
+
 	return fieldPolicyResult(symbol, C.dcgmPolicyModify(handle.handle, &cPolicy))
 }
 
@@ -276,6 +311,7 @@ func deleteFieldPolicy(fieldID Short, policyID uint64, all bool) error {
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return err
 	}
+
 	return fieldPolicyResult(symbol, C.dcgmPolicyDelete(handle.handle, C.ushort(fieldID), C.uint64_t(policyID), C.uint(boolToUint(all))))
 }
 
@@ -290,6 +326,7 @@ func EnableFieldPolicy(fieldID Short, policyID uint64) error {
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return err
 	}
+
 	return fieldPolicyResult(symbol, C.dcgmPolicyEnable(handle.handle, C.ushort(fieldID), C.uint64_t(policyID)))
 }
 
@@ -299,6 +336,7 @@ func DisableFieldPolicy(fieldID Short, policyID uint64) error {
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return err
 	}
+
 	return fieldPolicyResult(symbol, C.dcgmPolicyDisable(handle.handle, C.ushort(fieldID), C.uint64_t(policyID)))
 }
 
@@ -315,6 +353,7 @@ func GetFieldPolicy(fieldID Short, policyID uint64) (FieldPolicy, error) {
 	if err := fieldPolicyResult(symbol, result); err != nil {
 		return FieldPolicy{}, err
 	}
+
 	return fieldPolicyFromC(cPolicy), nil
 }
 
@@ -324,6 +363,7 @@ func GetAllFieldPolicies() ([]FieldPolicy, error) {
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return nil, err
 	}
+
 	return getAllFieldPoliciesWithCalls(cgoAdapter{})
 }
 
@@ -334,19 +374,24 @@ func getAllFieldPoliciesWithCalls(api fieldPolicyListCalls) ([]FieldPolicy, erro
 	if err != nil {
 		return nil, err
 	}
+
 	if count == 0 {
 		return nil, nil
 	}
+
 	if countErr := validateFieldPolicyCount(count); countErr != nil {
 		return nil, countErr
 	}
+
 	policies, reported, err := api.fieldPolicyList(count)
 	if err != nil {
 		return nil, err
 	}
+
 	if reported > count {
 		return nil, fmt.Errorf("DCGM field-policy list grew from %d to %d entries; retry the request", count, reported)
 	}
+
 	return policies, nil
 }
 
@@ -358,6 +403,7 @@ func (cgoAdapter) fieldPolicyCount() (int, error) {
 	if result != C.DCGM_ST_OK && result != C.DCGM_ST_INSUFFICIENT_SIZE {
 		return 0, fieldPolicyResult(symbol, result)
 	}
+
 	return int(count), nil
 }
 
@@ -368,14 +414,17 @@ func (cgoAdapter) fieldPolicyList(count int) ([]FieldPolicy, int, error) {
 	for i := range cPolicies {
 		cPolicies[i].version = C.dcgmPolicyInfo_version
 	}
+
 	capacity := C.uint(count)
 	result := C.dcgmPolicyGetAll(handle.handle, &cPolicies[0], &capacity)
 	if result == C.DCGM_ST_INSUFFICIENT_SIZE {
 		return nil, int(capacity), nil
 	}
+
 	if err := fieldPolicyResult(symbol, result); err != nil {
 		return nil, 0, err
 	}
+
 	if int(capacity) > len(cPolicies) {
 		return nil, int(capacity), nil
 	}
@@ -384,7 +433,15 @@ func (cgoAdapter) fieldPolicyList(count int) ([]FieldPolicy, int, error) {
 	for i := range policies {
 		policies[i] = fieldPolicyFromC(cPolicies[i])
 	}
+
 	return policies, int(capacity), nil
+}
+
+// validateFieldPolicyPath checks a policy file path before either import call.
+// DCGM rejects paths of DCGM_POLICY_MAX_PATH bytes or more, so the longest
+// accepted path leaves room for the terminating NUL.
+func validateFieldPolicyPath(path string) error {
+	return validateCString("field policy path", path, int(C.DCGM_POLICY_MAX_PATH))
 }
 
 // ImportFieldPolicies imports field-policies from a DCGM YAML policy file.
@@ -393,12 +450,62 @@ func ImportFieldPolicies(path string) error {
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return err
 	}
-	if err := validateCString("field policy path", path, int(C.DCGM_POLICY_MAX_PATH)+1); err != nil {
+
+	if err := validateFieldPolicyPath(path); err != nil {
 		return err
 	}
+
 	cPath := C.CString(path)
 	defer freeCString(cPath)
 	return fieldPolicyResult(symbol, C.dcgmPolicyImport(handle.handle, cPath))
+}
+
+// ImportFieldPoliciesWithCounts imports a policy YAML file and reports parsed and skipped entries.
+// Counts remain available on errors, including BADPARAM. Parsed entries do not imply
+// that policies were applied: DCGM rejects the whole import if any entry is invalid.
+// Policy schema 2 uses componentUuid for explicit GPU targets. Recreate entityId-only
+// files with UUIDs, keeping a backup before replacing them.
+// A library without dcgmPolicyImport_v2 returns a feature-unavailable error.
+func ImportFieldPoliciesWithCounts(path string) (parsed, skipped uint, err error) {
+	return importFieldPoliciesWithCounts(cgoAdapter{}, path)
+}
+
+// importFieldPoliciesWithCounts validates the path and preserves native counts on failure.
+func importFieldPoliciesWithCounts(api fieldPolicyImportCalls, path string) (parsed, skipped uint, err error) {
+	const symbol = "dcgmPolicyImport_v2"
+	if err := api.requireFieldPolicySymbol(symbol); err != nil {
+		return 0, 0, err
+	}
+
+	if err := validateFieldPolicyPath(path); err != nil {
+		return 0, 0, err
+	}
+
+	parsed, skipped, result := api.importFieldPoliciesNative(path)
+	if result == DCGM_ST_OK {
+		return parsed, skipped, nil
+	}
+
+	return parsed, skipped, fmt.Errorf("importing field policies: %w",
+		dcgmFeatureResult(fieldPolicyFeature, symbol, C.dcgmReturn_t(result), api.nativeErrorText(result)))
+}
+
+// requireFieldPolicySymbol checks that an active session can call a policy entry point.
+func (cgoAdapter) requireFieldPolicySymbol(symbol string) error {
+	if !dcgmSessionSymbolAvailable(symbol) {
+		return &FeatureUnavailableError{Feature: fieldPolicyFeature, Symbol: symbol}
+	}
+
+	return nil
+}
+
+// importFieldPoliciesNative calls the counted import entry point and returns its native status.
+func (cgoAdapter) importFieldPoliciesNative(path string) (parsedCount, skippedCount uint, status int) {
+	cPath := C.CString(path)
+	defer freeCString(cPath)
+	var parsed, skipped C.uint
+	result := C.callPolicyImportV2(dcgmLibHandle, handle.handle, cPath, &parsed, &skipped)
+	return uint(parsed), uint(skipped), int(result)
 }
 
 // GetFieldPolicyViolations returns recent field-policy violations at or after since.
@@ -414,6 +521,7 @@ func GetFieldPolicyViolations(since time.Time) ([]FieldPolicyViolation, error) {
 	if result != C.DCGM_ST_OK && result != C.DCGM_ST_INSUFFICIENT_SIZE {
 		return nil, fieldPolicyResult(symbol, result)
 	}
+
 	if int(count) > len(cViolations) {
 		return nil, fmt.Errorf("DCGM reported %d policy violations; maximum supported is %d", count, len(cViolations))
 	}
@@ -422,16 +530,20 @@ func GetFieldPolicyViolations(since time.Time) ([]FieldPolicyViolation, error) {
 	for i := range violations {
 		violations[i] = fieldPolicyViolationFromC(cViolations[i])
 	}
+
 	return violations, nil
 }
 
+// boolToUint converts a Go boolean to the native zero-or-one representation.
 func boolToUint(value bool) uint {
 	if value {
 		return 1
 	}
+
 	return 0
 }
 
+// cFieldPolicyInfo validates and copies a policy into its native representation.
 func cFieldPolicyInfo(policy FieldPolicy) (C.dcgmPolicyInfo_t, error) {
 	spec := FieldPolicySpec{
 		FieldID:          policy.FieldID,
@@ -443,6 +555,7 @@ func cFieldPolicyInfo(policy FieldPolicy) (C.dcgmPolicyInfo_t, error) {
 		Enabled:          policy.Enabled,
 		RateLimitSeconds: policy.RateLimitSeconds,
 	}
+
 	if err := validateFieldPolicySpec(spec); err != nil {
 		return C.dcgmPolicyInfo_t{}, err
 	}
@@ -459,6 +572,7 @@ func cFieldPolicyInfo(policy FieldPolicy) (C.dcgmPolicyInfo_t, error) {
 		cPolicy.entities[i].entityGroupId = C.dcgm_field_entity_group_t(entity.EntityGroupId)
 		cPolicy.entities[i].entityId = C.uint(entity.EntityId)
 	}
+
 	cPolicy.entityCount = C.uint(len(policy.Entities))
 	cPolicy.channelMask = C.uint(policy.Channels)
 	if policy.Enabled {
@@ -466,6 +580,7 @@ func cFieldPolicyInfo(policy FieldPolicy) (C.dcgmPolicyInfo_t, error) {
 	} else {
 		cPolicy.state = C.DCGM_POLICY_STATE_DISABLED
 	}
+
 	cPolicy.rateLimitSec = C.uint(policy.RateLimitSeconds)
 	cPolicy.createdAt = C.int64_t(microsecondsOrZero(policy.CreatedAt))
 	cPolicy.violationCount = C.uint(policy.ViolationCount)
@@ -473,12 +588,14 @@ func cFieldPolicyInfo(policy FieldPolicy) (C.dcgmPolicyInfo_t, error) {
 	return cPolicy, nil
 }
 
+// fieldPolicyFromC copies native policy settings and state into Go-owned values.
 func fieldPolicyFromC(cPolicy C.dcgmPolicyInfo_t) FieldPolicy {
 	entityCount := min(int(cPolicy.entityCount), len(cPolicy.entities))
 	entities := make([]GroupEntityPair, entityCount)
 	for i := range entities {
 		entities[i] = groupEntityPair(cPolicy.entities[i])
 	}
+
 	return FieldPolicy{
 		PolicyID:               uint64(cPolicy.policyId),
 		FieldID:                Short(cPolicy.fieldId),
@@ -496,6 +613,7 @@ func fieldPolicyFromC(cPolicy C.dcgmPolicyInfo_t) FieldPolicy {
 	}
 }
 
+// fieldPolicyViolationFromC copies a native violation into a Go-owned value.
 func fieldPolicyViolationFromC(cViolation C.dcgm_policy_violation_t) FieldPolicyViolation {
 	return FieldPolicyViolation{
 		PolicyID:     uint64(cViolation.policyId),
@@ -511,27 +629,34 @@ func fieldPolicyViolationFromC(cViolation C.dcgm_policy_violation_t) FieldPolicy
 	}
 }
 
+// timeFromMicroseconds preserves the native zero timestamp as an unset Go time.
 func timeFromMicroseconds(value int64) time.Time {
 	if value == 0 {
 		return time.Time{}
 	}
+
 	return time.UnixMicro(value)
 }
 
+// microsecondsOrZero preserves an unset Go time as a native zero timestamp.
 func microsecondsOrZero(value time.Time) int64 {
 	if value.IsZero() {
 		return 0
 	}
+
 	return value.UnixMicro()
 }
 
+// validateFieldPolicyCount rejects counts larger than the allocated policy buffer.
 func validateFieldPolicyCount(count int) error {
 	if count > MaxFieldPolicies {
 		return fmt.Errorf("DCGM reported %d field policies; maximum supported is %d", count, MaxFieldPolicies)
 	}
+
 	return nil
 }
 
+// copyGoStringToCChars copies a validated string into a zero-initialized native buffer.
 func copyGoStringToCChars(destination []C.char, value string) {
 	for i := 0; i < len(value); i++ {
 		destination[i] = C.char(value[i])
@@ -550,6 +675,7 @@ type fieldPolicySubscriptionRegistry struct {
 	byKey         map[fieldPolicySubscriptionKey]uint64
 }
 
+// newFieldPolicySubscriptionRegistry creates an empty callback registry.
 func newFieldPolicySubscriptionRegistry() *fieldPolicySubscriptionRegistry {
 	return &fieldPolicySubscriptionRegistry{
 		subscriptions: make(map[uint64]*FieldPolicySubscription),
@@ -571,19 +697,23 @@ type FieldPolicySubscription struct {
 	closed     bool
 }
 
+// add reserves one callback key and creates its buffered delivery channel.
 func (r *fieldPolicySubscriptionRegistry) add(key fieldPolicySubscriptionKey, buffer int) (*FieldPolicySubscription, error) {
 	if buffer < 1 {
 		buffer = 1
 	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, exists := r.byKey[key]; exists {
 		return nil, fmt.Errorf("field-policy callback is already registered for field %d policy %d", key.fieldID, key.policyID)
 	}
+
 	r.nextID++
 	if r.nextID == 0 {
 		r.nextID++
 	}
+
 	channel := make(chan FieldPolicyViolation, buffer)
 	subscription := &FieldPolicySubscription{
 		Violations: channel,
@@ -592,11 +722,13 @@ func (r *fieldPolicySubscriptionRegistry) add(key fieldPolicySubscriptionKey, bu
 		key:        key,
 		ch:         channel,
 	}
+
 	r.subscriptions[subscription.id] = subscription
 	r.byKey[key] = subscription.id
 	return subscription, nil
 }
 
+// remove forgets a callback registration and closes its delivery channel.
 func (r *fieldPolicySubscriptionRegistry) remove(id uint64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -604,11 +736,13 @@ func (r *fieldPolicySubscriptionRegistry) remove(id uint64) {
 	if !exists {
 		return
 	}
+
 	delete(r.subscriptions, id)
 	delete(r.byKey, subscription.key)
 	close(subscription.ch)
 }
 
+// deliver sends a violation if the registration exists and its channel has space.
 func (r *fieldPolicySubscriptionRegistry) deliver(id uint64, violation FieldPolicyViolation) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -616,6 +750,7 @@ func (r *fieldPolicySubscriptionRegistry) deliver(id uint64, violation FieldPoli
 	if !exists {
 		return
 	}
+
 	select {
 	case subscription.ch <- violation:
 	default:
@@ -630,6 +765,7 @@ func SubscribeFieldPolicyViolations(fieldID Short, policyID uint64, buffer int) 
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return nil, err
 	}
+
 	return subscribeFieldPolicyWithCalls(cgoAdapter{}, fieldPolicyCallbacks, fieldID, policyID, buffer)
 }
 
@@ -639,13 +775,16 @@ func subscribeFieldPolicyWithCalls(api fieldPolicyEventCalls, registry *fieldPol
 	if err != nil {
 		return nil, err
 	}
+
 	if err := api.registerFieldPolicyNative(fieldID, policyID, subscription.id); err != nil {
 		registry.remove(subscription.id)
 		return nil, err
 	}
+
 	subscription.unregister = func() error {
 		return api.unregisterFieldPolicyNative(fieldID, policyID)
 	}
+
 	return subscription, nil
 }
 
@@ -667,6 +806,7 @@ func (s *FieldPolicySubscription) Close() error {
 	if s == nil {
 		return nil
 	}
+
 	s.closeMu.Lock()
 	defer s.closeMu.Unlock()
 	if s.closed {
@@ -676,6 +816,7 @@ func (s *FieldPolicySubscription) Close() error {
 	if err := s.unregister(); err != nil && !unregisterErrorClearsLocalState(err) {
 		return err
 	}
+
 	s.registry.remove(s.id)
 	s.closed = true
 	return nil
@@ -687,6 +828,7 @@ func (cgoAdapter) unregisterFieldPolicyNative(fieldID Short, policyID uint64) er
 	if err := requireFieldPolicySymbol(symbol); err != nil {
 		return err
 	}
+
 	result := C.dcgmPolicyUnregister_v3(handle.handle, C.ushort(fieldID), C.uint64_t(policyID))
 	return fieldPolicyResult(symbol, result)
 }
@@ -698,6 +840,7 @@ func FieldPolicyViolationRegistration(data unsafe.Pointer, userData C.uint64_t) 
 	if data == nil {
 		return 0
 	}
+
 	violation := *(*C.dcgm_policy_violation_t)(data)
 	fieldPolicyCallbacks.deliver(uint64(userData), fieldPolicyViolationFromC(violation))
 	return 0

@@ -17,6 +17,7 @@ tags
 !.devcontainer/
 !.bazelrc
 !.bazelversion
+!.shellcheckrc
 
 bazel-*
 dist/

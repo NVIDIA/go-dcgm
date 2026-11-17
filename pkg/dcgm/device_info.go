@@ -61,7 +61,7 @@ func getAllDeviceCount() (gpuCount uint, err error) {
 
 	result := C.dcgmGetAllDevices(handle.handle, &gpuIDList[0], &count)
 	if err = errorString(result); err != nil {
-		return gpuCount, fmt.Errorf("error getting devices count: %s", err)
+		return gpuCount, fmt.Errorf("error getting devices count: %w", &Error{msg: err.Error(), Code: result})
 	}
 	if err = validateNativeCount(int(count), len(gpuIDList), "device"); err != nil {
 		return gpuCount, fmt.Errorf("error getting devices count: %w", err)
@@ -78,7 +78,7 @@ func getEntityGroupEntities(entityGroup Field_Entity_Group) ([]uint, error) {
 
 	result := C.dcgmGetEntityGroupEntities(handle.handle, C.dcgm_field_entity_group_t(entityGroup), &pEntities[0], &count, 0)
 	if err = errorString(result); err != nil {
-		return nil, fmt.Errorf("error getting entity count: %s", err)
+		return nil, fmt.Errorf("error getting entity count: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return entityGroupEntitiesFromNative(&pEntities, count)
@@ -173,7 +173,7 @@ func getPciBandwidthWithOps(api deviceStatusOps, gpuID uint) (int64, error) {
 	if err != nil {
 		_ = api.fieldGroupDestroy(fieldsID)
 		_ = api.destroyGroup(groupID)
-		return 0, fmt.Errorf("error getting Pcie bandwidth: %s", err)
+		return 0, fmt.Errorf("error getting Pcie bandwidth: %w", err)
 	}
 
 	gen := values[maxLinkGen].Int64()
@@ -251,7 +251,7 @@ func getCPUAffinityWithOps(api deviceStatusOps, gpuID uint) (string, error) {
 
 	values, err := api.getLatestValuesForFields(gpuID, affFields)
 	if err != nil {
-		return "N/A", fmt.Errorf("error getting cpu affinity: %s", err)
+		return "N/A", fmt.Errorf("error getting cpu affinity: %w", err)
 	}
 
 	bits := make([]uint64, 4)
@@ -277,10 +277,10 @@ func getDeviceInfo(gpuID uint) (Device, error) {
 
 // readDeviceAttributes converts native GPU attributes into values used to build a Device.
 func (cgoAdapter) readDeviceAttributes(gpuID uint) (deviceAttributes, error) {
-	var device C.dcgmDeviceAttributes_t
+	var device C.dcgmDeviceAttributes_v3
 	device.version = makeVersion3(unsafe.Sizeof(device))
 
-	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), &device)
+	result := C.dcgmGetDeviceAttributes(handle.handle, C.uint(gpuID), (*C.dcgmDeviceAttributes_t)(unsafe.Pointer(&device)))
 	if err := errorString(result); err != nil {
 		return deviceAttributes{}, &Error{msg: dcgmErrorText(result), Code: result}
 	}
@@ -289,7 +289,7 @@ func (cgoAdapter) readDeviceAttributes(gpuID uint) (deviceAttributes, error) {
 }
 
 // deviceAttributesFromNative converts native GPU attributes into Go-owned values.
-func deviceAttributesFromNative(device *C.dcgmDeviceAttributes_t) deviceAttributes {
+func deviceAttributesFromNative(device *C.dcgmDeviceAttributes_v3) deviceAttributes {
 	return deviceAttributes{
 		busID:   *stringPtr(&device.identifiers.pciBusId[0]),
 		uuid:    *stringPtr(&device.identifiers.uuid[0]),

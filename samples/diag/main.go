@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -41,13 +42,30 @@ func newDiagOutputTemplate() *template.Template {
 }
 
 func main() {
+	testName := flag.String("test", "", "named diagnostic test (default: quick diagnostic level)")
+	parameter := flag.String("parameter", "", "testName.parameterName=value")
+	timeout := flag.Duration("timeout", 0, "diagnostic timeout with a unit, e.g. 90s; must be whole seconds (named test only)")
+	flag.Parse()
+	if *testName == "" && (*parameter != "" || *timeout != 0) {
+		log.Fatal("-parameter and -timeout require -test")
+	}
+
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	if err != nil {
 		log.Panicln(err)
 	}
 	defer cleanup()
 
-	dr, err := dcgm.RunDiag(dcgm.DiagQuick, dcgm.GroupAllGPUs())
+	var dr dcgm.DiagResults
+	if *testName == "" {
+		dr, err = dcgm.RunDiag(dcgm.DiagQuick, dcgm.GroupAllGPUs())
+	} else {
+		request := dcgm.DiagnosticRequest{TestNames: []string{*testName}, Timeout: *timeout}
+		if *parameter != "" {
+			request.TestParameters = []string{*parameter}
+		}
+		dr, err = dcgm.ActionValidate(request)
+	}
 	if err != nil {
 		log.Panicln(err)
 	}

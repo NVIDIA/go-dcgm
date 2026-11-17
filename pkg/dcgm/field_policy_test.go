@@ -18,6 +18,8 @@ package dcgm
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -299,4 +301,95 @@ func TestFieldPolicySubscriptionConcurrentCloseAndDelivery(t *testing.T) {
 	}
 	_, open := <-subscription.Violations
 	assert.False(t, open)
+}
+
+func TestFieldPolicyUnresolvedTargetsRoundTrip(t *testing.T) {
+	want := FieldPolicy{
+		FieldID: DCGM_FI_DEV_GPU_TEMP, Name: "unresolved", Operator: FieldPolicyGreaterThan,
+		Entities: []GroupEntityPair{{EntityGroupId: FE_GPU, EntityId: UnresolvedFieldPolicyEntityID}, {EntityGroupId: FE_GPU, EntityId: 3}, {EntityGroupId: FE_GPU, EntityId: UnresolvedFieldPolicyEntityID}},
+	}
+	require.Equal(t, uint(4_294_967_295), UnresolvedFieldPolicyEntityID)
+	got, err := fieldPolicyRoundTripForTest(want)
+	require.NoError(t, err)
+	require.Equal(t, want.Entities, got.Entities)
+	got.Threshold = 90
+	again, err := fieldPolicyRoundTripForTest(got)
+	require.NoError(t, err)
+	require.Equal(t, want.Entities, again.Entities)
+}
+
+func TestImportFieldPoliciesWithCounts(t *testing.T) {
+	for _, code := range []int{DCGM_ST_OK, DCGM_ST_BADPARAM, DCGM_ST_VER_MISMATCH, DCGM_ST_FUNCTION_NOT_FOUND} {
+		t.Run(strconv.Itoa(code), func(t *testing.T) {
+			api := NewMockfieldPolicyImportCalls(gomock.NewController(t))
+			api.EXPECT().requireFieldPolicySymbol("dcgmPolicyImport_v2").Return(nil)
+			api.EXPECT().importFieldPoliciesNative("policies.yaml").Return(uint(2), uint(1), code)
+			if code != DCGM_ST_OK {
+				api.EXPECT().nativeErrorText(code).Return("runtime message")
+			}
+			parsed, skipped, err := importFieldPoliciesWithCounts(api, "policies.yaml")
+			require.Equal(t, uint(2), parsed)
+			require.Equal(t, uint(1), skipped)
+			if code == DCGM_ST_OK {
+				require.NoError(t, err)
+				return
+			}
+			var native *Error
+			require.ErrorAs(t, err, &native)
+			require.Equal(t, code, int(native.Code))
+			require.Equal(t, code == DCGM_ST_FUNCTION_NOT_FOUND, IsFeatureUnavailable(err))
+			require.Contains(t, err.Error(), "importing field policies")
+		})
+	}
+	t.Run("missing symbol", func(t *testing.T) {
+		api := NewMockfieldPolicyImportCalls(gomock.NewController(t))
+		api.EXPECT().requireFieldPolicySymbol("dcgmPolicyImport_v2").Return(&FeatureUnavailableError{Feature: fieldPolicyFeature, Symbol: "dcgmPolicyImport_v2"})
+		parsed, skipped, err := importFieldPoliciesWithCounts(api, "policies.yaml")
+		require.Zero(t, parsed)
+		require.Zero(t, skipped)
+		require.True(t, IsFeatureUnavailable(err))
+	})
+	for _, path := range []string{"", "bad\x00path", strings.Repeat("x", maxFieldPolicyPathForTest())} {
+		t.Run("invalid path", func(t *testing.T) {
+			api := NewMockfieldPolicyImportCalls(gomock.NewController(t))
+			api.EXPECT().requireFieldPolicySymbol("dcgmPolicyImport_v2").Return(nil)
+			_, _, err := importFieldPoliciesWithCounts(api, path)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestCountedPolicyImportWithoutInit(t *testing.T) {
+	parsed, skipped, err := ImportFieldPoliciesWithCounts("policies.yaml")
+	require.Zero(t, parsed)
+	require.Zero(t, skipped)
+	require.True(t, IsFeatureUnavailable(err))
+}
+
+func TestCountedPolicyImportBridgeWithoutLibrary(t *testing.T) {
+	parsed, skipped, status := countedPolicyImportBridgeWithoutLibrary()
+	require.Zero(t, parsed)
+	require.Zero(t, skipped)
+	require.Equal(t, DCGM_ST_FUNCTION_NOT_FOUND, status)
+}
+
+// TestValidateFieldPolicyPathLength checks the longest path DCGM accepts for both import calls.
+func TestValidateFieldPolicyPathLength(t *testing.T) {
+	limit := maxFieldPolicyPathForTest()
+
+	tests := []struct {
+		name    string
+		length  int
+		wantErr bool
+	}{
+		{"one byte", 1, false},
+		{"longest accepted", limit - 1, false},
+		{"rejected by DCGM", limit, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateFieldPolicyPath(strings.Repeat("x", tt.length))
+			require.Equal(t, tt.wantErr, err != nil, "error: %v", err)
+		})
+	}
 }

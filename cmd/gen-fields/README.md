@@ -6,15 +6,16 @@ This tool generates Go constants from the DCGM C header file `dcgm_fields.h`.
 
 The generator parses `dcgm_fields.h` and generates a Go file with:
 
-- Typed constants for each `#define DCGM_FI_X <int>` in the header.
-- Typed const aliases for deprecated header aliases, so old `DCGM_FI_*`
-  names remain source-compatible.
+- Typed constants for decimal or hexadecimal field IDs, optionally wrapped
+  in parentheses, such as `42`, `(42)`, or `(0x2A)`.
+- Typed const aliases for deprecated header aliases and for curated
+  `DCGM_FI_*` names the header no longer defines, so old names remain
+  source-compatible.
 - `dcgmFields`: maps canonical name to field ID.
 - `legacyDCGMFields`: maps backward-compatible names to the same IDs.
   Populated from two sources:
   - Hand-curated DCGM 1.x era lowercase names (e.g. `dcgm_gpu_temp`) and
-    the preserved `DCGM_FI_DEV_GPU_UTIL` compatibility name listed in
-    `pkg/dcgm/legacy_fields.csv`.
+    `DCGM_FI_*` compatibility names listed in `pkg/dcgm/legacy_fields.csv`.
   - Deprecated-alias `#define OLD NEW` lines in the header, either
     inside an `#ifdef DCGM_DEPRECATED` block or preceded by a
     `Deprecated:` comment.
@@ -55,17 +56,23 @@ Arguments:
    - `#define DCGM_FI_X <int>` -> canonical field, with preceding comment
      captured as its description.
    - `#define DCGM_FI_OLD DCGM_FI_NEW` -> deprecated alias. Recorded only
-     when the alias is inside an `#ifdef DCGM_DEPRECATED` block OR its
-     preceding comment contains `Deprecated:`. Other alias-style
+     when the alias is inside a deprecated guard (`#ifdef DCGM_DEPRECATED`,
+     `#if DCGM_DEPRECATED`, `#if defined(DCGM_DEPRECATED)`, or
+     `#if defined DCGM_DEPRECATED`) OR its preceding comment contains
+     `Deprecated:`. Other alias-style
      `#define`s (e.g. range sentinels) are silently skipped.
 2. **Resolve aliases**: each recorded alias is mapped to its target
-   field's canonical ID. The resolved alias feeds both Go const alias
-   generation and legacy string lookup. If a target isn't a known field,
-   generation fails so header churn can't silently drop previously-exposed names.
-3. **Read curated legacy names**: lowercase DCGM 1.x names and the preserved
-   `DCGM_FI_DEV_GPU_UTIL` compatibility name are read from
-   `legacy_fields.csv`. Other `DCGM_FI_*` entries re-derive from step 2 every
-   run.
+   field's canonical ID. Arithmetic expression definitions and aliases that
+   target those omitted expressions are left out. The remaining aliases feed
+   both Go constants and legacy string lookup. Any unrelated unknown target
+   still fails generation so header churn cannot silently drop exposed names.
+3. **Read curated legacy names**: lowercase DCGM 1.x names and `DCGM_FI_*`
+   compatibility names are read from `legacy_fields.csv`. A curated
+   `DCGM_FI_*` name that the header still defines must have the header's ID,
+   or generation fails: the header decides what a field name means. A curated
+   `DCGM_FI_*` name the header no longer defines becomes a Go const alias of
+   the header field with the same ID, such as `DCGM_FI_DEV_GPU_UTIL_RATIO_V2`
+   for `DCGM_FI_DEV_GPU_UTIL_RATIO`.
 4. **Emit Go code** via `template.go`; `task generate` and
    `task generate:check` apply the pinned gofumpt version.
 
@@ -89,7 +96,7 @@ var dcgmFields = map[string]Short{
 }
 
 var legacyDCGMFields = map[string]Short{
-    // DCGM 1.x lowercase names from legacy_fields.csv:
+    // Curated names from legacy_fields.csv:
     "dcgm_gpu_temp":   150,
     "dcgm_power_usage": 155,
     // Deprecated aliases resolved from dcgm_fields.h:
@@ -116,8 +123,8 @@ When DCGM adds new fields:
 2. Run `task generate`
 3. Review the diff in `pkg/dcgm/const_fields.go`
 4. If a curated compatibility name is needed, update
-   `pkg/dcgm/legacy_fields.csv`. Names are lowercase except the preserved
-   `DCGM_FI_DEV_GPU_UTIL` compatibility name.
+   `pkg/dcgm/legacy_fields.csv`. Names are lowercase or `DCGM_FI_*` names;
+   a `DCGM_FI_*` name keeps the ID the header gives it.
 5. Commit the header, generated file, and any legacy CSV changes
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md#updating-dcgm-fields) for detailed instructions.

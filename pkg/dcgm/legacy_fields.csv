@@ -1,6 +1,6 @@
 name,id
 DCGM_FI_DEV_GPU_UTIL,203
-DCGM_FI_DEV_GPU_UTIL_RATIO,203
+DCGM_FI_DEV_GPU_UTIL_RATIO_V2,1613
 dcgm_board_limit_violation,243
 dcgm_dec_utilization,207
 dcgm_ecc_dbe_aggregate_total,313

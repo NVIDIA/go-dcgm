@@ -861,10 +861,17 @@ typedef struct
 
 typedef struct
 {
-    unsigned int groupId;  //!< IN: group id for query
-    dcgmPidInfo_t pidInfo; //!< IN/OUT: pid info populated on success
-    unsigned int cmdRet;   //!< OUT: Error code generated
+    unsigned int groupId;   //!< IN: group id for query
+    dcgmPidInfo_v2 pidInfo; //!< IN/OUT: pid info populated on success
+    unsigned int cmdRet;    //!< OUT: Error code generated
 } dcgmPidGetInfo_v1;
+
+typedef struct
+{
+    unsigned int groupId;   //!< IN: group id for query
+    dcgmPidInfo_v3 pidInfo; //!< IN/OUT: base-unit pid info populated on success
+    unsigned int cmdRet;    //!< OUT: Error code generated
+} dcgmPidGetInfo_v2;
 
 typedef struct
 {
@@ -974,18 +981,25 @@ typedef dcgmChildProcessStatus_v1 dcgmChildProcessStatus_t;
 
 typedef uintptr_t ChildProcessHandle_t;
 
+#define DCGM_MAX_MIG_PROFILE_NAMES   16
+#define DCGM_MIG_PROFILE_NAME_LENGTH 96
+
+typedef struct
+{
+    unsigned int version;
+    unsigned int count;
+    unsigned int fullGpuSliceCount;
+    char names[DCGM_MAX_MIG_PROFILE_NAMES][DCGM_MIG_PROFILE_NAME_LENGTH];
+} dcgmMigProfileNameList_v1;
+
+#define dcgmMigProfileNameList_version1 MAKE_DCGM_VERSION(dcgmMigProfileNameList_v1, 1)
+
 typedef struct
 {
     dcgmMigHierarchy_v2 data; //!< OUT: populated on success
 
     unsigned int cmdRet; //!< OUT: Error code generated
 } dcgmMsgGetGpuInstanceHierarchy_v1;
-
-typedef struct
-{
-    unsigned int index;  //!< IN: the index of the GPU to create
-    unsigned int cmdRet; //!< OUT: Error code generated
-} dcgmMsgNvmlCreateInjectionGpu_v1;
 
 #ifdef INJECTION_LIBRARY_AVAILABLE
 
@@ -1150,6 +1164,12 @@ typedef enum
     DcgmConnectionTypeVsock        = 2,
 } dcgmConnectionType_t;
 
+/**
+ * Environment variable in which nv-hostengine gives the processes it starts, such as NVVS, the address at which
+ * to connect back to it, in the form dcgmConnect_v2() takes.
+ */
+#define DCGM_PARENT_HOSTENGINE_ADDRESS_VAR_NAME "DCGM_PARENT_HOSTENGINE_ADDRESS"
+
 /** @} */
 
 /**
@@ -1190,9 +1210,12 @@ DCGM_CASSERT((int)DCGM_GPU_VIRTUALIZATION_MODE_HOST_VSGA == (int)NVML_GPU_VIRTUA
  *  Verify correct version of APIs that use a versioned structure
  */
 
-DCGM_CASSERT(dcgmPidInfo_version == (long)0x02004528, 1);
+DCGM_CASSERT(dcgmPidInfo_version2 == (long)0x02004528, 1);
+DCGM_CASSERT(dcgmPidInfo_version3 == (long)0x03004b58, 1);
+DCGM_CASSERT(dcgmConfig_version1 == (long)0x1000028, 1);
 DCGM_CASSERT(dcgmConfig_version2 == (long)0x2000048, 2);
-DCGM_CASSERT(dcgmConfig_version == (long)0x2000048, 2);
+DCGM_CASSERT(dcgmConfig_version3 == (long)0x3000058, 3);
+DCGM_CASSERT(dcgmConfig_version == (long)0x3000058, 3);
 DCGM_CASSERT(dcgmWorkloadPowerProfileInfo_version1 == (long)0x100002c, 1);
 DCGM_CASSERT(dcgmWorkloadPowerProfileInfo_version1 == (long)0x100002c, 1);
 DCGM_CASSERT(dcgmWorkloadPowerProfileProfilesInfo_version1 == (long)0x1002bdc, 1);
@@ -1207,7 +1230,8 @@ DCGM_CASSERT(dcgmCpuHierarchy_version2 == (long)0x2000C88, 1);
 DCGM_CASSERT(dcgmFieldGroupInfo_version == (long)16777744, 1);
 DCGM_CASSERT(dcgmAllFieldGroup_version == (long)16811016, 1);
 DCGM_CASSERT(dcgmDeviceAttributes_version3 == (long)0x3001464, 1);
-DCGM_CASSERT(dcgmDeviceAttributes_version == (long)0x3001464, 1);
+DCGM_CASSERT(dcgmDeviceAttributes_version4 == (long)0x4001478, 1);
+DCGM_CASSERT(dcgmDeviceAttributes_version == (long)0x4001478, 1);
 DCGM_CASSERT(dcgmHealthResponse_version5 == (long)0x510500c, 5);
 DCGM_CASSERT(dcgmIntrospectMemory_version == (long)16777232, 1);
 DCGM_CASSERT(dcgmIntrospectCpuUtil_version == (long)16777248, 1);
@@ -1282,6 +1306,38 @@ DCGM_CASSERT(dcgmConnectV3Params_version1 == (long)0x0100000C, 1);
 DCGM_CASSERT(dcgmEnvVarInfo_version1 == (long)0x01000208, 1);
 DCGM_CASSERT(dcgmMsgEmptyCache_version1 == (long)0x1000008, 1);
 DCGM_CASSERT(dcgmMsgModulesReloadable_version1 == (long)0x01000008, 1);
+DCGM_CASSERT(dcgmMigHierarchy_version2 == (long)0x2011F08, 2);
+DCGM_CASSERT(dcgmClockSet_version1 == (long)0x100000C, 1);
+DCGM_CASSERT(dcgmClockSet_version2 == (long)0x2000018, 2);
+DCGM_CASSERT(dcgmDeviceSupportedClockSets_version1 == (long)0x1000C08, 1);
+DCGM_CASSERT(dcgmDevicePidAccountingStats_version1 == (long)0x1000028, 1);
+DCGM_CASSERT(dcgmDeviceThermals_version1 == (long)0x100000C, 1);
+DCGM_CASSERT(dcgmDevicePowerLimits_version1 == (long)0x1000018, 1);
+DCGM_CASSERT(dcgmDeviceIdentifiers_version1 == (long)0x1000810, 1);
+DCGM_CASSERT(dcgmDeviceMemoryUsage_version1 == (long)0x1000014, 1);
+DCGM_CASSERT(dcgmDeviceMemoryUsage_version2 == (long)0x2000028, 1);
+DCGM_CASSERT(dcgmDeviceVgpuUtilInfo_version1 == (long)0x1000018, 1);
+DCGM_CASSERT(dcgmDeviceEncStats_version1 == (long)0x1000010, 1);
+DCGM_CASSERT(dcgmDeviceFbcStats_version1 == (long)0x1000010, 1);
+DCGM_CASSERT(dcgmDeviceFbcSessionInfo_version1 == (long)0x1000034, 1);
+DCGM_CASSERT(dcgmDeviceFbcSessions_version1 == (long)0x1003408, 1);
+DCGM_CASSERT(dcgmDeviceVgpuEncSessions_version1 == (long)0x1000024, 1);
+DCGM_CASSERT(dcgmDeviceVgpuProcessUtilInfo_version1 == (long)0x100005C, 1);
+DCGM_CASSERT(dcgmDeviceVgpuTypeInfo_version1 == (long)0x1000128, 1);
+DCGM_CASSERT(dcgmDeviceVgpuTypeInfo_version2 == (long)0x200012C, 2);
+DCGM_CASSERT(dcgmDeviceSupportedVgpuTypeInfo_version1 == (long)0x1000040, 1);
+DCGM_CASSERT(dcgmDeviceSettings_version2 == (long)0x2000010, 2);
+DCGM_CASSERT(dcgmPolicyViolation_version1 == (long)0x1000010, 1);
+DCGM_CASSERT(dcgmPolicySpec_version1 == (long)0x1000228, 1);
+DCGM_CASSERT(dcgmPolicyInfo_version1 == (long)0x1000258, 1);
+DCGM_CASSERT(dcgmFieldValue_version1 == (long)0x1001018, 1);
+DCGM_CASSERT(dcgmFieldValue_version2 == (long)0x2001020, 2);
+DCGM_CASSERT(dcgmHealthSupportedSystems_version1 == (long)0x1000008, 1);
+DCGM_CASSERT(dcgmHealthSetParams_version2 == (long)0x2000028, 2);
+DCGM_CASSERT(dcgmTopoSchedHint_version1 == (long)0x1000020, 1);
+DCGM_CASSERT(dcgmFieldSummaryRequest_version1 == (long)0x1000068, 1);
+DCGM_CASSERT(dcgmProfGetMetricGroups_version3 == (long)0x3000560, 3);
+DCGM_CASSERT(dcgmModulesReloadable_version1 == (long)0x1000008, 1);
 
 #ifndef DCGM_ARRAY_CAPACITY
 #ifdef __cplusplus

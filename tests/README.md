@@ -236,3 +236,64 @@ When adding new tests:
    capabilities that are optional on an otherwise qualified system
 4. Include both positive and negative test cases
 5. Update this README with new test descriptions
+
+### Job statistics with GPU load
+
+`TestJobStats` runs only with diagnostics enabled and as root. It uses a private
+embedded engine, creates its own group and job, and removes both on every path.
+It snapshots and restores GPU accounting mode using `nvidia-smi`.
+It also checks `JobRemoveAll` within that engine. Run with:
+
+```sh
+task test:diagnostics -- --test_filter='^TestJobStats$' --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
+```
+
+The executable is invoked directly without arguments or a shell. It must read
+`DCGM_JOB_GPU_ID` (the DCGM physical GPU ID), `DCGM_JOB_GPU_UUID` and
+`DCGM_JOB_LOAD_SECONDS=3`, run
+real compute work on that GPU for about three seconds, synchronize, and exit
+successfully. The test kills it after 15 seconds and allows one second for
+output pipes to close. The executable must not fork child processes. A small
+CUDA program matching `DCGM_JOB_GPU_UUID` to a CUDA device and running a
+timed kernel is suitable; no load generator is bundled or downloaded.
+Without `DCGM_JOB_LOAD_COMMAND` the test reports a skip, not a lifecycle pass.
+
+### Live PID query with GPU load
+
+`TestProcessInfoWithGPUFixture` uses the same executable contract as `TestJobStats`,
+but requests `DCGM_JOB_LOAD_SECONDS=10`. Run as root on a GPU with process
+accounting support. It starts PID watches before launching the executable,
+polls its live subprocess PID until DCGM returns a nonempty record for the
+selected GPU, and checks the PID and legacy timestamps. It requires the
+executable to exit successfully within 20 seconds, with one second for output
+pipes to close. It restores accounting mode and destroys its owned group.
+
+```sh
+task test:integration -- --test_filter='^TestProcessInfoWithGPUFixture$' --test_env=DCGM_SKIP_DIAGNOSTICS=0 --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
+task test:race -- --test_filter='^TestProcessInfoWithGPUFixture$' --test_env=DCGM_SKIP_DIAGNOSTICS=0 --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
+```
+
+Absent opt-in, root access, or PID/accounting capability is reported as a skip;
+it does not qualify the PID runtime path. Native query errors or missing data
+cannot pass this case. `TestJobStats` alone does not prove live PID queries.
+
+### GPU configuration
+
+`task test:configuration` opts in to the root-only configuration suite. Normal
+integration and race tasks skip these checks. The suite uses a private embedded
+engine and an owned single-GPU group. It snapshots both live and target state,
+records and enforces the current power limit without changing its watts, clears
+the target with `ConfigReset`, restores the original live and target settings,
+and compares both snapshots. It skips before mutation if a preexisting target
+would make enforcing or restoring it change unrelated settings.
+
+The workload profile case reads metadata and profile names, then reapplies the
+existing requested mask without selecting a different policy. It restores the
+mask and target even on failure, and checks both live and target configuration.
+A GPU or driver without workload profiles reports a separate capability skip;
+that skip is not proof that profile configuration works.
+
+```sh
+task test:configuration
+task test:configuration -- --config=race
+```

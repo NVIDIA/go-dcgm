@@ -214,6 +214,9 @@ const (
 	DCGM_ST_DIAG_STOPPED = -66
 	// DCGM_ST_GPUS_DETACHED is the value for GPUs detached
 	DCGM_ST_GPUS_DETACHED = -67
+
+	// DCGM_ST_WATCH_FREQUENCY reports a profiling or GPM watch interval below 100 ms.
+	DCGM_ST_WATCH_FREQUENCY = -68
 )
 
 // DCGM_FV_FLAG_LIVE_DATA is a flag for the DCGM fields.

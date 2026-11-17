@@ -68,6 +68,38 @@ defer cleanup()
   `WatchFieldsWithGroupExNoRefresh`: DCGM samples a new watch's fields once
   before the call returns, and a refresh after each of many watches adds one
   wait for a full DCGM update pass per call.
+- For precise structural applicability, pass the complete native `FieldMeta`
+  from `FieldGetByID` to `FieldSupportsTarget(meta, entity, parent)`. `entity`
+  is a native `GroupEntityPair`; for `FE_LINK`, `parent` is the GPU or switch
+  encoded in that key. Invalid metadata/identities and unclassified link fields
+  return errors. A known incompatible target returns `false, nil`. Fully
+  described non-link metadata can come from a newer runtime than the generated
+  field catalog. This is structural compatibility, not a hardware capability
+  probe; native operation errors and sample statuses still apply.
+- `LinkEntityPair(index, parentType, parentID)` converts a discovered physical
+  link index and native GPU/switch parent ID into its packed native key.
+  It checks `dcgm_link_t`'s 16-bit index and 8-bit parent ID before conversion;
+  zero is valid. `AddLinkEntityToGroup` and `LinkGetLatestValues` use the same
+  conversion. Keep native IDs separate from NVML indices and output labels.
+- Native GPU/GI/CI aliases accepted by `FieldSupportsTarget` do not choose
+  reporting cardinality or merge event histories. A GPU field requested on a
+  GI/CI can resolve to its physical GPU. XID GPU, GI and CI histories remain
+  independent. Sysmon utilization supports both CPU aggregate and core targets;
+  core clock speed does not support a CPU aggregate. The reviewed socket
+  temperature/power and vendor/model fields also accept core targets. NVSDM
+  can aggregate the reviewed switch-port throughput and replay/recovery fields
+  on a switch, and exposes the switch UUID there. It also accepts the reviewed
+  switch-declared throughput/byte counters on switch-owned links. These aliases
+  do not add GPU-link support. Backend availability remains a runtime condition.
+  The reviewed vGPU license-status and ten binary vGPU inventory/utilization
+  fields also accept GPU/GI/CI targets through the physical GPU reader while
+  retaining the requested cache identity. Other vGPU declarations require a
+  vGPU instance. Structural support does not make binary values scalar metrics
+  or select the caller's reporting scopes.
+- `FieldSupportsEntityGroupWithParent` and `FieldSupportsEntityGroup` retain
+  their catalog-based declared-scope contracts, including XID's GPU/GI/CI
+  support. The parent-aware helper rejects unknown link parents; the coarse
+  helper has no parent dimension. Neither promises runtime capability.
 - Release what you create: `UnwatchFields`, `FieldGroupDestroy` and
   `DestroyGroup`. Do not destroy `GroupAllGPUs`.
 - Process stats need `WatchPidFields` (or `WatchPidFieldsForGroup` on your own
@@ -77,14 +109,145 @@ defer cleanup()
   `HealthCheckByGpuId` for one GPU. Diagnostics use `RunDiag`; read
   `DiagResults.Tests`, not the deprecated `Software` view.
 
+Structural rules follow the native `dcgm_link_t` layout and DCGM's
+[`SetPracticalEntityInfo`, link readers and XID recorders](https://github.com/NVIDIA/DCGM/blob/9fae2867e6e5264fa0fca22a07dc898d591baa21/dcgmlib/src/DcgmCacheManager.cpp),
+plus the matching
+[Sysmon CPU/core readers](https://github.com/NVIDIA/DCGM/blob/9fae2867e6e5264fa0fca22a07dc898d591baa21/modules/sysmon/DcgmModuleSysmon.cpp).
+The three bytes-per-second link fields added in DCGM 4.8 follow its
+`ReadAndCacheNvLinkFields` dispatch.
+The bounded vGPU aliases follow `BufferOrCacheLatestGpuValue`,
+`SetPracticalEntityInfo` and cached-read routing in native DCGM 4.7
+(`63d151480cf54e78592861e42a69b786dc73751b`) and 4.8
+(`b6c33f9895bbbc67e531371cb1550fa6abb3ca82`).
+An unclassified new link field needs source review because metadata has no
+parent dimension; a field name or blank sample cannot establish that relation.
+
 ## Errors and optional features
 
-- DCGM failures are `*dcgm.Error`. Compare its `Code` with the `DCGM_ST_*`
-  constants, for example `DCGM_ST_NO_DATA` or `DCGM_ST_REQUIRES_ROOT`.
+- Native DCGM failures contain a `*dcgm.Error`. Extract it with `errors.As`
+  before comparing its `Code` with the `DCGM_ST_*` constants, for example
+  `DCGM_ST_NO_DATA` or `DCGM_ST_REQUIRES_ROOT`.
 - APIs that older DCGM releases lack return an error for which
   `dcgm.IsFeatureUnavailable(err)` is true. Treat it as "not supported here",
   not as a failure.
 - Use `GetHostengineVersionInfo` to report the connected DCGM version.
+
+## Diagnostics and profiling control
+
+- `RunDiag(level, group)` keeps its level/group API. `ActionValidate` accepts
+  `DiagnosticRequest` for named tests, `testName.parameterName=value` strings,
+  a level, a group or explicit entities, and a timeout. A nil group and empty
+  entities use DCGM's default selection: all GPUs for GPU tests. Group and
+  explicit entities cannot be combined.
+- Requests use native diagnostic version 10 with empty logging and statistics
+  paths, as required by DCGM 4.8. The Go request does not expose v12 logging
+  or statistics-prefix options.
+- `DiagnosticRequest.Timeout` is zero for DCGM's default or a whole number
+  of seconds (at most 4,294,967). DCGM converts `timeoutSeconds` to uint32
+  milliseconds internally; this bound prevents overflow in that conversion.
+  Names and parameters have native count and byte limits, exclude embedded
+  NULs, and are checked before the native call. DCGM decides whether a test,
+  numeric parameter, or hardware combination is supported; Go does not parse
+  numeric parameter values.
+
+```go
+results, err := dcgm.ActionValidate(dcgm.DiagnosticRequest{
+    TestNames: []string{"diagnostic"},
+    TestParameters: []string{"diagnostic.test_duration=1"},
+    Entities: []dcgm.GroupEntityPair{{EntityGroupId: dcgm.FE_GPU, EntityId: 0}},
+    Timeout: 2 * time.Minute,
+})
+```
+
+- For NIC-EUD, use `TestNames: []string{"nic_eud"}` with `Group` and `Entities`
+  unset. The current runtime tests all NICs and does not support explicit
+  ConnectX selectors. It requires supported ConnectX hardware and the matching
+  proprietary diagnostic plugin. Read `results.Tests` for non-GPU results,
+  errors, and auxiliary data; the legacy `Software` view contains GPUs only.
+- `StopDiag()` can run from another goroutine while `RunDiag` or
+  `ActionValidate` blocks. Keep the DCGM session open until both calls finish.
+  Cancellation errors retain their DCGM code, including `DCGM_ST_DIAG_STOPPED`
+  on runtimes that report it. A subsequent diagnostic can then be started.
+- Set `DiagnosticRequest.EnableHeartbeat` only when another goroutine calls
+  `DiagSendHeartbeat()` before the host engine's configured heartbeat timeout
+  expires (ten minutes by default). On runtimes that support it,
+  `DCGM_DIAG_HEARTBEAT_TIMEOUT_SEC` overrides this timeout in seconds.
+- `ProfPause()` temporarily pauses DCGM profiling when another profiler needs
+  the GPU counters. Pair it with `ProfResume()` and check both errors.
+- These APIs check native symbols before use and return Go errors without
+  `Init`; unavailable symbols satisfy `IsFeatureUnavailable`. Other native
+  failures are `*dcgm.Error`, accessible with `errors.As`.
+- Native diagnostic qualification tests accept `DCGM_TEST_DIAGNOSTIC_GPU_ID`
+  to select one supported GPU by its numeric DCGM ID for cancellation/restart,
+  heartbeat and named-parameter checks. An invalid or unsupported ID fails the
+  test. When unset, these tests retain their default GPU selection. This does
+  not select NIC-EUD hardware or enable profiling-control tests.
+- Exact stopped-code and strict numeric-parameter acceptance require DCGM
+  4.8 with the corresponding runtime fixes; older engines report those checks
+  as skipped while retaining basic stop/restart and named-test checks.
+- `task test:diagnostics` opts into cancellation, heartbeat, and numeric
+  parameter runtime tests in bounded subprocesses. NIC-EUD additionally needs
+  `-- --test_env=DCGM_TEST_NIC_EUD=1` after its hardware and plugin are checked.
+
+## Watches, scopes, and field names
+
+- `WatchFields`, `WatchFieldsWithGroup`, `WatchFieldsWithGroupEx`, and
+  `WatchFieldValue` wrap runtime failures as `*dcgm.Error`; use `errors.As`.
+  DCGM 4.8 rejects profiling and GPM intervals below 100 ms (10 Hz) with
+  `DCGM_ST_WATCH_FREQUENCY`. The runtime enforces this limit.
+- Use `FieldGetByID` and `FieldSupportsEntityGroup` to check scopes. XID
+  field 230 supports GPU, GPU-instance, and compute-instance reads even when
+  metadata declares compute-instance scope. Keep returned entity identities.
+  Profiling NVLink byte fields 1011/1012 support GPU and LINK reads. New
+  per-link byte fields 1714 through 1716 use LINK scope.
+- The 4.8 profiling `*_BYTES_PER_SECOND` names are current. The eight older
+  profiling byte names and eight renamed range markers remain compatible
+  constants and lookups, but move to the legacy map. A numeric field marked
+  only `@deprecated` in DCGM's comments remains current, including GPU_UTIL.
+
+## Field-policy identity and import
+
+- `ImportFieldPolicies(path)` retains its error-only API and original DCGM
+  symbol. `ImportFieldPoliciesWithCounts(path)` uses `dcgmPolicyImport_v2`
+  and returns `(parsed, skipped uint, err error)`. Counts are returned on
+  failure too. Parsed counts never imply partial application: DCGM rejects
+  the entire import when any entry is invalid and retains the prior registry.
+- A missing counted-import symbol is feature unavailable. A DCGM 4.8 client
+  connected to a 4.7 host engine returns `DCGM_ST_VER_MISMATCH`.
+- DCGM 4.8 saves schema 2.0 and identifies explicit GPU targets by UUID:
+
+```yaml
+schema_version: {major: 2, minor: 0}
+policies:
+  - fieldId: 150
+    name: temperature
+    operator: GREATER_THAN
+    threshold: 90
+    entities:
+      GPU:
+        componentUuids: [GPU-00000000-0000-0000-0000-000000000000]
+    channels: [CONSOLE]
+    status: ENABLED
+    rateLimitSeconds: 60
+```
+
+- Legacy flat UUID selectors (`entities: [{entityGroupId: 1, componentUuid: GPU-...}]`)
+  remain accepted, as does the integer `schema_version: 2`. Saved files use
+  grouped selectors and major/minor schema components.
+- Replace the example UUID with a real GPU UUID. Back up policy files before
+  upgrading. Files using numeric `entityId` require explicit recreation with
+  GPU UUIDs; changing `schema_version` alone does not migrate them. Schema-2
+  files cannot be used to downgrade to DCGM 4.7.1.
+- A missing GPU returns `UnresolvedFieldPolicyEntityID` (uint32 maximum) in
+  `FieldPolicy.Entities`. DCGM retains its UUID privately. Preserve every
+  unresolved entry when modifying a read policy; empty entities means all
+  GPUs. Retain all or none of the unresolved targets in an entity group;
+  keeping only some is ambiguous and returns `BADPARAM`. New policies cannot
+  use the sentinel because it supplies no UUID. Resolved targets recover
+  identity and watches when the same GPU is rediscovered.
+- For injection helpers and fake entities, set `DCGM_ENABLE_INJECTION_APIS=1`
+  in the host-engine process before startup (the application in embedded
+  mode). Setting it only in a standalone client does not enable injection.
 
 ## Docs
 
@@ -97,3 +260,94 @@ defer cleanup()
 - [Integration tests](tests/README.md): GPU tests that mirror the samples.
 - [Contributing](CONTRIBUTING.md): building, field updates and sign-off.
 - [Agent rules](AGENTS.md): working in this repository.
+
+Host engine administration and topology:
+- `InitEmbedded(EmbeddedOptions)` starts an automatically updating embedded host
+  engine with a log file, severity, and module denylist. Empty log files use
+  `DCGM_LOG_FILE` or DCGM's default path; `LoggingNone` disables logging.
+  It requires no existing
+  session and returns cleanup like `Init`. Existing `Init(Embedded)` is unchanged;
+  later `Init` callers share the active session and must call their cleanup.
+- `HostengineIsHealthy`, `HostengineEnvironmentVariable`, `ModuleGetStatuses`,
+  and `ModuleIDToName` read host engine administration data. Environment reads
+  accept a single variable name; DCGM restricts allowed names and reports unset
+  variables through a typed DCGM error.
+- `HostengineSetLoggingSeverity` and `ModuleDenylist` affect every client of the
+  host engine. Denylist modules before using them; test state changes in an
+  isolated embedded process.
+- `GroupGetAllIDs` lists groups; `RemoveFromGroup` removes a GPU. These calls do
+  not transfer ownership of listed groups. Only destroy groups you created.
+- `FieldGroupGetAll` and `FieldGroupGetInfo` return handles, names, and field IDs.
+  Listed field groups remain owned by their creators.
+- `GetGroupTopology` retains CPU affinity words and DCGM's raw slowest-path mask.
+  `SelectGPUsByTopology` takes candidate GPU IDs, desired count, and topology
+  hints; empty candidates consider all GPUs. IDs above 63 and counts outside
+  1 through 64 are rejected before calling DCGM. DCGM can return fewer GPUs.
+- `GetGPUChipArchitecture` returns the typed DCGM chip architecture.
+- New administration calls require an initialized session and return
+  errors for which `IsFeatureUnavailable` reports true before initialization
+  or after shutdown.
+  They preserve DCGM error codes in `*Error`; a missing
+  native function is reported by `IsFeatureUnavailable`.
+
+Job statistics:
+- `WatchJobFields(group, updateFreq, maxKeepAge, maxKeepSamples)` enables job
+  collection on a caller-owned GPU group. Frequency and age use `time.Duration`.
+  Frequency must be a positive whole number of microseconds; age is passed as
+  fractional seconds. Retention age and sample count must be nonnegative; zero
+  leaves that limit to DCGM.
+- `JobStart(group, jobID)`, `JobStop(jobID)`, `JobGetStats(jobID)` and
+  `JobRemove(jobID)` record, read and remove a job. IDs must contain 1–63 bytes
+  and no NUL. Remove a job before reusing its ID.
+- `JobRemoveAll()` removes every job on the connected hostengine, including
+  jobs belonging to other clients.
+- `JobInfo` contains summary and per-GPU `GPUJobStats`, with concrete summaries,
+  processes and health incidents. Values retain DCGM units and blank sentinels.
+  Job and XID timestamps are Unix microseconds; violation durations are
+  nanoseconds and energy is milliwatt seconds. While running, EndTime is the
+  current collection endpoint; after JobStop it is the stop time.
+  PCIe bandwidth is KB/s, power is watts, clocks are MHz and utilization is percent.
+  Summary min/max values for bandwidth, utilization and clocks are not applicable.
+- See `samples/jobs` for a complete lifecycle and `tests/README.md` for the
+  opt-in GPU load test. Job field watches may require root to enable accounting.
+
+GPU configuration:
+- `ConfigGet(group, ConfigCurrentState)` and `ConfigGet(group, ConfigTargetState)`
+  return `[]GPUConfig`. This uses `dcgmConfig_v3`: clocks are int64 Hz, power
+  limits are watts. Client library and hostengine must support the v3 protocol;
+  configuration get/set do not fall back to the pre-4.8 protocol.
+- `GPUConfig` uses nil pointers for unset, unknown or unsupported values. A
+  zero-valued `GPUConfig` changes nothing. `ConfigSet(group, config)` applies
+  non-nil values to all GPUs in the group and saves those values as targets.
+  Clocks must be nonnegative whole MHz expressed in Hz. `GPU` identifies read
+  results and is ignored by ConfigSet. Workload profile words are independent
+  optional 32-bit values; nil words are ignored.
+- `ConfigEnforce(group)` reapplies targets. `ConfigReset(group)` clears targets
+  without changing live GPU settings; missing 4.8 symbols are reported through
+  `IsFeatureUnavailable`. Targets outlive group destruction and can be applied
+  again after GPU resets. Save both live and target configuration before changes.
+- `ConfigGet` returns partial results. Configuration get/set/enforce/reset return
+  `ConfigError` when DCGM reports per-GPU errors.
+  `ConfigError.Fields` contains GPU IDs, field IDs and underlying typed DCGM
+  errors; use errors.As/errors.Is to inspect those and operation/cleanup errors.
+- `ConfigSetWorkloadPowerProfile(group, action, mask)` merges, overwrites or
+  clears profile bits using `WorkloadProfileSet`, `WorkloadProfileOverwrite` or
+  `WorkloadProfileClear`. `PowerProfileMask` contains eight 32-bit words.
+- `GetDeviceWorkloadPowerProfileInfo(gpuID)` returns supported profile metadata
+  and supported/requested/enforced masks. `PowerProfileName(id)` returns DCGM's
+  friendly name for IDs known to DCGM. Newer driver profile IDs remain intact
+  in the returned metadata; naming an unknown ID returns a typed DCGM error.
+  Support depends on the GPU and driver.
+- Configuration requires appropriate hostengine privileges, normally root.
+  `samples/configuration` reads configuration without changing GPU state;
+  `task test:configuration` opts in to state-changing checks on a dedicated GPU.
+
+## Metadata qualification
+
+The library-only metadata gate uses `GetVersionInfo` from the loaded library.
+DCGM 4.7 must lack the seven reviewed DCGM 4.8 additions (1655, 1656, 1695,
+1696, 1714–1716); those explicit exclusions are asserted and reported while the
+remaining inventory and aliases are checked. DCGM 4.8 and newer must provide
+the complete reviewed inventory. Unknown native link declarations, malformed
+versions and unsupported older runtimes fail the gate. These test rules do
+not change the production applicability API or promise runtime capability.

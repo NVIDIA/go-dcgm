@@ -1,11 +1,23 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# The generated field map is public so that other modules can check their own
+# handling of every field ID go-dcgm knows.
+exports_files(["const_fields.go"])
+
+# gazelle:exclude administration_native_unit_test.go
+# gazelle:exclude administration_session_test.go
+# gazelle:exclude admin_api_unit_test.go
+# gazelle:exclude admin_api_test_helpers.go
+# gazelle:exclude public_api_inventory_test.go
 # gazelle:exclude admin_input_unit_test.go
 # gazelle:exclude admin_test.go
 # gazelle:exclude alias_resolution_test.go
 # gazelle:exclude api_unit_test.go
 # gazelle:exclude base_unit_fields_test.go
+# gazelle:exclude config_test_helpers.go
+# gazelle:exclude config_unit_test.go
+# gazelle:exclude const_fields_test.go
 # gazelle:exclude const_test.go
 # gazelle:exclude cpu_test.go
 # gazelle:exclude cpu_test_helpers.go
@@ -13,12 +25,19 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude device_info_unit_test.go
 # gazelle:exclude device_status_cleanup_unit_test.go
 # gazelle:exclude device_status_unit_test.go
+# gazelle:exclude diagnostic_runtime_test.go
+# gazelle:exclude diagnostic_control_test.go
+# gazelle:exclude diagnostic_parameter_test.go
 # gazelle:exclude diag_test.go
 # gazelle:exclude diag_test_helpers.go
 # gazelle:exclude field_policy_test.go
 # gazelle:exclude field_policy_runtime_test.go
 # gazelle:exclude field_policy_test_helpers.go
+# gazelle:exclude entity_identity_test.go
+# gazelle:exclude field_applicability_test.go
 # gazelle:exclude field_scope_test.go
+# gazelle:exclude field_scope_runtime_test.go
+# gazelle:exclude field_scope_runtime_helpers.go
 # gazelle:exclude field_summary_unit_test.go
 # gazelle:exclude field_values_callback_test.go
 # gazelle:exclude field_values_limit_test.go
@@ -26,9 +45,12 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 # gazelle:exclude field_values_test_helpers.go
 # gazelle:exclude field_values_unit_test.go
 # gazelle:exclude fields_empty_test.go
+# gazelle:exclude gpu_group_runtime_test.go
 # gazelle:exclude gpu_group_unit_test.go
 # gazelle:exclude health_test_helpers.go
 # gazelle:exclude health_unit_test.go
+# gazelle:exclude job_stats_test_helpers.go
+# gazelle:exclude job_stats_unit_test.go
 # gazelle:exclude mig_test.go
 # gazelle:exclude mndiag_test.go
 # gazelle:exclude mndiag_test_helpers.go
@@ -74,8 +96,10 @@ go_library(
     name = "dcgm",
     srcs = [
         "admin.go",
+        "administration_native.go",
         "api.go",
         "callback.c",
+        "config.go",
         "const.go",
         "const_fields.go",
         "cpu.go",
@@ -91,9 +115,14 @@ go_library(
         "device_info.go",
         "device_status.go",
         "diag.go",
+        "diagnostic_control.go",
+        "doc.go",
+        "entity_identity.go",
         "error.go",
+        "field_applicability.go",
         "field_policy.go",
         "field_policy_callback.c",
+        "field_policy_import.h",
         "field_scope.go",
         "field_summary.go",
         "field_values.go",
@@ -101,9 +130,12 @@ go_library(
         "field_values_cb.h",
         "fields.go",
         "gpu_group.go",
+        "group_admin.go",
         "health.go",
+        "hostengine.go",
         "hostengine_status.go",
         "internal.go",
+        "job_stats.go",
         "mig.go",
         "mndiag.go",
         "native_calls.go",
@@ -113,6 +145,7 @@ go_library(
         "profile.go",
         "structs.go",
         "topology.go",
+        "topology_admin.go",
         "utils.go",
         "version_info.go",
     ],
@@ -147,20 +180,33 @@ go_library(
 go_test(
     name = "dcgm_test",
     srcs = [
+        "admin_api_runtime_test.go",
+        "administration_session_test.go",  # keep: session lifecycle checks are shared with the unit target.
         "api_test.go",
         "api_unit_test.go",  # keep: shared counter helpers and tests.
         "bind_unbind_test.go",
+        "config_session_runtime_test.go",
+        "diagnostic_parameter_test.go",  # keep: parser rejection checks are shared with the unit target.
+        "diagnostic_runtime_test.go",  # keep: opt-in native diagnostic checks.
         "error_runtime_test.go",
         "error_test.go",
+        "field_applicability_test.go",  # keep: independent alias expectations shared with the metadata gate.
         "field_policy_runtime_test.go",  # keep: live adapter test belongs only in the runtime target.
+        "field_scope_runtime_helpers.go",  # keep: cgo injection helper for runtime tests.
+        "field_scope_runtime_test.go",  # keep: runtime metadata and private-hostengine cases.
+        "field_scope_test.go",  # keep: shared compatibility inventory and tests.
         "field_summary_test.go",
         "field_values_test.go",
         "fields_test.go",
+        "gpu_group_runtime_test.go",  # keep: native status checks need the DCGM runtime.
         "gpu_group_test.go",
         "group_lifecycle_test.go",
         "health_test.go",
         "instances_test.go",
+        "job_stats_runtime_test.go",
+        "metric_compatibility_runtime_test.go",
         "policy_test.go",
+        "process_info_test.go",  # keep: native PID boundary test requires the runtime.
         "test_utils_test.go",  # keep: used by the runtime test target.
     ],
     data = glob(["testdata/**"]) + [
@@ -171,6 +217,7 @@ go_test(
         "topology.go",
     ],
     embed = [":dcgm"],
+    env = {"DCGM_ENABLE_INJECTION_APIS": "1"},
     tags = [
         "manual",
         "requires-dcgm",
@@ -184,11 +231,18 @@ go_test(
 go_test(
     name = "dcgm_unit_test",
     srcs = [
+        "admin_api_test_helpers.go",
+        "admin_api_unit_test.go",
         "admin_input_unit_test.go",  # keep
         "admin_test.go",
+        "administration_native_unit_test.go",
+        "administration_session_test.go",
         "alias_resolution_test.go",
         "api_unit_test.go",  # keep
         "base_unit_fields_test.go",
+        "config_test_helpers.go",
+        "config_unit_test.go",
+        "const_fields_test.go",
         "const_test.go",
         "cpu_test.go",
         "cpu_test_helpers.go",
@@ -198,7 +252,11 @@ go_test(
         "device_status_unit_test.go",
         "diag_test.go",
         "diag_test_helpers.go",
+        "diagnostic_control_test.go",
+        "diagnostic_parameter_test.go",
+        "entity_identity_test.go",
         "error_test.go",  # keep: shared with the runtime test target.
+        "field_applicability_test.go",
         "field_policy_test.go",
         "field_policy_test_helpers.go",
         "field_scope_test.go",
@@ -212,6 +270,8 @@ go_test(
         "gpu_group_unit_test.go",  # keep
         "health_test_helpers.go",
         "health_unit_test.go",
+        "job_stats_test_helpers.go",
+        "job_stats_unit_test.go",
         "mig_test.go",
         "mndiag_test.go",
         "mndiag_test_helpers.go",
@@ -222,18 +282,23 @@ go_test(
         "process_info_unit_test.go",
         "profile_test_helpers.go",
         "profile_unit_test.go",
+        "public_api_inventory_test.go",
         "pure_helpers_test.go",  # keep
         "topology_test.go",
         "utils_unit_test.go",
         "watch_unit_test.go",
     ],
-    data = [
+    data = glob([
+        "*.go",
+        "*.c",
+    ]) + [
         "dcgm_agent.h",
         "dcgm_errors.h",
+        "dcgm_fields.h",
         "dcgm_structs.h",
         "dcgm_structs_internal.h",
-        "internal.go",
-        "topology.go",
+        "field_policy_import.h",
+        "testdata/public_api.csv",
     ],
     embed = [":dcgm"],
     deps = [

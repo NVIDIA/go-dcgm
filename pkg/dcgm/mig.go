@@ -124,7 +124,7 @@ func GetGPUInstanceHierarchy() (hierarchy MigHierarchy_v2, err error) {
 	result := C.dcgmGetGpuInstanceHierarchy(handle.handle, ptr_hierarchy)
 
 	if err = errorString(result); err != nil {
-		return toMigHierarchy(c_hierarchy), fmt.Errorf("error retrieving DCGM MIG hierarchy: %s", err)
+		return toMigHierarchy(c_hierarchy), fmt.Errorf("error retrieving DCGM MIG hierarchy: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return toMigHierarchy(c_hierarchy), nil

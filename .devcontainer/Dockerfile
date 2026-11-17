@@ -1,8 +1,6 @@
-# syntax=docker/dockerfile:1.28.0@sha256:bb22d9815c728170f72750f4e5b0d672e06176142e1d602c7e66c050100b7e5b
+# syntax=docker/dockerfile:1.29.0@sha256:572cebbc2b15e6f84c077742952674889cb63cd5e9b80abdffcbe587b6f19183
 
-FROM nvcr.io/nvidia/cuda:13.4.3-base-ubuntu26.04@sha256:e2eb43e25d404e2c48716f80afdb8989a84c4da588f5509330322842084d97b0
-
-ARG DCGM_VERSION=4.7.1-2
+FROM nvcr.io/nvidia/cuda:13.5.0-base-ubuntu26.04@sha256:2b8fc7b402eb045b809c3bb6296853e7d6e99a5acaded62b28f9494b357fbb4f
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -11,14 +9,15 @@ COPY hack/versions.env /opt/go-dcgm/hack/versions.env
 RUN usermod --login developer --home /home/developer --move-home ubuntu \
     && groupmod --new-name developer ubuntu
 
-# Keep all DCGM packages at the selected version.
+# Keep all DCGM packages at the version pinned in hack/versions.env.
 # hadolint ignore=DL3008,DL3015
 RUN set -eux; \
     source /opt/go-dcgm/hack/versions.env; \
+    dcgm_package_version="1:${DCGM_VERSION}-${DCGM_PACKAGE_REVISION}"; \
     apt-get update; \
     printf '%s\n' \
         'Package: datacenter-gpu-manager-4* libdcgm dcgmi nv-hostengine' \
-        "Pin: version 1:${DCGM_VERSION}" \
+        "Pin: version ${dcgm_package_version}" \
         'Pin-Priority: 1000' \
         > /etc/apt/preferences.d/dcgm; \
     apt-get install -y --no-install-recommends \
@@ -28,9 +27,9 @@ RUN set -eux; \
         git \
         pkg-config \
         shellcheck \
-        "datacenter-gpu-manager-4-core=1:${DCGM_VERSION}" \
-        "datacenter-gpu-manager-4-cuda13=1:${DCGM_VERSION}" \
-        "datacenter-gpu-manager-4-dev=1:${DCGM_VERSION}"; \
+        "datacenter-gpu-manager-4-core=${dcgm_package_version}" \
+        "datacenter-gpu-manager-4-cuda13=${dcgm_package_version}" \
+        "datacenter-gpu-manager-4-dev=${dcgm_package_version}"; \
     rm /etc/apt/preferences.d/dcgm; \
     case "$(dpkg --print-architecture)" in \
         amd64) go_archive="go${GO_VERSION}.linux-amd64.tar.gz"; go_sha256="${GO_LINUX_AMD64_SHA256}" ;; \

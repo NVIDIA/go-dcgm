@@ -8,7 +8,6 @@ import "C"
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 )
 
@@ -69,7 +68,7 @@ func (cgoAdapter) createGroup(groupName string, defaultGroup bool) (GroupHandle,
 	}
 	result := C.dcgmGroupCreate(handle.handle, groupType, cname, &cGroupID)
 	if err := errorString(result); err != nil {
-		return GroupHandle{}, fmt.Errorf("error creating group: %s", err)
+		return GroupHandle{}, fmt.Errorf("error creating group: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return GroupHandle{cGroupID}, nil
@@ -84,31 +83,39 @@ func AddToGroup(groupID GroupHandle, gpuID uint) (err error) {
 func (cgoAdapter) addToGroup(groupID GroupHandle, gpuID uint) (err error) {
 	result := C.dcgmGroupAddDevice(handle.handle, groupID.handle, C.uint(gpuID))
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error adding GPU %v to group: %s", gpuID, err)
+		return fmt.Errorf("error adding GPU %v to group: %w", gpuID, &Error{msg: err.Error(), Code: result})
 	}
 
 	return
 }
 
-// AddLinkEntityToGroup adds a link entity to the group
+// AddLinkEntityToGroup adds a link entity to the group. It checks the native
+// GPU/switch parent and dcgm_link_t bounds through LinkEntityPair.
+// Native failures wrap *Error, preserving the native status in Error.Code.
 func AddLinkEntityToGroup(groupID GroupHandle, index uint, entityGroupID Field_Entity_Group, parentID uint) (err error) {
-	/* Only supported on little-endian systems currently */
-	slice := make([]byte, 4)
-	slice[0] = uint8(entityGroupID)
-	binary.LittleEndian.PutUint16(slice[1:3], uint16(index))
-	slice[3] = uint8(parentID)
-
-	entityId := binary.LittleEndian.Uint32(slice)
-
-	return AddEntityToGroup(groupID, FE_LINK, uint(entityId))
+	return addLinkEntityToGroup(groupID, index, entityGroupID, parentID, AddEntityToGroup)
 }
 
-// AddEntityToGroup adds an entity to an existing group
+// addLinkEntityToGroup shares checked native identity conversion with link reads.
+func addLinkEntityToGroup(groupID GroupHandle, index uint, parentType Field_Entity_Group, parentID uint,
+	add func(GroupHandle, Field_Entity_Group, uint) error,
+) error {
+	entity, err := LinkEntityPair(index, parentType, parentID)
+	if err != nil {
+		return err
+	}
+
+	return add(groupID, entity.EntityGroupId, entity.EntityId)
+}
+
+// AddEntityToGroup adds an entity to an existing group.
+// Native failures wrap *Error, preserving the native status in Error.Code.
 func AddEntityToGroup(groupID GroupHandle, entityGroupID Field_Entity_Group, entityID uint) (err error) {
 	result := C.dcgmGroupAddEntity(handle.handle, groupID.handle, C.dcgm_field_entity_group_t(entityGroupID),
 		C.uint(entityID))
-	if err = errorString(result); err != nil {
-		return fmt.Errorf("error adding entity group type %v, entity %v to group: %s", entityGroupID, entityID, err)
+	if result != C.DCGM_ST_OK {
+		err = &Error{msg: dcgmErrorText(result), Code: result}
+		return fmt.Errorf("error adding entity group type %v, entity %v to group: %w", entityGroupID, entityID, err)
 	}
 
 	return
@@ -120,7 +127,7 @@ func RemoveEntityFromGroup(groupID GroupHandle, entityGroupID Field_Entity_Group
 	result := C.dcgmGroupRemoveEntity(handle.handle, groupID.handle, C.dcgm_field_entity_group_t(entityGroupID),
 		C.uint(entityID))
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error removing entity group type %v, entity %v from group: %s", entityGroupID, entityID, err)
+		return fmt.Errorf("error removing entity group type %v, entity %v from group: %w", entityGroupID, entityID, &Error{msg: err.Error(), Code: result})
 	}
 
 	return
@@ -135,7 +142,7 @@ func DestroyGroup(groupID GroupHandle) (err error) {
 func (cgoAdapter) destroyGroup(groupID GroupHandle) (err error) {
 	result := C.dcgmGroupDestroy(handle.handle, groupID.handle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error destroying group: %s", err)
+		return fmt.Errorf("error destroying group: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return
@@ -161,7 +168,7 @@ func (cgoAdapter) getGroupInfo(groupID GroupHandle) (*GroupInfo, error) {
 
 	result := C.dcgmGroupGetInfo(handle.handle, groupID.handle, &response)
 	if err := errorString(result); err != nil {
-		return nil, err
+		return nil, &Error{msg: err.Error(), Code: result}
 	}
 
 	ret := GroupInfo{

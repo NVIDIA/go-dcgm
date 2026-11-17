@@ -9,7 +9,6 @@ package dcgm
 import "C"
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
@@ -110,7 +109,7 @@ func (cgoAdapter) fieldGroupCreate(fieldsGroupName string, fields []Short) (fiel
 
 	result := C.dcgmFieldGroupCreate(handle.handle, C.int(len(fields)), &cfields[0], groupName, &fieldsGroup)
 	if err = errorString(result); err != nil {
-		return fieldsId, fmt.Errorf("error creating DCGM fields group: %s", err)
+		return fieldsId, fmt.Errorf("error creating DCGM fields group: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	fieldsId = FieldHandle{fieldsGroup}
@@ -127,7 +126,7 @@ func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 func (cgoAdapter) fieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 	result := C.dcgmFieldGroupDestroy(handle.handle, fieldsGroup.handle)
 	if err = errorString(result); err != nil {
-		err = fmt.Errorf("error destroying DCGM fields group: %s", err)
+		err = fmt.Errorf("error destroying DCGM fields group: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return err
@@ -186,6 +185,9 @@ func watchFieldsWithOps(api watchGroupOps, gpuID uint, fieldsGroup FieldHandle, 
 // It returns an error if the watch fails, or a wrapped refresh error if the
 // refresh fails; the watch stays in place in that case. To add many watches,
 // use WatchFieldsWithGroupExNoRefresh.
+// A failed watch wraps *Error. DCGM 4.8 rejects
+// profiling and GPM update frequencies below 100,000 microseconds (10 Hz)
+// with DCGM_ST_WATCH_FREQUENCY.
 func WatchFieldsWithGroupEx(
 	fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32,
 ) error {
@@ -242,13 +244,30 @@ func watchFieldsWithGroupExNoRefreshWithOps(
 // watchFieldsNative adds a native field watch only; refreshing the values is up
 // to the caller.
 func (cgoAdapter) watchFieldsNative(fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) error {
-	result := C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
-		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples))
+	return watchFieldsWithCalls(cgoAdapter{}, fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples)
+}
 
-	if err := errorString(result); err != nil {
-		return fmt.Errorf("error watching fields: %s", err)
+// watchFieldsWithCalls starts a group watch and preserves any native failure.
+func watchFieldsWithCalls(api fieldWatchCalls, fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) error {
+	result := api.watchFieldsResult(fieldsGroup, group, updateFreq, maxKeepAge, maxKeepSamples)
+	if result == DCGM_ST_OK {
+		return nil
 	}
-	return nil
+	return watchResult("error watching fields", result, api.nativeErrorText(result))
+}
+
+// watchFieldsResult starts a native group watch and returns its status.
+func (cgoAdapter) watchFieldsResult(fieldsGroup FieldHandle, group GroupHandle, updateFreq int64, maxKeepAge float64, maxKeepSamples int32) int {
+	return int(C.dcgmWatchFields(handle.handle, group.handle, fieldsGroup.handle,
+		C.longlong(updateFreq), C.double(maxKeepAge), C.int(maxKeepSamples)))
+}
+
+// nativeErrorText returns the native description for a status code.
+func (cgoAdapter) nativeErrorText(result int) string { return dcgmErrorText(C.dcgmReturn_t(result)) }
+
+// watchResult adds operation context while preserving the native status code.
+func watchResult(context string, result int, message string) error {
+	return fmt.Errorf("%s: %w", context, &Error{msg: message, Code: C.dcgmReturn_t(result)})
 }
 
 // WatchFieldsWithGroup starts monitoring fields using default parameters.
@@ -265,7 +284,7 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
 	result := C.dcgmUnwatchFields(handle.handle, group.handle, fieldsGroup.handle)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error unwatching fields: %w", err)
+		return fmt.Errorf("error unwatching fields: %w", &Error{msg: err.Error(), Code: result})
 	}
 	return nil
 }
@@ -277,28 +296,38 @@ func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
 // updateFreq controls how often DCGM updates the field. DCGM retains samples
 // for maxKeepAge or maxKeepSamples, whichever bound is reached first. At least
 // one retention bound must be positive. maxKeepSamples must fit in DCGM's
-// 32-bit C API count argument.
+// 32-bit C API count argument. Runtime errors wrap *Error. DCGM 4.8 rejects
+// profiling and GPM intervals below 100 ms with DCGM_ST_WATCH_FREQUENCY.
 func WatchFieldValue(
 	gpuID uint, fieldID Short, updateFreq, maxKeepAge time.Duration, maxKeepSamples int,
 ) error {
+	return watchFieldValueWithCalls(cgoAdapter{}, gpuID, fieldID, updateFreq, maxKeepAge, maxKeepSamples)
+}
+
+// watchFieldValueWithCalls validates a single-field watch before native dispatch.
+func watchFieldValueWithCalls(api fieldWatchCalls, gpuID uint, fieldID Short, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
 	if updateFreq < time.Microsecond || maxKeepAge < 0 || maxKeepSamples < 0 ||
 		maxKeepSamples > maxWatchFieldValueSamples || (maxKeepAge == 0 && maxKeepSamples == 0) {
 		return newBadParameterError()
 	}
 
-	result := C.dcgmWatchFieldValue(
+	result := api.watchFieldValueResult(gpuID, fieldID, updateFreq, maxKeepAge, maxKeepSamples)
+	if result == DCGM_ST_OK {
+		return nil
+	}
+	return watchResult("error watching field value", result, api.nativeErrorText(result))
+}
+
+// watchFieldValueResult converts watch settings to native units and returns the status.
+func (cgoAdapter) watchFieldValueResult(gpuID uint, fieldID Short, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) int {
+	return int(C.dcgmWatchFieldValue(
 		handle.handle,
 		C.int(gpuID),
 		C.ushort(fieldID),
 		C.longlong(updateFreq.Microseconds()),
 		C.double(maxKeepAge.Seconds()),
 		C.int(maxKeepSamples),
-	)
-	if err := errorString(result); err != nil {
-		return fmt.Errorf("error watching field value: %w", err)
-	}
-
-	return nil
+	))
 }
 
 // UnwatchFieldValue stops monitoring a field previously started with
@@ -317,7 +346,7 @@ func UnwatchFieldValue(gpuID uint, fieldID Short, clearCache bool) error {
 		clearCacheValue,
 	)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error unwatching field value: %w", err)
+		return fmt.Errorf("error unwatching field value: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	return nil
@@ -467,7 +496,7 @@ func (cgoAdapter) getLatestValuesForFields(gpu uint, fields []Short) ([]FieldVal
 	)
 	runtime.KeepAlive(fields)
 	if err := errorString(result); err != nil {
-		return nil, fmt.Errorf("error watching fields: %s", err)
+		return nil, fmt.Errorf("error watching fields: %w", &Error{msg: err.Error(), Code: result})
 	}
 
 	// Convert to our return type before returning
@@ -475,17 +504,24 @@ func (cgoAdapter) getLatestValuesForFields(gpu uint, fields []Short) ([]FieldVal
 }
 
 // LinkGetLatestValues retrieves the latest values for specified fields of a link entity.
-// index is the link index.
-// parentId is the ID of the parent entity.
+// index is the physical link index (at most 65535).
+// parentId is the native GPU or switch ID (at most 255); zero is valid.
 // fields is a slice of field IDs to retrieve.
 // Returns a slice of field values and any error encountered.
 func LinkGetLatestValues(index uint, parentType Field_Entity_Group, parentId uint, fields []Short) ([]FieldValue_v1, error) {
-	slice := make([]byte, 4)
-	slice[0] = uint8(parentType)
-	binary.LittleEndian.PutUint16(slice[1:3], uint16(index))
-	slice[3] = uint8(parentId)
-	entityId := binary.LittleEndian.Uint32(slice)
-	return EntityGetLatestValues(FE_LINK, uint(entityId), fields)
+	return linkGetLatestValues(index, parentType, parentId, fields, EntityGetLatestValues)
+}
+
+// linkGetLatestValues shares checked native identity conversion with group admission.
+func linkGetLatestValues(index uint, parentType Field_Entity_Group, parentID uint, fields []Short,
+	read func(Field_Entity_Group, uint, []Short) ([]FieldValue_v1, error),
+) ([]FieldValue_v1, error) {
+	entity, err := LinkEntityPair(index, parentType, parentID)
+	if err != nil {
+		return nil, err
+	}
+
+	return read(entity.EntityGroupId, entity.EntityId, fields)
 }
 
 // EntityGetLatestValues retrieves the latest values for specified fields of any entity.
@@ -561,7 +597,11 @@ func (cgoAdapter) updateAllFields() error {
 	waitForUpdate := C.int(1)
 	result := C.dcgmUpdateAllFields(handle.handle, waitForUpdate)
 
-	return errorString(result)
+	if err := errorString(result); err != nil {
+		return &Error{msg: err.Error(), Code: result}
+	}
+
+	return nil
 }
 
 func toFieldValue(cfields []C.dcgmFieldValue_v1) []FieldValue_v1 {

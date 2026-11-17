@@ -12,18 +12,21 @@ go_library(
 go_test(
     name = "tests_test",
     srcs = [
+        "configuration_test.go",
         "dcgm_test.go",
         "deviceinfo_test.go",
         "diag_test.go",
         "dmon_test.go",
         "health_test.go",
         "hostengine_test.go",
+        "job_stats_test.go",
         "policy_test.go",
         "processinfo_test.go",
         "restapi_test.go",
         "topology_test.go",
     ],
     embed = [":tests"],
+    env = {"DCGM_ENABLE_INJECTION_APIS": "1"},
     tags = [
         "manual",
         "requires-dcgm",

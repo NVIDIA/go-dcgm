@@ -18,6 +18,7 @@ package dcgm
 
 /*
 #include "dcgm_structs.h"
+#include "field_policy_import.h"
 */
 import "C"
 
@@ -100,4 +101,20 @@ func policyConditionExpectedForTest(condition PolicyCondition) uint {
 	default:
 		return 0
 	}
+}
+
+func fieldPolicyRoundTripForTest(policy FieldPolicy) (FieldPolicy, error) {
+	native, err := cFieldPolicyInfo(policy)
+	if err != nil {
+		return FieldPolicy{}, err
+	}
+	return fieldPolicyFromC(native), nil
+}
+
+func maxFieldPolicyPathForTest() int { return int(C.DCGM_POLICY_MAX_PATH) }
+
+func countedPolicyImportBridgeWithoutLibrary() (parsedCount, skippedCount uint, status int) {
+	var parsed, skipped C.uint
+	result := C.callPolicyImportV2(nil, 0, nil, &parsed, &skipped)
+	return uint(parsed), uint(skipped), int(result)
 }

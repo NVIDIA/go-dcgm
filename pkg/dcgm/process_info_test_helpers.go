@@ -21,6 +21,8 @@ package dcgm
 */
 import "C"
 
+import "unsafe"
+
 // processGPUInputForTest describes one GPU's process metrics in plain Go values
 // so unit tests do not need to populate the native response fields directly.
 type processGPUInputForTest struct {
@@ -58,8 +60,8 @@ func processInfoFromValuesForTest(
 	reportedGPUCount int,
 	gpus []processGPUInputForTest,
 ) ([]ProcessInfo, error) {
-	var response C.dcgmPidInfo_t
-	response.pid = C.uint(pid)
+	var response C.dcgmPidInfo_v2
+	initializePIDInfo(&response, pid)
 	response.numGpus = C.int(reportedGPUCount)
 
 	gpuCount := min(len(gpus), len(response.gpus))
@@ -102,6 +104,13 @@ func processInfoFromValuesForTest(
 // processInfoLimitsForTest reports the fixed native array sizes used to test
 // valid boundary counts and rejected overflow counts.
 func processInfoLimitsForTest() (gpuCount, xidCount int) {
-	var response C.dcgmPidInfo_t
+	var response C.dcgmPidInfo_v2
 	return len(response.gpus), len(response.gpus[0].xidCriticalErrorsTs)
+}
+
+// processInfoLayoutForTest inspects the same initializer used by PID queries.
+func processInfoLayoutForTest(pid uint) (version, expectedVersion uint32, size, expectedSize uintptr, nativePID uint) {
+	var response C.dcgmPidInfo_v2
+	initializePIDInfo(&response, pid)
+	return uint32(response.version), uint32(C.dcgmPidInfo_version2), unsafe.Sizeof(response), C.sizeof_dcgmPidInfo_v2, uint(response.pid)
 }

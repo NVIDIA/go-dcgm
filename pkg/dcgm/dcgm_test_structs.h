@@ -38,8 +38,8 @@ typedef struct
     unsigned int gpuId;       //!< GPU ID
     unsigned int eccMode;     //!< ECC Mode  (0: Disabled, 1 : Enabled, DCGM_INT32_BLANK : Ignored)
     unsigned int computeMode; //!< Compute Mode (One of DCGM_CONFIG_COMPUTEMODE_? OR DCGM_INT32_BLANK to Ignore)
-    dcgmConfigPerfStateSettings_t perfState; //!< Performance State Settings (clocks / boost mode)
-    dcgmConfigPowerLimit_t powerLimit;       //!< Power Limits
+    dcgmConfigPerfStateSettings_v1 perfState; //!< Performance State Settings (clocks / boost mode)
+    dcgmConfigPowerLimit_t powerLimit;        //!< Power Limits
 } dcgmVgpuConfig_v1;
 
 /**

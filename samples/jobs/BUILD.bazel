@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "jobs_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/NVIDIA/go-dcgm/samples/jobs",
+    visibility = ["//visibility:private"],
+    deps = ["//pkg/dcgm"],
+)
+
+go_binary(
+    name = "jobs",
+    embed = [":jobs_lib"],
+    visibility = ["//visibility:public"],
+)

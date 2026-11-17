@@ -42,7 +42,7 @@ task generate
 This will:
 
 - Parse `pkg/dcgm/dcgm_fields.h`
-- Read curated lowercase compatibility names from `pkg/dcgm/legacy_fields.csv`
+- Read curated compatibility names from `pkg/dcgm/legacy_fields.csv`
 - Generate `pkg/dcgm/const_fields.go` with all DCGM field constants and helper functions
 
 ### 3. Verify the generated code
@@ -63,8 +63,10 @@ Check what fields were added, removed, or modified:
 git diff pkg/dcgm/const_fields.go
 ```
 
-If a lowercase compatibility name needs to be added or removed, update
+If a compatibility name needs to be added or removed, update
 `pkg/dcgm/legacy_fields.csv` in the same change and regenerate the constants.
+A `DCGM_FI_*` name in that file must keep the ID that `dcgm_fields.h` gives
+it; generation fails otherwise.
 
 ### 5. Test the changes
 

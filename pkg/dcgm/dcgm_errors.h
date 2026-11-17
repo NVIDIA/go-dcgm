@@ -365,7 +365,7 @@ extern dcgm_error_meta_t dcgmErrorMeta[];
 // gpu id, PCIe width, minimum allowed, parameter to control
 #define DCGM_FR_PCIE_WIDTH_MSG                                     \
     "GPU %u is running at PCI link width %dX, which is below the " \
-    "minimum allowed link generation of %d (parameter '%s')"
+    "minimum allowed link width of %d (parameter '%s')"
 #define DCGM_FR_ABORTED_MSG "Test was aborted early due to user signal"
 // Test name
 #define DCGM_FR_TEST_DISABLED_MSG "The %s test is skipped."
