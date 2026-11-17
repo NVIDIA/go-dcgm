@@ -543,22 +543,6 @@ func TestDiagnosticHeartbeat(t *testing.T) {
 	})
 }
 
-// diagnosticRejected detects native errors and failed diagnostic results for invalid-parameter checks.
-func diagnosticRejected(result DiagResults, err error) bool {
-	if err != nil || len(result.SystemErrors) != 0 {
-		return true
-	}
-
-	for i := range result.Tests {
-		test := &result.Tests[i]
-		if test.Status == "fail" {
-			return true
-		}
-	}
-
-	return false
-}
-
 // TestDiagnosticNamedParameters accepts a valid duration and checks strict rejection on runtimes with the parser fix.
 func TestDiagnosticNamedParameters(t *testing.T) {
 	diagnosticProcess(t, func() {
@@ -591,12 +575,22 @@ func TestDiagnosticNamedParameters(t *testing.T) {
 			})
 			return
 		}
-		for _, value := range []string{"1suffix", " 1", "1 ", "NaN", "inf", "1e10000"} {
+		for _, input := range []struct {
+			value, message string
+		}{
+			{"1suffix", "Invalid numeric test parameter"},
+			{" 1", "Invalid numeric test parameter"},
+			{"1 ", "Invalid numeric test parameter"},
+			{"NaN", "Invalid numeric test parameter"},
+			{"inf", "Invalid numeric test parameter"},
+			{"1e10000", "Numeric test parameter is outside the double range"},
+		} {
+			value := input.value
 			t.Run(value, func(t *testing.T) {
 				request.TestParameters = []string{"diagnostic.test_duration=" + value}
 				result, err := ActionValidate(request)
 				t.Logf("invalid numeric parameter %q: error=%v results=%+v", value, err, result)
-				require.True(t, diagnosticRejected(result, err), "DCGM accepted the invalid numeric parameter")
+				require.True(t, diagnosticParameterRejected(result, err, input.message), "expected numeric parameter rejection")
 			})
 		}
 	})

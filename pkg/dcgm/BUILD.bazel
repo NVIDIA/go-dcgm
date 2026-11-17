@@ -27,6 +27,7 @@ exports_files(["const_fields.go"])
 # gazelle:exclude device_status_unit_test.go
 # gazelle:exclude diagnostic_runtime_test.go
 # gazelle:exclude diagnostic_control_test.go
+# gazelle:exclude diagnostic_parameter_test.go
 # gazelle:exclude diag_test.go
 # gazelle:exclude diag_test_helpers.go
 # gazelle:exclude field_policy_test.go
@@ -185,6 +186,7 @@ go_test(
         "api_unit_test.go",  # keep: shared counter helpers and tests.
         "bind_unbind_test.go",
         "config_session_runtime_test.go",
+        "diagnostic_parameter_test.go",  # keep: parser rejection checks are shared with the unit target.
         "diagnostic_runtime_test.go",  # keep: opt-in native diagnostic checks.
         "error_runtime_test.go",
         "error_test.go",
@@ -251,6 +253,7 @@ go_test(
         "diag_test.go",
         "diag_test_helpers.go",
         "diagnostic_control_test.go",
+        "diagnostic_parameter_test.go",
         "entity_identity_test.go",
         "error_test.go",  # keep: shared with the runtime test target.
         "field_applicability_test.go",
