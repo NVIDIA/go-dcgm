@@ -24,14 +24,9 @@ tasks:
       - task --list
 
   versions:validate:
-    desc: Validate shared version pins; IMAGE_VARIABLES_FILE also checks the CI image variables in that file and then needs IMAGE_REGISTRY_VARIABLE_NAME, the name (not the value) of the variable their values start with; IMAGE_REGISTRY_FILES (space-separated globs) checks that every reference to that variable there has a digest and every <NAME>_IMAGE there has a pin
-    env:
-      IMAGE_VARIABLES_FILE: '{{.IMAGE_VARIABLES_FILE | default ""}}'
-      IMAGE_REGISTRY_VARIABLE_NAME: '{{.IMAGE_REGISTRY_VARIABLE_NAME | default ""}}'
-      IMAGE_REGISTRY_FILES: '{{.IMAGE_REGISTRY_FILES | default ""}}'
+    desc: Validate shared version pins
     cmds:
-      # IMAGE_REGISTRY_FILES is unquoted so that its globs expand.
-      - bash hack/validate-versions.sh "${IMAGE_VARIABLES_FILE}" "${IMAGE_REGISTRY_VARIABLE_NAME}" ${IMAGE_REGISTRY_FILES}
+      - bash hack/validate-versions.sh
 
   release:tag:check:
     desc: Check that RELEASE_TAG is v1.<DCGM_VERSION digits><DCGM_PACKAGE_REVISION>.<patch> for the DCGM pin in hack/versions.env (RELEASE_TAG=v1.4712.3 task release:tag:check)
