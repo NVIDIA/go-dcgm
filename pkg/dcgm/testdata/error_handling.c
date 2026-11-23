@@ -78,13 +78,20 @@ static dcgmReturn_t writeVersion(dcgmVersionInfo_t *info, const char *version) {
 #endif
 }
 
+#ifndef CLIENT_VERSION
+#define CLIENT_VERSION "4.8.0"
+#endif
+#ifndef HOST_VERSION
+#define HOST_VERSION "4.7.0"
+#endif
+
 #ifndef NO_CLIENT
 dcgmReturn_t dcgmVersionInfo(dcgmVersionInfo_t *info) {
-    return writeVersion(info, "version:4.8.0;");
+    return writeVersion(info, "version:" CLIENT_VERSION ";");
 }
 #endif
 #ifndef NO_HOST
 dcgmReturn_t dcgmHostengineVersionInfo(dcgmHandle_t h, dcgmVersionInfo_t *info) {
-    return writeVersion(info, "version:4.7.0;");
+    return writeVersion(info, "version:" HOST_VERSION ";");
 }
 #endif

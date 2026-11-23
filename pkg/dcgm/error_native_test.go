@@ -59,13 +59,26 @@ func runErrorChild(t *testing.T, testName, dir string, extra ...string) {
 	require.Contains(t, string(out), "--- PASS: "+testName, "child must execute the selected test")
 }
 
-// TestLoadedLibraryDiagnostics selects a fixture in a fresh loader process for
-// each combination of missing symbols, bad build info, and native errors.
+// TestLoadedLibraryDiagnostics checks loader search, missing symbols, invalid
+// build info, and native errors without using an installed DCGM library.
 func TestLoadedLibraryDiagnostics(t *testing.T) {
 	if os.Getenv("GO_DCGM_LOADER_CHILD") == "1" {
-		checkLoadedLibraryDiagnostics(t)
+		require.NoError(t, cgoAdapter{}.loadLibrary())
+		defer cgoAdapter{}.closeLibrary()
+		path, err := GetLoadedLibraryPath()
+		require.NoError(t, err)
+		require.Equal(t, filepath.Join(os.Getenv("LD_LIBRARY_PATH"), dcgmLibraryName), path)
+		_, err = GetVersionInfo()
+		require.NoError(t, err)
 		return
 	}
+
+	t.Run("loader search path", func(t *testing.T) {
+		runErrorChild(t, "TestLoadedLibraryDiagnostics", buildErrorLibrary(t), "GO_DCGM_LOADER_CHILD=1")
+	})
+
+	// Open each fixture by absolute path so the queries contribute to the
+	// coverage recorded by the parent test process.
 	for _, flags := range [][]string{
 		nil,
 		{"-DNO_CLIENT"},
@@ -76,8 +89,9 @@ func TestLoadedLibraryDiagnostics(t *testing.T) {
 		{"-DVERSION_ERROR", "-DNO_ERROR_TEXT"},
 	} {
 		t.Run(fmt.Sprint(flags), func(t *testing.T) {
-			runErrorChild(t, "TestLoadedLibraryDiagnostics", buildErrorLibrary(t, flags...),
-				"GO_DCGM_LOADER_CHILD=1", "GO_DCGM_FLAGS="+strings.Join(flags, " "))
+			t.Setenv("GO_DCGM_VERSION_FD", "")
+			path := filepath.Join(buildErrorLibrary(t, flags...), dcgmLibraryName)
+			checkLoadedLibraryDiagnostics(t, path, flags)
 		})
 	}
 
@@ -86,23 +100,60 @@ func TestLoadedLibraryDiagnostics(t *testing.T) {
 		for _, fd := range []string{"invalid", "0", "2", strings.Repeat("9", 32)} {
 			t.Run(fd, func(t *testing.T) {
 				runErrorChild(t, "TestLoadedLibraryDiagnostics", dir,
-					"GO_DCGM_LOADER_CHILD=1", "GO_DCGM_FLAGS=", "GO_DCGM_VERSION_FD="+fd)
+					"GO_DCGM_LOADER_CHILD=1", "GO_DCGM_VERSION_FD="+fd)
 			})
 		}
 	})
 }
 
+// TestRuntimeCompatibilityQueries checks selection using metadata from the loaded library.
+func TestRuntimeCompatibilityQueries(t *testing.T) {
+	v10, v11, _ := diagnosticCompatibilityVersionsForTest()
+	for _, tc := range []struct {
+		name              string
+		flags             []string
+		legacyMemory      bool
+		diagnosticVersion uint
+	}{
+		{name: "legacy memory", flags: []string{`-DHOST_VERSION="4.6.1"`}, legacyMemory: true, diagnosticVersion: v10},
+		{name: "legacy diagnostics", flags: []string{`-DHOST_VERSION="4.7.1"`}, diagnosticVersion: v11},
+		{name: "missing client version", flags: []string{"-DNO_CLIENT", `-DHOST_VERSION="4.6.1"`}, diagnosticVersion: v10},
+		{name: "missing hostengine version", flags: []string{"-DNO_HOST"}, diagnosticVersion: v10},
+		{name: "unknown client version", flags: []string{`-DCLIENT_VERSION="unknown"`, `-DHOST_VERSION="4.6.1"`}, diagnosticVersion: v10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("GO_DCGM_VERSION_FD", "")
+			require.Zero(t, dcgmInitCounter)
+			require.Nil(t, dcgmLibHandle)
+			path := filepath.Join(buildErrorLibrary(t, tc.flags...), dcgmLibraryName)
+			require.NoError(t, loadLibraryFile(path))
+			dcgmInitCounter = 1
+			t.Cleanup(func() {
+				dcgmInitCounter = 0
+				cgoAdapter{}.closeLibrary()
+			})
+
+			mux.Lock()
+			legacyMemory := usesLegacyDeviceMemory()
+			mux.Unlock()
+			require.Equal(t, tc.legacyMemory, legacyMemory)
+			require.EqualValues(t, tc.diagnosticVersion, selectedDiagnosticRequestVersion())
+		})
+	}
+}
+
 // checkLoadedLibraryDiagnostics verifies the loaded path and queries before and after closing it.
-func checkLoadedLibraryDiagnostics(t *testing.T) {
+func checkLoadedLibraryDiagnostics(t *testing.T, want string, flags []string) {
 	t.Helper()
+	require.Zero(t, dcgmInitCounter)
+	require.Nil(t, dcgmLibHandle)
 	path, err := GetLoadedLibraryPath()
 	require.Error(t, err)
 	require.Empty(t, path)
-	require.NoError(t, cgoAdapter{}.loadLibrary())
+	require.NoError(t, loadLibraryFile(want))
 	defer cgoAdapter{}.closeLibrary()
 	path, err = GetLoadedLibraryPath()
 	require.NoError(t, err)
-	want := filepath.Join(os.Getenv("LD_LIBRARY_PATH"), dcgmLibraryName)
 	require.Equal(t, want, path)
 
 	// Check the backing address while the native storage is valid.
@@ -112,7 +163,7 @@ func checkLoadedLibraryDiagnostics(t *testing.T) {
 
 	// The fixture covers symbol lookup. The real-runtime test owns session startup.
 	dcgmInitCounter = 1
-	flags := strings.Fields(os.Getenv("GO_DCGM_FLAGS"))
+	defer func() { dcgmInitCounter = 0 }()
 	for _, query := range []struct {
 		name, absent, want string
 		read               func() (VersionInfo, error)
