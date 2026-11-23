@@ -2,6 +2,7 @@ package dcgm
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -258,4 +259,31 @@ func TestDiagnosticConnectXResults(t *testing.T) {
 	for _, legacy := range result.Software {
 		require.NotEqual(t, uint(17), legacy.EntityID)
 	}
+}
+
+// TestRunDiagResultContract checks that invalid levels and native errors return an empty result.
+func TestRunDiagResultContract(t *testing.T) {
+	for _, level := range []DiagType{-1, 0, DiagExtended + 1} {
+		t.Run(fmt.Sprint(level), func(t *testing.T) {
+			api := NewMockdiagnosticCalls(gomock.NewController(t))
+			api.EXPECT().requireDiagnosticSymbol("dcgmRunDiagnostic").Return(nil)
+
+			result, err := runDiagWithCalls(api, level, GroupAllGPUs())
+
+			require.Empty(t, result)
+			var native *Error
+			require.ErrorAs(t, err, &native)
+			require.Equal(t, DCGM_ST_BADPARAM, int(native.Code))
+		})
+	}
+
+	api := NewMockdiagnosticCalls(gomock.NewController(t))
+	api.EXPECT().requireDiagnosticSymbol("dcgmRunDiagnostic").Return(nil)
+	nativeErr := diagnosticNativeErrorForTest(DCGM_ST_DIAG_STOPPED)
+	api.EXPECT().runDiagNative(DiagQuick, GroupAllGPUs()).Return(DiagResults{DCGMVersion: "partial"}, nativeErr)
+
+	result, err := runDiagWithCalls(api, DiagQuick, GroupAllGPUs())
+
+	require.Empty(t, result)
+	require.ErrorIs(t, err, nativeErr)
 }

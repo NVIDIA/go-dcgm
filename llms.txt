@@ -49,20 +49,27 @@ defer cleanup()
   `"0"` means TCP and `"1"` means a Unix socket path.
 - `StartHostengine` starts `nv-hostengine` as a child process and stops it in
   cleanup.
-- `Init` is reference counted: later calls reuse the first connection and
-  ignore their mode. Each successful `Init` needs one cleanup call.
+- `Init` is reference counted: later calls with a valid mode reuse the first
+  connection. Invalid modes return `ErrInvalidMode` with nil cleanup, even when
+  a session is active. Each successful `Init` needs one cleanup call.
 - When `Init` fails, cleanup is nil. If the library cannot be loaded, the
   error is a `*dcgm.LibraryLoadError`; check it with `errors.As`.
 
 ## Reading GPU data
 
 - List GPUs with `GetSupportedDevices`, then use `GetDeviceInfo` and
-  `GetDeviceStatus` for one GPU.
+  `GetDeviceStatus` for one GPU. Unavailable status readings carry DCGM blank
+  markers. Other field failures can return a populated status alongside an
+  error.
 - To watch fields: `CreateGroup` and `AddToGroup` (or `GroupAllGPUs`),
   `FieldGroupCreate`, `WatchFieldsWithGroup`, then read with
   `GetLatestValuesForFields`, `EntityGetLatestValues`,
   `EntitiesGetLatestValues` or `GetValuesSince`. `UpdateAllFields` forces an
   update instead of waiting for the next one.
+- Check each field value's `Status` against `DCGM_ST_OK` before using its
+  payload. A field with `DCGM_ST_OK` can still contain a DCGM blank marker.
+  Use `IsInt32Blank`, `IsInt64Blank`, `IsFloat64Blank` or `IsStringBlank`
+  on the decoded payload as appropriate for the field's type and width.
 - `WatchFieldsWithGroupEx` sets the interval and retention and refreshes after
   it adds the watch. To add many watches, use
   `WatchFieldsWithGroupExNoRefresh`: DCGM samples a new watch's fields once
@@ -76,6 +83,9 @@ defer cleanup()
   described non-link metadata can come from a newer runtime than the generated
   field catalog. This is structural compatibility, not a hardware capability
   probe; native operation errors and sample statuses still apply.
+- `FieldGetByID` reports missing metadata as `errors.ErrUnsupported` while the
+  native field catalog is initialized. An unavailable catalog reports a
+  different error.
 - `LinkEntityPair(index, parentType, parentID)` converts a discovered physical
   link index and native GPU/switch parent ID into its packed native key.
   It checks `dcgm_link_t`'s 16-bit index and 8-bit parent ID before conversion;
@@ -130,7 +140,15 @@ parent dimension; a field name or blank sample cannot establish that relation.
 - APIs that older DCGM releases lack return an error for which
   `dcgm.IsFeatureUnavailable(err)` is true. Treat it as "not supported here",
   not as a failure.
-- Use `GetHostengineVersionInfo` to report the connected DCGM version.
+- After initialization, use `GetLoadedLibraryPath` for the path of the loaded
+  client library on Linux. It may be relative or contain symlinks. `GetVersionInfo` reports build
+  information for the loaded client library. `GetHostengineVersionInfo` needs
+  an active session and reports the connected hostengine's build information.
+  The `version` key in `RawBuildInfoString` gives the release. Continue normal
+  operation when optional metadata is unavailable.
+- `GetDeviceInfo` and `HealthCheckByGpuId` can return usable data along with a
+  cleanup error. An `errors.Is` or `errors.As` match identifies one cause in the
+  returned error. Inspect each joined cause before treating the error as nonfatal.
 
 ## Diagnostics and profiling control
 
@@ -139,9 +157,10 @@ parent dimension; a field name or blank sample cannot establish that relation.
   a level, a group or explicit entities, and a timeout. A nil group and empty
   entities use DCGM's default selection: all GPUs for GPU tests. Group and
   explicit entities cannot be combined.
-- Requests use native diagnostic version 10 with empty logging and statistics
-  paths, as required by DCGM 4.8. The Go request does not expose v12 logging
-  or statistics-prefix options.
+- Requests use native diagnostic version 10 by default. A DCGM 4.8 client
+  uses version 11 for a 4.7.1 hostengine. Logging and statistics paths stay
+  empty. The Go request does not expose v12 logging or statistics-prefix
+  options.
 - `DiagnosticRequest.Timeout` is zero for DCGM's default or a whole number
   of seconds (at most 4,294,967). DCGM converts `timeoutSeconds` to uint32
   milliseconds internally; this bound prevents overflow in that conversion.
@@ -313,9 +332,10 @@ Job statistics:
 
 GPU configuration:
 - `ConfigGet(group, ConfigCurrentState)` and `ConfigGet(group, ConfigTargetState)`
-  return `[]GPUConfig`. This uses `dcgmConfig_v3`: clocks are int64 Hz, power
-  limits are watts. Client library and hostengine must support the v3 protocol;
-  configuration get/set do not fall back to the pre-4.8 protocol.
+  return `[]GPUConfig`. Go clocks are int64 Hz and power limits are watts.
+  Config get and set use the v2 layout with known DCGM 4.6 and 4.7 clients,
+  converting clocks between Hz and MHz. Other clients use the v3 layout.
+  The client library and hostengine still need compatible config protocols.
 - `GPUConfig` uses nil pointers for unset, unknown or unsupported values. A
   zero-valued `GPUConfig` changes nothing. `ConfigSet(group, config)` applies
   non-nil values to all GPUs in the group and saves those values as targets.

@@ -78,7 +78,16 @@ task test:integration
 task test:race
 ```
 
+When updating the DCGM runtime or headers, review the version functions and
+`errorString` in `pkg/dcgm/testdata/error_handling.c` against `dcgm_agent.h`
+and the upstream DCGM behavior. The unit tests compile the fixture against
+the header and check symbol lookup and version errors.
+
 ## Validate your work
+
+Wrap causes with `%w`, and return cleanup failures with `errors.Join` alongside
+any valid result. Native failures carry `*dcgm.Error`; do not invent native
+codes for local errors.
 
 All changes need to pass `task validate` and `pre-commit run --all-files`.
 Changes affecting runtime behavior must also pass `task test:integration` and

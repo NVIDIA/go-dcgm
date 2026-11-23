@@ -7,14 +7,9 @@ package dcgm
 import "C"
 
 import (
-	"fmt"
 	"math"
+	"strings"
 	"unsafe"
-)
-
-const (
-	dcgmInt32Blank = 0x7ffffff0         // 2147483632
-	dcgmInt64Blank = 0x7ffffffffffffff0 // 9223372036854775792
 )
 
 func uintPtr(c C.uint) *uint {
@@ -59,8 +54,7 @@ func errorString(result C.dcgmReturn_t) error {
 	if result == C.DCGM_ST_OK {
 		return nil
 	}
-	err := dcgmErrorText(result)
-	return fmt.Errorf("%v", err)
+	return &Error{msg: dcgmErrorText(result), Code: result}
 }
 
 // dcgmErrorText converts DCGM's native status message into the error text used by Go callers.
@@ -72,16 +66,29 @@ func freeCString(cStr *C.char) {
 	C.free(unsafe.Pointer(cStr))
 }
 
-// IsInt32Blank checks if an integer value represents DCGM's "blank" or sentinel value (0x7ffffff0).
-// These values indicate that no valid data is available for the field.
-func IsInt32Blank(value int) bool {
-	return value >= dcgmInt32Blank
+// IsStringBlank reports whether value starts with "<<<" and contains ">>>"
+// before the first NUL byte, following DCGM_STR_IS_BLANK.
+func IsStringBlank(value string) bool {
+	if !strings.HasPrefix(value, "<<<") {
+		return false
+	}
+	text, _, _ := strings.Cut(value, "\x00")
+	return strings.Contains(text, ">>>")
 }
 
-// IsInt64Blank checks if an integer value represents DCGM's "blank" or sentinel value (0x7ffffffffffffff0).
-// These values indicate that no valid data is available for the field.
+// IsInt32Blank reports whether value is at or above DCGM's 32-bit blank threshold.
+func IsInt32Blank(value int) bool {
+	return int64(value) >= DCGM_FT_INT32_BLANK
+}
+
+// IsInt64Blank reports whether value is at or above DCGM's 64-bit blank threshold.
 func IsInt64Blank(value int64) bool {
-	return value >= dcgmInt64Blank
+	return value >= DCGM_FT_INT64_BLANK
+}
+
+// IsFloat64Blank reports whether value is at or above DCGM's floating-point blank threshold.
+func IsFloat64Blank(value float64) bool {
+	return value >= DCGM_FT_FP64_BLANK
 }
 
 func makeVersion1(struct_type uintptr) C.uint {

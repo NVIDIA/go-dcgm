@@ -12,6 +12,7 @@ import (
 	"text/template"
 
 	"github.com/NVIDIA/go-dcgm/pkg/dcgm"
+	"github.com/NVIDIA/go-dcgm/samples/internal/processoutput"
 )
 
 const (
@@ -50,39 +51,6 @@ Memory Clock (MHz       : {{.Clocks.Memory}}
 SM Clock (MHz)          : {{.Clocks.Cores}}
 `
 
-	// ProcessInfo is the template for formatting process information output
-	processInfo = `----------------------------------------------------------------------
-GPU ID                       : {{.GPU}}
-----------Execution Stats---------------------------------------------
-PID                          : {{.PID}}
-Name                         : {{or .Name "N/A"}}
-Start Time                   : {{.ProcessUtilization.StartTime.String}}
-End Time                     : {{.ProcessUtilization.EndTime.String}}
-----------Performance Stats-------------------------------------------
-Energy Consumed (Joules)     : {{or .ProcessUtilization.EnergyConsumed "N/A"}}
-Max GPU Memory Used (bytes)  : {{or .Memory.GlobalUsed "N/A"}}
-Avg SM Clock (MHz)           : {{or .Clocks.Cores "N/A"}}
-Avg Memory Clock (MHz)       : {{or .Clocks.Memory "N/A"}}
-Avg SM Utilization (%)       : {{or .GpuUtilization.Memory "N/A"}}
-Avg Memory Utilization (%)   : {{or .GpuUtilization.GPU "N/A"}}
-Avg PCIe Rx Bandwidth (MB)   : {{or .PCI.Throughput.Rx "N/A"}}
-Avg PCIe Tx Bandwidth (MB)   : {{or .PCI.Throughput.Tx "N/A"}}
-----------Event Stats-------------------------------------------------
-Single Bit ECC Errors        : {{or .Memory.ECCErrors.SingleBit "N/A"}}
-Double Bit ECC Errors        : {{or .Memory.ECCErrors.DoubleBit "N/A"}}
-Critical XID Errors          : {{.XIDErrors.NumErrors}}
-----------Slowdown Stats----------------------------------------------
-Due to - Power (%)           : {{.Violations.Power}}
-       - Thermal (%)         : {{.Violations.Thermal}}
-       - Reliability (%)     : {{.Violations.Reliability}}
-       - Board Limit (%)     : {{.Violations.BoardLimit}}
-       - Low Utilization (%) : {{.Violations.LowUtilization}}
-       - Sync Boost (%)      : {{.Violations.SyncBoost}}
-----------Process Utilization-----------------------------------------
-Avg SM Utilization (%)       : {{or .ProcessUtilization.SmUtil "N/A"}}
-Avg Memory Utilization (%)   : {{or .ProcessUtilization.MemUtil "N/A"}}
-----------------------------------------------------------------------
-`
 	// HealthStatus is the template for formatting health status output
 	healthStatus = `GPU                : {{.GPU}}
 Status             : {{.Status}}
@@ -101,7 +69,6 @@ CPU(%)          : {{printf "%.2f" .CPU}}
 var (
 	deviceInfoTemplate   = template.Must(template.New("deviceInfo").Parse(deviceInfo))
 	deviceStatusTemplate = template.Must(template.New("deviceStatus").Parse(deviceStatus))
-	processInfoTemplate  = template.Must(template.New("processInfo").Parse(processInfo))
 	healthStatusTemplate = template.Must(template.New("healthStatus").Parse(healthStatus))
 	hostengineTemplate   = template.Must(template.New("hostengine").Parse(hostengine))
 )
@@ -236,8 +203,7 @@ func processPrint(resp http.ResponseWriter, req *http.Request, pInfo []dcgm.Proc
 	// Render every entry before writing any of them to the response.
 	var output bytes.Buffer
 	for i := range pInfo {
-		// #nosec G708 -- processInfoTemplate is parsed from a package-local template at startup.
-		if err := processInfoTemplate.Execute(&output, pInfo[i]); err != nil {
+		if err := processoutput.Write(&output, pInfo[i]); err != nil {
 			writeInternalError(resp, req, err)
 			return
 		}

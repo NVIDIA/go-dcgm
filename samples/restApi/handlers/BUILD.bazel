@@ -12,6 +12,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/dcgm",
+        "//samples/internal/processoutput",
         "@com_github_gorilla_mux//:mux",
     ],
 )

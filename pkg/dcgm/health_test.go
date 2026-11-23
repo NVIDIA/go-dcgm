@@ -36,21 +36,7 @@ func TestIMEXHealthWatchIntegration(t *testing.T) {
 	defer teardownTest(t)
 	runOnlyWithLiveGPUs(t)
 
-	links, err := GetNvLinkLinkStatus()
-	require.NoError(t, err)
-
-	var gpuID uint
-	foundNVLinkGPU := false
-	for _, link := range links {
-		if link.ParentType == FE_GPU && link.State != LS_NOT_SUPPORTED {
-			gpuID = link.ParentId
-			foundNVLinkGPU = true
-			break
-		}
-	}
-	if !foundNVLinkGPU {
-		t.Skip("standalone IMEX health integration requires a GPU with supported NVLink")
-	}
+	gpuID := requireIMEXGPU(t)
 
 	groupID, err := CreateGroup(fmt.Sprintf("imex-health-%d", time.Now().UnixNano()))
 	require.NoError(t, err)
@@ -73,26 +59,7 @@ func TestIMEXHealthWatchIntegration(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	hasIMEXData := false
-	for _, value := range imexValues {
-		if value.Status != DCGM_ST_OK {
-			continue
-		}
-
-		switch value.FieldID {
-		case DCGM_FI_IMEX_DOMAIN_STATUS:
-			switch value.String() {
-			case "", DCGM_FT_STR_BLANK, DCGM_FT_STR_NOT_FOUND, DCGM_FT_STR_NOT_SUPPORTED, DCGM_FT_STR_NOT_PERMISSIONED:
-			default:
-				hasIMEXData = true
-			}
-		case DCGM_FI_IMEX_DAEMON_STATUS:
-			if !IsInt64Blank(value.Int64()) {
-				hasIMEXData = true
-			}
-		}
-	}
-	if !hasIMEXData {
+	if !hasUsableIMEXData(imexValues) {
 		t.Skip("standalone IMEX health integration requires usable global IMEX domain or daemon data")
 	}
 
@@ -123,6 +90,41 @@ func TestIMEXHealthWatchIntegration(t *testing.T) {
 	} else {
 		require.Equal(t, DCGM_HEALTH_RESULT_FAIL, response.OverallHealth)
 	}
+}
+
+// requireIMEXGPU selects a GPU whose NVLink status can exercise IMEX health.
+func requireIMEXGPU(t *testing.T) uint {
+	t.Helper()
+	links, err := GetNvLinkLinkStatus()
+	require.NoError(t, err)
+	for _, link := range links {
+		if link.ParentType == FE_GPU && link.State != LS_NOT_SUPPORTED {
+			return link.ParentId
+		}
+	}
+	t.Skip("standalone IMEX health integration requires a GPU with supported NVLink")
+	return 0
+}
+
+// hasUsableIMEXData checks whether DCGM returned a usable domain or daemon status.
+func hasUsableIMEXData(values []FieldValue_v1) bool {
+	for i := range values {
+		value := &values[i]
+		if value.Status != DCGM_ST_OK {
+			continue
+		}
+		switch value.FieldID {
+		case DCGM_FI_IMEX_DOMAIN_STATUS:
+			if text := value.String(); text != "" && !IsStringBlank(text) {
+				return true
+			}
+		case DCGM_FI_IMEX_DAEMON_STATUS:
+			if !IsInt64Blank(value.Int64()) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestHealthWhenInvalidGroupID(t *testing.T) {

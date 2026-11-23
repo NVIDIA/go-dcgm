@@ -23,7 +23,7 @@ func TestTopology(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found for topology testing")
+		t.Fatal("No supported GPUs found for topology testing")
 	}
 
 	t.Log("GPU Topology Matrix:")
@@ -114,7 +114,7 @@ func TestDeviceTopologySingle(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found")
+		t.Fatal("No supported GPUs found")
 	}
 
 	// Test first GPU

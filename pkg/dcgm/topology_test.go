@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,6 +13,161 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+// TestDeviceTopologyFromNative checks empty, populated, and full responses and verifies that the links are Go-owned.
+func TestDeviceTopologyFromNative(t *testing.T) {
+	capacity := len(deviceTopologyResponseForTest(0).gpuPaths)
+	for _, count := range []int{0, 2, capacity} {
+		t.Run(fmt.Sprintf("count_%d", count), func(t *testing.T) {
+			response := deviceTopologyResponseForTest(uint(count))
+			if count > 0 {
+				response.gpuPaths[0].gpuId = 7
+				response.gpuPaths[0].path = 0x200 // Two NVLinks.
+				response.gpuPaths[count-1].gpuId = 29
+			}
+
+			got, err := deviceTopologyFromNative(response)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Len(t, got, count)
+			if count > 0 {
+				require.Equal(t, P2PLink{GPU: 7, Link: TwoNVLINKLinks}, got[0])
+				require.Equal(t, P2PLink{GPU: 29, Link: P2PLinkUnknown}, got[count-1])
+			}
+
+			want := slices.Clone(got)
+			*response = *deviceTopologyResponseForTest(0)
+			require.Equal(t, want, got)
+		})
+	}
+}
+
+// TestDeviceTopologyFromNativeRejectsInvalidCounts checks that an oversized peer count returns an error without links.
+func TestDeviceTopologyFromNativeRejectsInvalidCounts(t *testing.T) {
+	capacity := len(deviceTopologyResponseForTest(0).gpuPaths)
+	for _, count := range []uint{uint(capacity + 1), uint(^uint32(0))} {
+		t.Run(fmt.Sprintf("count_%d", count), func(t *testing.T) {
+			got, err := deviceTopologyFromNative(deviceTopologyResponseForTest(count))
+			require.Nil(t, got)
+			require.EqualError(t, err, fmt.Sprintf("invalid topology peer count %d, expected 0 through %d", count, capacity))
+		})
+	}
+}
+
+// TestNvLinkStatusFromNative checks link order, array limits, and ownership of the returned statuses.
+func TestNvLinkStatusFromNative(t *testing.T) {
+	empty := nvLinkStatusResponseForTest(0, 0)
+	gpuCapacity := len(empty.gpus)
+	switchCapacity := len(empty.nvSwitches)
+	gpuLinks := len(empty.gpus[0].linkState)
+	switchLinks := len(empty.nvSwitches[0].linkState)
+
+	for _, tt := range []struct {
+		name     string
+		gpus     int
+		switches int
+	}{
+		{name: "empty"},
+		{name: "mixed", gpus: 2, switches: 2},
+		{name: "GPU capacity", gpus: gpuCapacity},
+		{name: "switch capacity", switches: switchCapacity},
+		{name: "both capacities", gpus: gpuCapacity, switches: switchCapacity},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			response := nvLinkStatusResponseForTest(uint(tt.gpus), uint(tt.switches))
+			response.gpus[0].entityId = 7
+			response.gpus[0].linkState[0] = nativeNVLinkStateUp
+			response.nvSwitches[0].entityId = 19
+			response.nvSwitches[0].linkState[0] = nativeNVLinkStateDown
+			if tt.gpus > 0 {
+				response.gpus[tt.gpus-1].entityId = 29
+				response.gpus[tt.gpus-1].linkState[gpuLinks-1] = nativeNVLinkStateDisabled
+			}
+			if tt.switches > 0 {
+				response.nvSwitches[tt.switches-1].entityId = 31
+				response.nvSwitches[tt.switches-1].linkState[switchLinks-1] = nativeNVLinkStateUp
+			}
+
+			got, err := nvLinkStatusFromNative(response)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Len(t, got, tt.gpus*gpuLinks+tt.switches*switchLinks)
+			if tt.gpus > 0 {
+				require.Equal(t, NvLinkStatus{ParentId: 7, ParentType: FE_GPU, State: LS_UP}, got[0])
+				require.Equal(t, NvLinkStatus{
+					ParentId: 29, ParentType: FE_GPU, State: LS_DISABLED, Index: uint(gpuLinks - 1),
+				}, got[tt.gpus*gpuLinks-1])
+			}
+			if tt.switches > 0 {
+				require.Equal(t, NvLinkStatus{ParentId: 19, ParentType: FE_SWITCH, State: LS_DOWN}, got[tt.gpus*gpuLinks])
+				require.Equal(t, NvLinkStatus{
+					ParentId: 31, ParentType: FE_SWITCH, State: LS_UP, Index: uint(switchLinks - 1),
+				}, got[len(got)-1])
+			}
+
+			want := slices.Clone(got)
+			*response = *empty
+			require.Equal(t, want, got)
+		})
+	}
+}
+
+// TestNvLinkStatusFromNativeRejectsInvalidCounts checks that either oversized count rejects the entire response.
+func TestNvLinkStatusFromNativeRejectsInvalidCounts(t *testing.T) {
+	gpuCapacity := len(nvLinkStatusResponseForTest(0, 0).gpus)
+	switchCapacity := len(nvLinkStatusResponseForTest(0, 0).nvSwitches)
+	oversizedGPUCount := uint(gpuCapacity + 1)
+	oversizedSwitchCount := uint(switchCapacity + 1)
+	const maxCount = uint(^uint32(0))
+
+	for _, tt := range []struct {
+		name     string
+		gpus     uint
+		switches uint
+		capacity int
+		count    uint
+		kind     string
+	}{
+		{
+			name:     "GPU capacity plus one",
+			gpus:     oversizedGPUCount,
+			switches: 1,
+			capacity: gpuCapacity,
+			count:    oversizedGPUCount,
+			kind:     "GPU",
+		},
+		{
+			name:     "GPU maximum count",
+			gpus:     maxCount,
+			switches: 1,
+			capacity: gpuCapacity,
+			count:    maxCount,
+			kind:     "GPU",
+		},
+		{
+			name:     "switch capacity plus one",
+			gpus:     1,
+			switches: oversizedSwitchCount,
+			capacity: switchCapacity,
+			count:    oversizedSwitchCount,
+			kind:     "switch",
+		},
+		{
+			name:     "switch maximum count",
+			gpus:     1,
+			switches: maxCount,
+			capacity: switchCapacity,
+			count:    maxCount,
+			kind:     "switch",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := nvLinkStatusFromNative(nvLinkStatusResponseForTest(tt.gpus, tt.switches))
+			require.Nil(t, got)
+			require.EqualError(t, err, fmt.Sprintf("invalid NVLink %s count %d, expected 0 through %d", tt.kind, tt.count, tt.capacity))
+		})
+	}
+}
 
 // TestGetDeviceTopologyWithOps checks peer GPU bus ID lookup and errors from DCGM reads.
 func TestGetDeviceTopologyWithOps(t *testing.T) {
@@ -111,6 +267,53 @@ func TestGetDeviceTopologyWithOps(t *testing.T) {
 	}
 }
 
+// TestGetDeviceTopologyRejectsInvalidPeerFields checks that a bad peer field
+// fails the whole topology read and retains any native field status.
+func TestGetDeviceTopologyRejectsInvalidPeerFields(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		fieldType uint
+		status    int
+		want      string
+	}{
+		{name: "failed required field", fieldType: DCGM_FT_STRING, status: DCGM_ST_NO_DATA, want: "field status"},
+		{name: "wrong field type", fieldType: DCGM_FT_INT64, want: "expected a string value"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			const sourceGPU = 3
+			const invalidPeer = 7
+			const busIDField = DCGM_FI_DEV_PCI_BUS_ID
+
+			// The first peer has valid data so the test also checks that no partial result escapes.
+			links := []P2PLink{{GPU: 2}, {GPU: invalidPeer}}
+			gpus := []GroupEntityPair{
+				{EntityGroupId: FE_GPU, EntityId: 2},
+				{EntityGroupId: FE_GPU, EntityId: invalidPeer},
+			}
+			valid := fieldValueV2String(FE_GPU, 2, busIDField, "0000:02:00.0")
+			invalid := fieldValueV2String(FE_GPU, invalidPeer, busIDField, "0000:07:00.0")
+			invalid.FieldType, invalid.Status = test.fieldType, test.status
+
+			api := NewMockTopologyOps(gomock.NewController(t))
+			api.EXPECT().readDeviceTopology(uint(sourceGPU)).Return(links, nil)
+			api.EXPECT().entitiesGetLatestValues(gpus, []Short{DCGM_FI_DEV_PCI_BUS_ID}, gomock.Any()).
+				Return([]FieldValue_v2{valid, invalid}, nil)
+			got, err := getDeviceTopologyWithOps(api, sourceGPU)
+
+			require.Nil(t, got)
+			context := fmt.Sprintf("get topology for GPU %d: get bus ID for peer GPU %d, field %d",
+				sourceGPU, invalidPeer, busIDField)
+			require.ErrorContains(t, err, context)
+			require.ErrorContains(t, err, test.want)
+			if test.status != DCGM_ST_OK {
+				var native *Error
+				require.ErrorAs(t, err, &native)
+				require.Equal(t, test.status, int(native.Code))
+			}
+		})
+	}
+}
+
 func TestSelectedPopulatePeerBusIDs(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -181,6 +384,37 @@ func fieldValueV2String(group Field_Entity_Group, entityID uint, fieldID Short, 
 	}
 	copy(fieldValue.Value[:], value)
 	return fieldValue
+}
+
+func TestPeerBusIDRejectsUnavailableStrings(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		text string
+	}{
+		{name: "empty"},
+		{name: "spaces", text: "   "},
+		{name: "tabs and newlines", text: "\t\n"},
+		{name: "blank sentinel", text: DCGM_FT_STR_BLANK},
+		{name: "not found sentinel", text: DCGM_FT_STR_NOT_FOUND},
+		{name: "not supported sentinel", text: DCGM_FT_STR_NOT_SUPPORTED},
+		{name: "permission sentinel", text: "<<<NOT_PERM>>>"},
+		{name: "other DCGM sentinel", text: "<<<UNAVAILABLE>>>"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			value := fieldValueV2String(FE_GPU, 7, DCGM_FI_DEV_PCI_BUS_ID, test.text)
+			require.ErrorContains(t, populatePeerBusIDs([]P2PLink{{GPU: 7}}, []FieldValue_v2{value}), "empty or blank value")
+		})
+	}
+	t.Run("NUL outside the native string member", func(t *testing.T) {
+		valueWithoutTerminator := strings.Repeat("x", fieldStringCapacity)
+		value := fieldValueV2String(FE_GPU, 7, DCGM_FI_DEV_PCI_BUS_ID, valueWithoutTerminator)
+		links := []P2PLink{{GPU: 7}}
+		require.ErrorContains(t, populatePeerBusIDs(links, []FieldValue_v2{value}), "unterminated string")
+		require.Empty(t, links[0].BusID)
+
+		copy(value.Value[fieldStringCapacity:], "ignored union bytes")
+		require.Equal(t, valueWithoutTerminator, value.String())
+	})
 }
 
 func TestGetP2PLinkMapsTopologyConstants(t *testing.T) {

@@ -56,6 +56,7 @@ func TestInitDCGMWithCalls(t *testing.T) {
 				gomock.InOrder(
 					m.EXPECT().loadLibrary().Return(nil),
 					m.EXPECT().startEmbedded().Return(startErr),
+					m.EXPECT().closeLibrary(),
 				)
 			},
 		},
@@ -66,6 +67,7 @@ func TestInitDCGMWithCalls(t *testing.T) {
 				gomock.InOrder(
 					m.EXPECT().loadLibrary().Return(nil),
 					m.EXPECT().connectStandalone("localhost", "0").Return(connectErr),
+					m.EXPECT().closeLibrary(),
 				)
 			},
 		},
@@ -75,6 +77,7 @@ func TestInitDCGMWithCalls(t *testing.T) {
 				gomock.InOrder(
 					m.EXPECT().loadLibrary().Return(nil),
 					m.EXPECT().startHostengine().Return(startErr),
+					m.EXPECT().closeLibrary(),
 				)
 			},
 		},
@@ -89,6 +92,8 @@ func TestInitDCGMWithCalls(t *testing.T) {
 			require.ErrorIs(t, err, tt.want)
 			if tt.want == nil {
 				require.Equal(t, tt.mode, stopMode)
+			} else {
+				require.Equal(t, oldMode, stopMode)
 			}
 		})
 	}

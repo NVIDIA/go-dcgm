@@ -28,7 +28,7 @@ func TestRestApiEndpoints(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found for REST API testing")
+		t.Fatal("No supported GPUs found for REST API testing")
 	}
 
 	// Create a test router with basic endpoints
@@ -236,7 +236,7 @@ func TestRestApiJsonResponses(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found")
+		t.Fatal("No supported GPUs found")
 	}
 
 	router := mux.NewRouter()

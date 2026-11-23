@@ -65,22 +65,50 @@ This directory contains test versions of all the DCGM samples, reimplemented usi
 
 ## Running the Tests
 
-### Run All Tests
+### Run Integration Tests
 
 ```bash
 task test:integration
+```
+
+To run the full GPU checks on a qualified host:
+
+```bash
+task test:integration REPORTS=true
+task test:race REPORTS=true
+task test:diagnostics REPORTS=true
 ```
 
 ### Run Focused Tests
 
 ```bash
 task test:integration -- --test_filter=TestDeviceInfo
-task test:integration -- --test_filter=TestDmon
+task test:integration -- --test_filter=TestDeviceMonitoring
 ```
 
-`task test:integration` and `task test:race` skip the diagnostic tests
-(`TestDiagnostics`, `TestDiagnosticsLong`, `TestDiagTestNameFormat`). Run them
-with `task test:diagnostics`.
+Integration and race run `//pkg/dcgm:dcgm_integration_test` before the
+sample tests. Options after `--` apply to the sample tests. To focus on
+a Go binding test, run its target directly.
+
+```bash
+bazel test --config=ci --config=dcgm-runtime --cache_test_results=no \
+  //pkg/dcgm:dcgm_integration_test --test_filter='^TestPolicyErrors$'
+```
+
+`task test:diagnostics` runs `//pkg/dcgm:dcgm_diagnostics_test` and then the
+sample diagnostic target (`TestDiagnostics`, `TestDiagnosticsLong`, and
+`TestDiagTestNameFormat`). Options after `--` apply to both diagnostic runs.
+To run one Go binding diagnostic test on a GPU host, use its Bazel target.
+
+```bash
+bazel test --config=ci --config=dcgm-runtime --cache_test_results=no \
+  --test_env=DCGM_TEST_DIAGNOSTICS=1 //pkg/dcgm:dcgm_diagnostics_test \
+  --test_filter='^TestDiagnosticNamedParameters$'
+```
+
+The broader `//pkg/dcgm:dcgm_test` target also includes tests that need
+the DCGM library and run outside CI. Use `task test:policy:rediscovery` for the opt-in
+policy driver detach and reattach check on a dedicated GPU host.
 
 ### Run Tests with Different Modes
 
@@ -106,9 +134,9 @@ task test:integration -- --test_filter='TestDevice.*'
 
 ### Adaptive Testing
 
-- Integration, race and diagnostic tasks fail when a GPU is unavailable.
-  `task test:gpu:prereqs` checks that embedded DCGM starts and discovers a
-  physical GPU before any of these suites runs.
+- The GPU test tasks fail when a GPU is unavailable. `task test:gpu:prereqs`
+  checks that embedded DCGM starts and discovers a physical GPU before the
+  integration, race, and diagnostic suites run.
 - Different behavior for single vs. multi-GPU systems
 - Graceful handling of permission-restricted operations
 
@@ -189,7 +217,17 @@ These tests are designed to integrate well with continuous integration systems:
 - Use standard Go testing patterns
 - Provide detailed logging for troubleshooting
 - Support timeout and cancellation
-- Run GPU tests on a qualified GPU/DCGM system; the tasks fail without one
+- Run GPU test tasks on a qualified GPU host with the DCGM runtime. The
+  tasks fail if they find no GPU, cannot load DCGM, or a test fails. The
+  tasks run without cached results.
+  Tests that need optional hardware or access, such as multiple GPUs, a CPU
+  hierarchy, root access, a standalone hostengine, or the ConnectX diagnostic
+  plugin, may skip and record why. The diagnostic sample tests require at
+  least one passing result from DCGM and fail if DCGM reports any failed
+  check. They log the details and errors that DCGM returns.
+
+Test tasks share event and report paths within a checkout. Run them serially;
+use separate worktrees for concurrent runs.
 
 ### Example GitHub Actions Integration
 
@@ -200,15 +238,14 @@ These tests are designed to integrate well with continuous integration systems:
 
 `task test:gpu:prereqs`, which the GPU test tasks run first, runs `nvidia-smi`,
 checks that `libdcgm.so.4` is installed, and checks that embedded DCGM starts
-and discovers a physical GPU. A missing GPU or broken DCGM runtime fails the
-task.
+and discovers a physical GPU. None of these treats a missing GPU as a pass.
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **No GPUs Found** - Integration and race tasks fail; run them on a
-   qualified GPU/DCGM system
+1. **No GPUs Found** - A GPU test task fails;
+   run it on a qualified GPU/DCGM system
 2. **Permission Denied** - Some tests require root privileges
 3. **DCGM Not Available** - Ensure DCGM libraries are installed
 4. **Timeout Issues** - Increase test timeout for slow systems
@@ -224,7 +261,9 @@ task test:integration -- --test_output=all --test_filter=TestDeviceInfo
 ### Bazel Options
 
 Focused Bazel options can be passed after `--`, including `--test_filter`,
-`--test_timeout`, and `--test_output`.
+`--test_timeout`, and `--test_output`. In `task test:diagnostics`, those
+options apply to both the Go binding and sample tests. Omit them to run
+the default tests.
 
 ## Contributing
 
@@ -239,13 +278,14 @@ When adding new tests:
 
 ### Job statistics with GPU load
 
-`TestJobStats` runs only with diagnostics enabled and as root. It uses a private
+`TestJobStats` requires root and a GPU-load executable. It uses a private
 embedded engine, creates its own group and job, and removes both on every path.
 It snapshots and restores GPU accounting mode using `nvidia-smi`.
-It also checks `JobRemoveAll` within that engine. Run with:
+It also checks `JobRemoveAll` within that engine. This case now runs through
+`test:integration`.
 
 ```sh
-task test:diagnostics -- --test_filter='^TestJobStats$' --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
+task test:integration -- --test_filter='^TestJobStats$' --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
 ```
 
 The executable is invoked directly without arguments or a shell. It must read
@@ -269,8 +309,8 @@ executable to exit successfully within 20 seconds, with one second for output
 pipes to close. It restores accounting mode and destroys its owned group.
 
 ```sh
-task test:integration -- --test_filter='^TestProcessInfoWithGPUFixture$' --test_env=DCGM_SKIP_DIAGNOSTICS=0 --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
-task test:race -- --test_filter='^TestProcessInfoWithGPUFixture$' --test_env=DCGM_SKIP_DIAGNOSTICS=0 --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
+task test:integration -- --test_filter='^TestProcessInfoWithGPUFixture$' --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
+task test:race -- --test_filter='^TestProcessInfoWithGPUFixture$' --test_env=DCGM_JOB_LOAD_COMMAND=/absolute/path/to/gpu-load
 ```
 
 Absent opt-in, root access, or PID/accounting capability is reported as a skip;

@@ -9,6 +9,7 @@ package dcgm
 import "C"
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -109,7 +110,7 @@ func (cgoAdapter) fieldGroupCreate(fieldsGroupName string, fields []Short) (fiel
 
 	result := C.dcgmFieldGroupCreate(handle.handle, C.int(len(fields)), &cfields[0], groupName, &fieldsGroup)
 	if err = errorString(result); err != nil {
-		return fieldsId, fmt.Errorf("error creating DCGM fields group: %w", &Error{msg: err.Error(), Code: result})
+		return fieldsId, fmt.Errorf("error creating DCGM fields group: %w", err)
 	}
 
 	fieldsId = FieldHandle{fieldsGroup}
@@ -126,7 +127,7 @@ func FieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 func (cgoAdapter) fieldGroupDestroy(fieldsGroup FieldHandle) (err error) {
 	result := C.dcgmFieldGroupDestroy(handle.handle, fieldsGroup.handle)
 	if err = errorString(result); err != nil {
-		err = fmt.Errorf("error destroying DCGM fields group: %w", &Error{msg: err.Error(), Code: result})
+		err = fmt.Errorf("error destroying DCGM fields group: %w", err)
 	}
 
 	return err
@@ -154,7 +155,9 @@ func watchFieldsWithOps(api watchGroupOps, gpuID uint, fieldsGroup FieldHandle, 
 	}
 	defer func() {
 		if err != nil {
-			_ = api.destroyGroup(group)
+			if cleanupErr := api.destroyGroup(group); cleanupErr != nil {
+				err = errors.Join(err, fmt.Errorf("destroy watch group: %w", cleanupErr))
+			}
 		}
 	}()
 
@@ -284,7 +287,7 @@ func WatchFieldsWithGroup(fieldsGroup FieldHandle, group GroupHandle) error {
 func UnwatchFields(fieldsGroup FieldHandle, group GroupHandle) error {
 	result := C.dcgmUnwatchFields(handle.handle, group.handle, fieldsGroup.handle)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error unwatching fields: %w", &Error{msg: err.Error(), Code: result})
+		return fmt.Errorf("error unwatching fields: %w", err)
 	}
 	return nil
 }
@@ -346,7 +349,7 @@ func UnwatchFieldValue(gpuID uint, fieldID Short, clearCache bool) error {
 		clearCacheValue,
 	)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error unwatching field value: %w", &Error{msg: err.Error(), Code: result})
+		return fmt.Errorf("error unwatching field value: %w", err)
 	}
 
 	return nil
@@ -496,7 +499,7 @@ func (cgoAdapter) getLatestValuesForFields(gpu uint, fields []Short) ([]FieldVal
 	)
 	runtime.KeepAlive(fields)
 	if err := errorString(result); err != nil {
-		return nil, fmt.Errorf("error watching fields: %w", &Error{msg: err.Error(), Code: result})
+		return nil, fmt.Errorf("error watching fields: %w", err)
 	}
 
 	// Convert to our return type before returning
@@ -580,7 +583,7 @@ func (cgoAdapter) entitiesGetLatestValues(entities []GroupEntityPair, fields []S
 		fieldIDPointer(fields), C.uint(len(fields)), C.uint(flags), &values.values[0])
 	runtime.KeepAlive(fields)
 	if err := errorString(result); err != nil {
-		return nil, &Error{msg: dcgmErrorText(result), Code: result}
+		return nil, err
 	}
 
 	return toFieldValue_v2(values.values), nil
@@ -598,7 +601,7 @@ func (cgoAdapter) updateAllFields() error {
 	result := C.dcgmUpdateAllFields(handle.handle, waitForUpdate)
 
 	if err := errorString(result); err != nil {
-		return &Error{msg: err.Error(), Code: result}
+		return err
 	}
 
 	return nil
@@ -632,7 +635,8 @@ func (fv FieldValue_v1) Float64() float64 {
 
 // String returns the field value as a string.
 func (fv FieldValue_v1) String() string {
-	return C.GoString((*C.char)(unsafe.Pointer(&fv.Value[0])))
+	text, _ := fieldStringBytes(fv.Value[:])
+	return string(text)
 }
 
 // Blob returns the raw field value as a byte array.
@@ -643,34 +647,36 @@ func (fv FieldValue_v1) Blob() [4096]byte {
 func toFieldValue_v2(cfields []C.dcgmFieldValue_v2) []FieldValue_v2 {
 	fields := make([]FieldValue_v2, len(cfields))
 	for i := range cfields {
-		if uint(cfields[i].fieldType) == DCGM_FT_STRING {
-			fields[i] = FieldValue_v2{
-				Version:       uint(cfields[i].version),
-				EntityGroupId: Field_Entity_Group(cfields[i].entityGroupId),
-				EntityID:      uint(cfields[i].entityId),
-				FieldID:       Short(cfields[i].fieldId),
-				FieldType:     uint(cfields[i].fieldType),
-				Status:        int(cfields[i].status),
-				TS:            int64(cfields[i].ts),
-				Value:         cfields[i].value,
-				StringValue:   stringPtr((*C.char)(unsafe.Pointer(&cfields[i].value[0]))),
-			}
-		} else {
-			fields[i] = FieldValue_v2{
-				Version:       uint(cfields[i].version),
-				EntityGroupId: Field_Entity_Group(cfields[i].entityGroupId),
-				EntityID:      uint(cfields[i].entityId),
-				FieldID:       Short(cfields[i].fieldId),
-				FieldType:     uint(cfields[i].fieldType),
-				Status:        int(cfields[i].status),
-				TS:            int64(cfields[i].ts),
-				Value:         cfields[i].value,
-				StringValue:   nil,
-			}
+		value := &cfields[i]
+		fields[i] = FieldValue_v2{
+			Version:       uint(value.version),
+			EntityGroupId: Field_Entity_Group(value.entityGroupId),
+			EntityID:      uint(value.entityId),
+			FieldID:       Short(value.fieldId),
+			FieldType:     uint(value.fieldType),
+			Status:        int(value.status),
+			TS:            int64(value.ts),
+			Value:         value.value,
+		}
+		if fields[i].FieldType == DCGM_FT_STRING {
+			fields[i].StringValue = fieldStringPointer(value.value[:])
 		}
 	}
-
 	return fields
+}
+
+// The string member is shorter than the binary union member.
+const fieldStringCapacity = C.DCGM_MAX_STR_LENGTH
+
+func fieldStringBytes(value []byte) ([]byte, bool) {
+	text, _, terminated := bytes.Cut(value[:fieldStringCapacity], []byte{0})
+	return text, terminated
+}
+
+func fieldStringPointer(value []byte) *string {
+	text, _ := fieldStringBytes(value)
+	str := string(text)
+	return &str
 }
 
 func dcgmFieldValue_v1ToFieldValue_v2(
@@ -691,7 +697,7 @@ func dcgmFieldValue_v1ToFieldValue_v2(
 		}
 
 		if uint(cfields[i].fieldType) == DCGM_FT_STRING {
-			fields[i].StringValue = stringPtr((*C.char)(unsafe.Pointer(&cfields[i].value[0])))
+			fields[i].StringValue = fieldStringPointer(cfields[i].value[:])
 		}
 	}
 
@@ -710,7 +716,8 @@ func (fv FieldValue_v2) Float64() float64 {
 
 // String returns the field value as a string.
 func (fv FieldValue_v2) String() string {
-	return C.GoString((*C.char)(unsafe.Pointer(&fv.Value[0])))
+	text, _ := fieldStringBytes(fv.Value[:])
+	return string(text)
 }
 
 // Blob returns the raw field value as a byte array.
@@ -762,19 +769,33 @@ func ToFieldMeta(fieldInfo C.dcgm_field_meta_p) FieldMeta {
 }
 
 // FieldGetByID retrieves field metadata for the specified field ID.
-// Returns a zeroed FieldMeta if DCGM does not recognize the field ID.
-func FieldGetByID(fieldId Short) (FieldMeta, error) {
-	fieldInfo := C.DcgmFieldGetById(C.ushort(fieldId))
-	if fieldInfo == nil {
-		return FieldMeta{}, fmt.Errorf("field ID %d not recognized by DCGM", fieldId)
+// If a field is missing from an initialized catalog, the error matches errors.ErrUnsupported.
+func FieldGetByID(fieldID Short) (FieldMeta, error) {
+	mux.Lock()
+	defer mux.Unlock()
+
+	return fieldMetadataByID(fieldID, func(id Short) C.dcgm_field_meta_p {
+		return C.DcgmFieldGetById(C.ushort(id))
+	})
+}
+
+// fieldMetadataByID reports a missing field as unsupported when the catalog is available.
+func fieldMetadataByID(fieldID Short, lookup func(Short) C.dcgm_field_meta_p) (FieldMeta, error) {
+	fieldInfo := lookup(fieldID)
+	if fieldInfo != nil && fieldInfo.fieldType != 0 {
+		return ToFieldMeta(fieldInfo), nil
 	}
-	// If a fieldId is in the valid range 0..DCGM_FI_MAX_FIELDS but is not supported,
-	// the field metadata will be zeroed instead of a null pointer returned.
-	// The fieldType == 0 is an invalid type and an indication that the struct is zeroed.
-	if fieldInfo.fieldType == 0 {
-		return FieldMeta{}, fmt.Errorf("field ID %d is not supported by DCGM", fieldId)
+
+	message := fmt.Sprintf("field ID %d not recognized by DCGM", fieldID)
+	if fieldInfo != nil {
+		message = fmt.Sprintf("field ID %d is not supported by DCGM", fieldID)
 	}
-	return ToFieldMeta(fieldInfo), nil
+	// A session can remain open after FieldsTerm clears the field catalog.
+	known := lookup(DCGM_FI_DEV_GPU_TEMP)
+	if known != nil && known.fieldType != 0 {
+		return FieldMeta{}, fmt.Errorf("%s: %w", message, errors.ErrUnsupported)
+	}
+	return FieldMeta{}, errors.New(message)
 }
 
 // GetAllSupportedFieldsMetadata retrieves metadata for all supported DCGM fields.
@@ -793,11 +814,15 @@ func GetAllSupportedFieldsMetadata() map[Short]FieldMeta {
 // FieldsInit initializes the DCGM fields module.
 // Returns an integer status code.
 func FieldsInit() int {
+	mux.Lock()
+	defer mux.Unlock()
 	return int(C.DcgmFieldsInit())
 }
 
 // FieldsTerm terminates the DCGM fields module.
 // Returns an integer status code.
 func FieldsTerm() int {
+	mux.Lock()
+	defer mux.Unlock()
 	return int(C.DcgmFieldsTerm())
 }

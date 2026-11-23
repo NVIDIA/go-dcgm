@@ -13,6 +13,7 @@ static inline dcgmReturn_t getPidInfoV2(dcgmHandle_t dcgmHandle, dcgmGpuGrp_t gr
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -122,7 +123,9 @@ func watchPidFieldsWithOps(api pidWatchOps, updateFreq, maxKeepAge time.Duration
 	}
 	defer func() {
 		if err != nil {
-			_ = api.destroyGroup(group)
+			if cleanupErr := api.destroyGroup(group); cleanupErr != nil {
+				err = errors.Join(err, fmt.Errorf("destroy PID watch group: %w", cleanupErr))
+			}
 		}
 	}()
 
@@ -152,8 +155,7 @@ func watchPidFieldsWithOps(api pidWatchOps, updateFreq, maxKeepAge time.Duration
 
 // watchPidFieldsForGroupWithOps starts PID watches on an existing group, then
 // refreshes every watched field once so the first samples exist when it returns.
-// It does not create or destroy the group. It returns DCGM's errors unwrapped,
-// so WatchPidFields keeps returning the *dcgm.Error itself.
+// The caller owns the group. Native watch and refresh errors pass through unchanged.
 func watchPidFieldsForGroupWithOps(api pidWatchOps, group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
 	if err := api.watchPidFieldsNative(group, updateFreq, maxKeepAge, maxKeepSamples); err != nil {
 		return err
@@ -167,10 +169,7 @@ func watchPidFieldsForGroupWithOps(api pidWatchOps, group GroupHandle, updateFre
 func (cgoAdapter) watchPidFieldsNative(group GroupHandle, updateFreq, maxKeepAge time.Duration, maxKeepSamples int) error {
 	result := C.dcgmWatchPidFields(handle.handle, group.handle, C.longlong(updateFreq.Microseconds()), C.double(maxKeepAge.Seconds()), C.int(maxKeepSamples))
 
-	if err := errorString(result); err != nil {
-		return &Error{msg: dcgmErrorText(result), Code: result}
-	}
-	return nil
+	return errorString(result)
 }
 
 // getProcessInfo asks DCGM for one process, looks up its operating-system name,
@@ -181,13 +180,13 @@ func getProcessInfo(groupID GroupHandle, pid uint) (processInfo []ProcessInfo, e
 
 	result := C.getPidInfoV2(handle.handle, groupID.handle, &pidInfo)
 
-	if err = errorString(result); err != nil {
-		return processInfo, &Error{msg: dcgmErrorText(result), Code: result}
+	if nativeErr := errorString(result); nativeErr != nil {
+		return processInfo, nativeErr
 	}
 
 	name, err := processName(pid)
 	if err != nil {
-		return processInfo, fmt.Errorf("error getting process name: %s", err)
+		return processInfo, fmt.Errorf("error getting process name for PID %d: %w", pid, err)
 	}
 
 	return processInfoFromResponse(&pidInfo, name)

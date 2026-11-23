@@ -128,7 +128,7 @@ func newDiagError(diagError *C.dcgmDiagError_v1) DiagError {
 		Code:     uint(diagError.code),
 		Category: ErrorCategory(diagError.category),
 		Severity: ErrorSeverity(diagError.severity),
-		Message:  C.GoString(&diagError.msg[0]),
+		Message:  boundedCString(diagError.msg[:]),
 	}
 }
 
@@ -180,14 +180,14 @@ func legacyDiagResults(result DiagResults) []DiagResult {
 
 func newDiagResults(response *C.dcgmDiagResponse_v12) DiagResults {
 	result := DiagResults{
-		DCGMVersion:   C.GoString(&response.dcgmVersion[0]),
-		DriverVersion: C.GoString(&response.driverVersion[0]),
+		DCGMVersion:   boundedCString(response.dcgmVersion[:]),
+		DriverVersion: boundedCString(response.driverVersion[:]),
 	}
 
 	categoryCount := min(int(response.numCategories), len(response.categories))
 	result.Categories = make([]string, categoryCount)
 	for i := range categoryCount {
-		result.Categories[i] = C.GoString(&response.categories[i][0])
+		result.Categories[i] = boundedCString(response.categories[i][:])
 	}
 
 	entityCount := min(int(response.numEntities), len(response.entities))
@@ -195,8 +195,8 @@ func newDiagResults(response *C.dcgmDiagResponse_v12) DiagResults {
 	for i := range entityCount {
 		result.Entities[i] = DiagEntity{
 			Entity:       groupEntityPair(response.entities[i].entity),
-			SerialNumber: C.GoString(&response.entities[i].serialNum[0]),
-			SKUDeviceID:  C.GoString(&response.entities[i].skuDeviceId[0]),
+			SerialNumber: boundedCString(response.entities[i].serialNum[:]),
+			SKUDeviceID:  boundedCString(response.entities[i].skuDeviceId[:]),
 		}
 	}
 
@@ -211,11 +211,11 @@ func newDiagResults(response *C.dcgmDiagResponse_v12) DiagResults {
 	for i := range testCount {
 		test := &response.tests[i]
 		diagTest := DiagTest{
-			Name:           C.GoString(&test.name[0]),
-			PluginName:     C.GoString(&test.pluginName[0]),
+			Name:           boundedCString(test.name[:]),
+			PluginName:     boundedCString(test.pluginName[:]),
 			Status:         diagResultString(int(test.result)),
 			AuxDataVersion: uint(test.auxData.version >> 24),
-			AuxData:        C.GoString(&test.auxData.data[0]),
+			AuxData:        boundedCString(test.auxData.data[:]),
 		}
 		if int(test.categoryIndex) < len(result.Categories) {
 			diagTest.Category = result.Categories[test.categoryIndex]
@@ -237,7 +237,7 @@ func newDiagResults(response *C.dcgmDiagResponse_v12) DiagResults {
 			diagInfo := &response.info[index]
 			diagTest.Info = append(diagTest.Info, DiagInfo{
 				Entity:  groupEntityPair(diagInfo.entity),
-				Message: C.GoString(&diagInfo.msg[0]),
+				Message: boundedCString(diagInfo.msg[:]),
 			})
 		}
 
@@ -285,15 +285,45 @@ func RunDiag(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
 	return runDiagWithCalls(cgoAdapter{}, diagType, groupID)
 }
 
-// runDiagNative runs the level-based diagnostic and decodes its structured response.
+// runDiagNative chooses the native call for the diagnostic level and runtime versions.
 func (cgoAdapter) runDiagNative(diagType DiagType, groupID GroupHandle) (DiagResults, error) {
-	diagResults := new(C.dcgmDiagResponse_v12)
-	diagResults.version = C.dcgmDiagResponse_version12
+	return runDiagForVersion(diagType, groupID, selectedDiagnosticRequestVersion(), runLevelDiagnostic, runVersionedLevelDiagnostic)
+}
 
-	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), diagResults)
-	if err := errorString(result); err != nil {
-		return DiagResults{}, &Error{msg: dcgmErrorText(result), Code: result}
+// runDiagForVersion chooses the native call and decodes results only after success.
+func runDiagForVersion(diagType DiagType, groupID GroupHandle, version C.uint,
+	runLevel func(DiagType, GroupHandle) (*C.dcgmDiagResponse_v12, error),
+	runVersioned func(DiagnosticRequest, C.uint) (*C.dcgmDiagResponse_v12, error),
+) (DiagResults, error) {
+	var response *C.dcgmDiagResponse_v12
+	var err error
+	if version == C.dcgmRunDiag_version11 {
+		response, err = runVersioned(DiagnosticRequest{Level: diagType, Group: &groupID}, version)
+	} else {
+		response, err = runLevel(diagType, groupID)
 	}
+	if err != nil {
+		return DiagResults{}, err
+	}
+	return newDiagResults(response), nil
+}
 
-	return newDiagResults(diagResults), nil
+// runVersionedLevelDiagnostic sends the level request through ActionValidate.
+func runVersionedLevelDiagnostic(request DiagnosticRequest, version C.uint) (*C.dcgmDiagResponse_v12, error) {
+	if err := requireDiagnosticSymbol("dcgmActionValidate_v2"); err != nil {
+		return nil, err
+	}
+	return runDiagnosticRequest(request, version)
+}
+
+// runLevelDiagnostic calls the native level-based diagnostic.
+func runLevelDiagnostic(diagType DiagType, groupID GroupHandle) (*C.dcgmDiagResponse_v12, error) {
+	response := new(C.dcgmDiagResponse_v12)
+	response.version = C.dcgmDiagResponse_version12
+
+	result := C.dcgmRunDiagnostic(handle.handle, groupID.handle, diagLevel(diagType), response)
+	if err := errorString(result); err != nil {
+		return nil, err
+	}
+	return response, nil
 }

@@ -3,7 +3,11 @@ package dcgm
 import (
 	"encoding/binary"
 	"math"
+	"slices"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestEntityStatusString(t *testing.T) {
@@ -55,7 +59,7 @@ func TestPerfStateString(t *testing.T) {
 }
 
 func TestDeviceStatusFromValues(t *testing.T) {
-	values := make([]FieldValue_v1, deviceStatusFieldCount)
+	values := deviceStatusSamples()
 	values[devicePower] = testFloat64FieldValue(250.5)
 	values[deviceTemperature] = testInt64FieldValue(70)
 	values[deviceGPUUtilization] = testInt64FieldValue(80)
@@ -74,6 +78,11 @@ func TestDeviceStatusFromValues(t *testing.T) {
 	values[devicePerformanceState] = testInt64FieldValue(7)
 	values[deviceFanSpeed] = testInt64FieldValue(55)
 
+	for i, id := range deviceStatusFields {
+		values[i].FieldID = id
+	}
+	slices.Reverse(values)
+
 	tests := []struct {
 		name   string
 		values []FieldValue_v1
@@ -81,7 +90,7 @@ func TestDeviceStatusFromValues(t *testing.T) {
 	}{
 		{
 			name:   "zero values",
-			values: make([]FieldValue_v1, deviceStatusFieldCount),
+			values: deviceStatusSamples(),
 		},
 		{
 			name:   "maps every field",
@@ -105,8 +114,74 @@ func TestDeviceStatusFromValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := deviceStatusFromValues(tt.values); got != tt.want {
-				t.Fatalf("deviceStatusFromValues() = %+v, want %+v", got, tt.want)
+			if got, err := deviceStatusFromValues(tt.values); err != nil || got != tt.want {
+				t.Fatalf("deviceStatusFromValues() = %+v, %v, want %+v, nil", got, err, tt.want)
+			}
+		})
+	}
+}
+
+func deviceStatusSamples() []FieldValue_v1 {
+	values := make([]FieldValue_v1, len(deviceStatusFields))
+	for i, fieldID := range deviceStatusFields {
+		values[i] = FieldValue_v1{FieldID: fieldID, FieldType: DCGM_FT_INT64}
+	}
+	values[devicePower].FieldType = DCGM_FT_DOUBLE
+	return values
+}
+
+func TestDeviceStatusRejectsMalformedResponse(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		change func([]FieldValue_v1) []FieldValue_v1
+		want   string
+	}{
+		{"short response", func(v []FieldValue_v1) []FieldValue_v1 { return v[:1] }, "missing GPU status field"},
+		{"duplicate field", func(v []FieldValue_v1) []FieldValue_v1 { v[1] = v[0]; return v }, "duplicate GPU status field"},
+		{"unknown field", func(v []FieldValue_v1) []FieldValue_v1 { v[1].FieldID = 0; return v }, "unexpected GPU status field"},
+		{"wrong field type", func(v []FieldValue_v1) []FieldValue_v1 { v[0].FieldType = DCGM_FT_BINARY; return v }, "unexpected type"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := deviceStatusFromValues(tt.change(deviceStatusSamples()))
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestDeviceStatusPreservesAvailableFields(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		status    int
+		wantInt   int64
+		wantFloat float64
+		wantError bool
+	}{
+		{"no data", DCGM_ST_NO_DATA, DCGM_FT_INT64_BLANK, DCGM_FT_FP64_BLANK, false},
+		{"not found", DCGM_ST_UNKNOWN_FIELD, DCGM_FT_INT64_NOT_FOUND, DCGM_FT_FP64_NOT_FOUND, false},
+		{"unsupported", DCGM_ST_NOT_SUPPORTED, DCGM_FT_INT64_NOT_SUPPORTED, DCGM_FT_FP64_NOT_SUPPORTED, false},
+		{"permission", DCGM_ST_NO_PERMISSION, DCGM_FT_INT64_NOT_PERMISSIONED, DCGM_FT_FP64_NOT_PERMISSIONED, false},
+		{"GPU lost", DCGM_ST_GPU_IS_LOST, DCGM_FT_INT64_BLANK, DCGM_FT_FP64_BLANK, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			values := deviceStatusSamples()
+			for _, i := range []int{devicePower, deviceEncoderUtilization} {
+				values[i].Status = tt.status
+				values[i].FieldType = DCGM_FT_BINARY
+				binary.NativeEndian.PutUint64(values[i].Value[:], math.Float64bits(38))
+			}
+			binary.NativeEndian.PutUint64(values[deviceTemperature].Value[:], 42)
+			got, err := deviceStatusFromValues(values)
+			require.Equal(t, tt.wantFloat, got.Power)
+			require.Equal(t, tt.wantInt, got.Utilization.Encoder)
+			require.Equal(t, int64(42), got.Temperature)
+			if tt.wantError {
+				var native *Error
+				require.ErrorAs(t, err, &native)
+				require.Equal(t, tt.status, int(native.Code))
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -137,13 +212,13 @@ func TestPCIeBandwidth(t *testing.T) {
 }
 
 func testInt64FieldValue(value int64) FieldValue_v1 {
-	var field FieldValue_v1
+	field := FieldValue_v1{FieldType: DCGM_FT_INT64}
 	copy(field.Value[:], int64Bytes(value))
 	return field
 }
 
 func testFloat64FieldValue(value float64) FieldValue_v1 {
-	var field FieldValue_v1
+	field := FieldValue_v1{FieldType: DCGM_FT_DOUBLE}
 	binary.NativeEndian.PutUint64(field.Value[:], math.Float64bits(value))
 	return field
 }

@@ -21,40 +21,20 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// setupTest starts an embedded engine and restores debug settings even if initialization fails.
 func setupTest(tb testing.TB) func(testing.TB) {
-	// Store original debug settings
-	originalDebugLevel, hasDebugLevel := os.LookupEnv(DCGM_DBG_LVL)
-	originalDebugFile, hasDebugFile := os.LookupEnv(DCGM_DBG_FILE)
+	tb.Helper()
+	tb.Setenv(DCGM_DBG_LVL, "6")
+	tb.Setenv(DCGM_DBG_FILE, "/dev/stdout")
 
-	// Enable debug output to stdout
-	err := os.Setenv(DCGM_DBG_LVL, "6")
-	require.NoError(tb, err)
-	err = os.Setenv(DCGM_DBG_FILE, "/dev/stdout")
-	require.NoError(tb, err)
-
-	// Initialize DCGM
 	cleanup, err := Init(Embedded)
-	assert.NoError(tb, err)
+	require.NoError(tb, err)
 
-	return func(tb testing.TB) {
-		defer cleanup()
-
-		// Restore original debug settings
-		if hasDebugLevel {
-			_ = os.Setenv(DCGM_DBG_LVL, originalDebugLevel)
-		} else {
-			_ = os.Unsetenv(DCGM_DBG_LVL)
-		}
-
-		if hasDebugFile {
-			_ = os.Setenv(DCGM_DBG_FILE, originalDebugFile)
-		} else {
-			_ = os.Unsetenv(DCGM_DBG_FILE)
-		}
+	return func(testing.TB) {
+		cleanup()
 	}
 }
 
@@ -65,7 +45,7 @@ func runOnlyWithLiveGPUs(t *testing.T) {
 	require.NoError(t, err)
 
 	if len(gpus) < 1 {
-		t.Skip("Skipping test that requires live GPUs. None were found")
+		t.Fatal("test requires a live GPU, but DCGM found none")
 	}
 }
 

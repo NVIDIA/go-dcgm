@@ -1,7 +1,8 @@
 package tests
 
 import (
-	"os"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -9,18 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func skipIfDiagnosticsDisabled(t *testing.T) {
-	t.Helper()
-	if os.Getenv("DCGM_SKIP_DIAGNOSTICS") == "1" {
-		t.Skip("diagnostics disabled by DCGM_SKIP_DIAGNOSTICS")
-	}
-}
-
 // TestDiagnostics demonstrates running DCGM diagnostics
 // This is equivalent to the diag sample
 func TestDiagnostics(t *testing.T) {
-	skipIfDiagnosticsDisabled(t)
-
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	if err != nil {
 		t.Fatalf("Failed to initialize DCGM: %v", err)
@@ -33,34 +25,11 @@ func TestDiagnostics(t *testing.T) {
 		t.Fatalf("Failed to run diagnostics: %v", err)
 	}
 
-	t.Log("Diagnostic Tests:")
-	for _, test := range dr.Tests {
-		t.Logf("  %-50s %s", test.Name, test.Status)
-	}
-
-	if len(dr.Tests) == 0 {
-		t.Error("No diagnostic results returned")
-	}
-
-	failedTests := 0
-	for _, test := range dr.Tests {
-		if test.Status == "fail" {
-			failedTests++
-			t.Logf("Diagnostic test failed: %s", test.Name)
-		}
-	}
-
-	if failedTests > 0 {
-		t.Logf("Total failed tests: %d", failedTests)
-	} else {
-		t.Log("All diagnostic tests passed")
-	}
+	requireDiagnosticResults(t, dr)
 }
 
 // TestDiagnosticsLong demonstrates running longer diagnostics
 func TestDiagnosticsLong(t *testing.T) {
-	skipIfDiagnosticsDisabled(t)
-
 	if testing.Short() {
 		t.Skip("Skipping long diagnostics test in short mode")
 	}
@@ -78,7 +47,7 @@ func TestDiagnosticsLong(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found for diagnostics")
+		t.Fatal("No supported GPUs found for diagnostics")
 	}
 
 	// Run diagnostics on first GPU only for time efficiency
@@ -105,16 +74,11 @@ func TestDiagnosticsLong(t *testing.T) {
 
 	t.Logf("Medium diagnostics completed for GPU %d", gpus[0])
 
-	for _, test := range dr.Tests {
-		t.Logf("  %s: %s", test.Name, test.Status)
-	}
+	requireDiagnosticResults(t, dr)
 }
 
-// TestDiagTestNameFormat validates that Name contains a test name,
-// not detailed test descriptions (issue #97)
+// TestDiagTestNameFormat checks that DCGM returns short, lowercase test names.
 func TestDiagTestNameFormat(t *testing.T) {
-	skipIfDiagnosticsDisabled(t)
-
 	cleanup, err := dcgm.Init(dcgm.Embedded)
 	if err != nil {
 		t.Fatalf("Failed to initialize DCGM: %v", err)
@@ -126,7 +90,7 @@ func TestDiagTestNameFormat(t *testing.T) {
 		t.Fatalf("Failed to run diagnostics: %v", err)
 	}
 
-	assert.NotEmpty(t, dr.Tests, "diagnostic results should not be empty")
+	requireDiagnosticResults(t, dr)
 
 	// Invalid strings that should NOT appear in TestName
 	// These are detailed descriptions that were incorrectly returned before fix
@@ -161,5 +125,65 @@ func TestDiagTestNameFormat(t *testing.T) {
 			"Name should be lowercase, got: %q",
 			test.Name,
 		)
+	}
+}
+
+// requireDiagnosticResults logs the results from DCGM and fails unless at least one diagnostic passed.
+func requireDiagnosticResults(t *testing.T, result dcgm.DiagResults) {
+	t.Helper()
+	for i := range result.Tests {
+		test := &result.Tests[i]
+		t.Logf("Diagnostic %s: %s; info=%+v; errors=%+v", test.Name, test.Status, test.Info, test.Errors)
+	}
+
+	if err := diagnosticResultsError(result.Tests); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// diagnosticResultsError reports failures and requires at least one passing result.
+func diagnosticResultsError(tests []dcgm.DiagTest) error {
+	passed := false
+	for i := range tests {
+		test := &tests[i]
+		switch test.Status {
+		case "fail":
+			return fmt.Errorf("diagnostic test failed: %s", test.Name)
+		case "pass":
+			passed = true
+		}
+	}
+
+	if !passed {
+		return errors.New("DCGM returned no passed diagnostic tests")
+	}
+	return nil
+}
+
+// TestDiagnosticResultAcceptance checks which diagnostic results pass or fail the suite.
+func TestDiagnosticResultAcceptance(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		statuses  []string
+		wantError bool
+	}{
+		{name: "empty", wantError: true},
+		{name: "skipped only", statuses: []string{"skipped", "notrun"}, wantError: true},
+		{name: "warning only", statuses: []string{"warn"}, wantError: true},
+		{name: "passed", statuses: []string{"pass"}},
+		{name: "passed with optional skip", statuses: []string{"pass", "skipped", "notrun"}},
+		{name: "failed with pass", statuses: []string{"pass", "fail"}, wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			results := make([]dcgm.DiagTest, len(tc.statuses))
+			for i, status := range tc.statuses {
+				results[i] = dcgm.DiagTest{Name: fmt.Sprintf("diagnostic-%d", i), Status: status}
+			}
+
+			err := diagnosticResultsError(results)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("diagnosticResultsError() = %v, want error=%v", err, tc.wantError)
+			}
+		})
 	}
 }

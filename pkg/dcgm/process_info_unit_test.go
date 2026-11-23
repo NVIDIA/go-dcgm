@@ -76,7 +76,7 @@ func TestPIDInfoLegacyValuesAcrossHeaders(t *testing.T) {
 		},
 		{
 			gpuID:                    7,
-			energyConsumed:           int64(dcgmInt64Blank),
+			energyConsumed:           DCGM_FT_INT64_BLANK,
 			processSMUtilization:     75.5,
 			processMemoryUtilization: 24.4,
 		},
@@ -250,10 +250,10 @@ func TestPIDInfoLegacySentinels(t *testing.T) {
 		{"not permissioned", 3},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			int64Blank := int64(dcgmInt64Blank) + int64(tc.offset)
-			int32Blank := int32(dcgmInt32Blank) + int32(tc.offset)
-			unsignedBlank := uint64(dcgmInt64Blank) + uint64(tc.offset)
-			floatBlank := float64(140737488355328) + float64(tc.offset)
+			int64Blank := DCGM_FT_INT64_BLANK + int64(tc.offset)
+			int32Blank := int32(DCGM_FT_INT32_BLANK) + int32(tc.offset)
+			unsignedBlank := uint64(DCGM_FT_INT64_BLANK) + uint64(tc.offset)
+			floatBlank := DCGM_FT_FP64_BLANK + float64(tc.offset)
 			input := []processGPUInputForTest{{
 				energyConsumed:           int64Blank,
 				startTime:                int64Blank,

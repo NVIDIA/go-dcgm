@@ -5,26 +5,6 @@ import (
 	"testing"
 )
 
-// diagnosticParameterRejected matches the parser exception recorded by the diagnostic plugin.
-func diagnosticParameterRejected(result DiagResults, err error, message string) bool {
-	if err != nil {
-		return false
-	}
-	for i := range result.Tests {
-		test := &result.Tests[i]
-		if test.Name != "diagnostic" || test.Status != "fail" {
-			continue
-		}
-		for _, testError := range test.Errors {
-			if testError.Code == uint(DCGM_FR_INTERNAL) &&
-				testError.Message == "Caught an exception while trying to execute the test: "+message {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func TestDiagnosticParameterRejection(t *testing.T) {
 	const invalid = "Invalid numeric test parameter"
 	const overflow = "Numeric test parameter is outside the double range"

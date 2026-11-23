@@ -38,7 +38,6 @@ func TestJobStats(t *testing.T) {
 
 func jobStatsLoadExecutable(t *testing.T) string {
 	t.Helper()
-	skipIfDiagnosticsDisabled(t)
 	if os.Geteuid() != 0 {
 		t.Skip("job-state lifecycle test requires root")
 	}

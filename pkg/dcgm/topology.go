@@ -9,6 +9,7 @@ import "C"
 import (
 	"fmt"
 	"math/bits"
+	"strings"
 	"unsafe"
 )
 
@@ -145,6 +146,7 @@ func peerEntities(links []P2PLink) []GroupEntityPair {
 	return entities
 }
 
+// populatePeerBusIDs fills topology links from the required peer PCI bus ID fields.
 func populatePeerBusIDs(links []P2PLink, values []FieldValue_v2) error {
 	busIDs := make(map[uint]string, len(values))
 	for index := range values {
@@ -152,10 +154,22 @@ func populatePeerBusIDs(links []P2PLink, values []FieldValue_v2) error {
 		if value.EntityGroupId != FE_GPU || value.FieldID != DCGM_FI_DEV_PCI_BUS_ID {
 			continue
 		}
-		if value.Status != DCGM_ST_OK {
-			return fmt.Errorf("get bus ID for peer GPU %d: field status %d", value.EntityID, value.Status)
+		switch {
+		case value.Status != DCGM_ST_OK:
+			return fmt.Errorf("get bus ID for peer GPU %d, field %d: %w", value.EntityID, value.FieldID,
+				&Error{msg: fmt.Sprintf("field status %d", value.Status), Code: C.dcgmReturn_t(value.Status)})
+		case value.FieldType != DCGM_FT_STRING:
+			return fmt.Errorf("get bus ID for peer GPU %d, field %d: expected a string value", value.EntityID, value.FieldID)
 		}
-		busIDs[value.EntityID] = value.String()
+		text, terminated := fieldStringBytes(value.Value[:])
+		if !terminated {
+			return fmt.Errorf("get bus ID for peer GPU %d, field %d: unterminated string", value.EntityID, value.FieldID)
+		}
+		busID := string(text)
+		if strings.TrimSpace(busID) == "" || IsStringBlank(busID) {
+			return fmt.Errorf("get bus ID for peer GPU %d, field %d: empty or blank value", value.EntityID, value.FieldID)
+		}
+		busIDs[value.EntityID] = busID
 	}
 
 	for i := range links {
@@ -190,8 +204,19 @@ func (cgoAdapter) readDeviceTopology(gpuID uint) (links []P2PLink, err error) {
 		return links, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
-	links = make([]P2PLink, topology.numGpus)
-	for i := uint(0); i < uint(topology.numGpus); i++ {
+	return deviceTopologyFromNative(&topology)
+}
+
+// deviceTopologyFromNative checks the peer count before copying DCGM paths into Go links.
+// getDeviceTopologyWithOps looks up the peers' PCI bus IDs after conversion.
+func deviceTopologyFromNative(topology *C.dcgmDeviceTopology_v2) ([]P2PLink, error) {
+	count := int(topology.numGpus)
+	if err := validateNativeCount(count, len(topology.gpuPaths), "topology peer"); err != nil {
+		return nil, err
+	}
+
+	links := make([]P2PLink, count)
+	for i := 0; i < count; i++ {
 		links[i].GPU = uint(topology.gpuPaths[i].gpuId)
 		links[i].Link = getP2PLink(uint64(topology.gpuPaths[i].path))
 	}
@@ -217,7 +242,7 @@ func getDeviceTopologyWithOps(api topologyOps, gpuID uint) ([]P2PLink, error) {
 		return nil, fmt.Errorf("get peer GPU bus IDs: %w", err)
 	}
 	if err := populatePeerBusIDs(links, values); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get topology for GPU %d: %w", gpuID, err)
 	}
 	return links, nil
 }
@@ -261,33 +286,44 @@ func getNvLinkLinkStatus() ([]NvLinkStatus, error) {
 		return nil, &Error{msg: dcgmErrorText(result), Code: result}
 	}
 
-	links := make([]NvLinkStatus, linkStatus.numGpus*C.DCGM_NVLINK_MAX_LINKS_PER_GPU+linkStatus.numNvSwitches*C.DCGM_NVLINK_MAX_LINKS_PER_NVSWITCH)
+	return nvLinkStatusFromNative(&linkStatus)
+}
+
+// nvLinkStatusFromNative checks both device counts before copying link states.
+// The returned slice lists GPU links first, followed by NVSwitch links.
+func nvLinkStatusFromNative(linkStatus *C.dcgmNvLinkStatus_v5) ([]NvLinkStatus, error) {
+	gpuCount, switchCount := int(linkStatus.numGpus), int(linkStatus.numNvSwitches)
+	if err := validateNativeCount(gpuCount, len(linkStatus.gpus), "NVLink GPU"); err != nil {
+		return nil, err
+	}
+	if err := validateNativeCount(switchCount, len(linkStatus.nvSwitches), "NVLink switch"); err != nil {
+		return nil, err
+	}
+	gpuLinkCount := gpuCount * C.DCGM_NVLINK_MAX_LINKS_PER_GPU
+	switchLinkCount := switchCount * C.DCGM_NVLINK_MAX_LINKS_PER_NVSWITCH
+	links := make([]NvLinkStatus, gpuLinkCount+switchLinkCount)
 
 	idx := 0
-	for i := uint(0); i < uint(linkStatus.numGpus); i++ {
+	for i := 0; i < gpuCount; i++ {
 		for j := 0; j < int(C.DCGM_NVLINK_MAX_LINKS_PER_GPU); j++ {
-			link := NvLinkStatus{
-				uint(linkStatus.gpus[i].entityId),
-				FE_GPU,
-				Link_State(linkStatus.gpus[i].linkState[j]),
-				uint(j),
+			links[idx] = NvLinkStatus{
+				ParentId:   uint(linkStatus.gpus[i].entityId),
+				ParentType: FE_GPU,
+				State:      Link_State(linkStatus.gpus[i].linkState[j]),
+				Index:      uint(j),
 			}
-
-			links[idx] = link
 			idx++
 		}
 	}
 
-	for i := uint(0); i < uint(linkStatus.numNvSwitches); i++ {
+	for i := 0; i < switchCount; i++ {
 		for j := 0; j < C.DCGM_NVLINK_MAX_LINKS_PER_NVSWITCH; j++ {
-			link := NvLinkStatus{
-				uint(linkStatus.nvSwitches[i].entityId),
-				FE_SWITCH,
-				Link_State(linkStatus.nvSwitches[i].linkState[j]),
-				uint(j),
+			links[idx] = NvLinkStatus{
+				ParentId:   uint(linkStatus.nvSwitches[i].entityId),
+				ParentType: FE_SWITCH,
+				State:      Link_State(linkStatus.nvSwitches[i].linkState[j]),
+				Index:      uint(j),
 			}
-
-			links[idx] = link
 			idx++
 		}
 	}

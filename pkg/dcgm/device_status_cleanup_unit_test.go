@@ -3,6 +3,7 @@ package dcgm
 import (
 	"encoding/binary"
 	"errors"
+	"strings"
 	"testing"
 
 	"go.uber.org/mock/gomock"
@@ -11,12 +12,18 @@ import (
 func TestLatestValuesForDeviceReportsCleanupFailures(t *testing.T) {
 	collectionErr := errors.New("get latest values")
 	for _, tt := range []struct {
-		name   string
-		getErr error
-		want   DeviceStatus
+		name        string
+		getErr      error
+		fieldStatus int
+		want        DeviceStatus
 	}{
 		{name: "successful collection", want: DeviceStatus{Temperature: 42}},
 		{name: "collection failure", getErr: collectionErr},
+		{
+			name:        "partial collection",
+			fieldStatus: DCGM_ST_GPU_IS_LOST,
+			want:        DeviceStatus{Temperature: 42, Power: DCGM_FT_FP64_BLANK},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			fieldErr := errors.New("destroy fields")
@@ -36,8 +43,9 @@ func TestLatestValuesForDeviceReportsCleanupFailures(t *testing.T) {
 					if tt.getErr != nil {
 						return nil, tt.getErr
 					}
-					values := make([]FieldValue_v1, len(fields))
-					binary.NativeEndian.PutUint64(values[1].Value[:], 42)
+					values := deviceStatusSamples()
+					binary.NativeEndian.PutUint64(values[deviceTemperature].Value[:], 42)
+					values[devicePower].Status = tt.fieldStatus
 					return values, nil
 				},
 			).After(watch)
@@ -46,6 +54,15 @@ func TestLatestValuesForDeviceReportsCleanupFailures(t *testing.T) {
 			status, err := latestValuesForDeviceWithOps(3, m)
 			if status != tt.want {
 				t.Fatalf("status = %+v, want %+v", status, tt.want)
+			}
+			if tt.fieldStatus != DCGM_ST_OK {
+				nativeErr, ok := errors.AsType[*Error](err)
+				if !ok || int(nativeErr.Code) != tt.fieldStatus {
+					t.Errorf("error = %v, want DCGM status %d", err, tt.fieldStatus)
+				}
+				if err == nil || !strings.Contains(err.Error(), "get status for GPU 3") {
+					t.Errorf("error = %v, want GPU context", err)
+				}
 			}
 			for _, want := range []error{tt.getErr, fieldErr, groupErr} {
 				if want != nil && !errors.Is(err, want) {

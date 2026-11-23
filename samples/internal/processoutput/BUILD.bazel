@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "processoutput",
+    srcs = ["output.go"],
+    importpath = "github.com/NVIDIA/go-dcgm/samples/internal/processoutput",
+    visibility = ["//samples:__subpackages__"],
+    deps = ["//pkg/dcgm"],
+)
+
+go_test(
+    name = "processoutput_test",
+    srcs = ["output_test.go"],
+    embed = [":processoutput"],
+    deps = ["//pkg/dcgm"],
+)

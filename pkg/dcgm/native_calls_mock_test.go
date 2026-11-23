@@ -789,12 +789,13 @@ func (m *MockDeviceInfoOps) EXPECT() *MockDeviceInfoOpsMockRecorder {
 }
 
 // getCPUAffinity mocks base method.
-func (m *MockDeviceInfoOps) getCPUAffinity(arg0 uint) (string, error) {
+func (m *MockDeviceInfoOps) getCPUAffinity(arg0 uint) (string, error, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "getCPUAffinity", arg0)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // getCPUAffinity indicates an expected call of getCPUAffinity.
@@ -833,12 +834,13 @@ func (mr *MockDeviceInfoOpsMockRecorder) getGPUStatus(arg0 any) *gomock.Call {
 }
 
 // getPciBandwidth mocks base method.
-func (m *MockDeviceInfoOps) getPciBandwidth(arg0 uint) (int64, error) {
+func (m *MockDeviceInfoOps) getPciBandwidth(arg0 uint) (int64, error, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "getPciBandwidth", arg0)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // getPciBandwidth indicates an expected call of getPciBandwidth.

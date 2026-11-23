@@ -580,6 +580,26 @@ func TestReadLegacyFieldsCSV_InvalidRows(t *testing.T) {
 			want:     "valid non-negative integer",
 		},
 		{
+			name:     "overflowing id",
+			contents: "name,id\ndcgm_gpu_temp,99999999999999999999\n",
+			want:     "valid non-negative integer",
+		},
+		{
+			name:     "negative id",
+			contents: "name,id\ndcgm_gpu_temp,-1\n",
+			want:     "valid non-negative integer",
+		},
+		{
+			name:     "missing id",
+			contents: "name,id\ndcgm_gpu_temp, \n",
+			want:     "id is required",
+		},
+		{
+			name:     "missing name",
+			contents: "name,id\n,150\n",
+			want:     "name is required",
+		},
+		{
 			name:     "duplicate name",
 			contents: "name,id\ndcgm_gpu_temp,150\ndcgm_gpu_temp,151\n",
 			want:     "duplicate",
@@ -1081,9 +1101,7 @@ func TestReadLegacyFieldsCSVAdditionalErrors(t *testing.T) {
 		{name: "empty", contents: ""},
 		{name: "malformed row", contents: "name,id\n\"unterminated,1\n"},
 		{name: "too many columns", contents: "name,id\na,1,extra\n"},
-		{name: "empty name", contents: "name,id\n,1\n"},
-		{name: "empty id", contents: "name,id\na,\n"},
-		{name: "negative id", contents: "name,id\na,-1\n"},
+		{name: "too few columns", contents: "name,id\na\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if _, err := readLegacyFieldsCSV(writeLegacyCSV(t, tt.contents)); err == nil {

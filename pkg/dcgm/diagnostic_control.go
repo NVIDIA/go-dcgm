@@ -215,17 +215,64 @@ func actionValidateWithCalls(api diagnosticCalls, request DiagnosticRequest) (Di
 	return api.actionValidateNative(request)
 }
 
+// diagnosticRequestVersion selects the request version for the client and hostengine.
+// A 4.8 client uses the v10 C layout for request v11 and sends wire version 13.
+func diagnosticRequestVersion(client, peer VersionInfo) C.uint {
+	local, localKnown := runtimeVersion(client)
+	remote, remoteKnown := runtimeVersion(peer)
+	if localKnown && remoteKnown && local[0] == 4 && local[1] == 8 && remote == [3]uint64{4, 7, 1} {
+		return C.dcgmRunDiag_version11
+	}
+	return C.dcgmRunDiag_version10
+}
+
+// selectedDiagnosticRequestVersion reads both versions for each run so it uses
+// the current hostengine after a reconnect.
+func selectedDiagnosticRequestVersion() C.uint {
+	// Keep the session open for the version queries. The diagnostic itself
+	// runs after this lock is released so StopDiag can still interrupt it.
+	mux.Lock()
+	defer mux.Unlock()
+
+	client, err := versionInfo()
+	if err != nil {
+		return C.dcgmRunDiag_version10
+	}
+	peer, err := hostengineVersionInfo()
+	if err != nil {
+		return C.dcgmRunDiag_version10
+	}
+	return diagnosticRequestVersion(client, peer)
+}
+
 // actionValidateNative runs a prepared diagnostic and retains results even when DCGM returns an error.
 func (cgoAdapter) actionValidateNative(request DiagnosticRequest) (DiagResults, error) {
-	native, err := cDiagnosticRequest(request)
-	if err != nil {
+	response, err := runDiagnosticRequest(request, selectedDiagnosticRequestVersion())
+	if response == nil {
 		return DiagResults{}, err
 	}
+	return newDiagResults(response), err
+}
+
+// runDiagnosticRequest sends the request once and returns the native response.
+func runDiagnosticRequest(request DiagnosticRequest, version C.uint) (*C.dcgmDiagResponse_v12, error) {
+	return runDiagnosticRequestWithCall(request, version, func(native *C.dcgmRunDiag_v10, response *C.dcgmDiagResponse_v12) C.dcgmReturn_t {
+		return C.dcgmActionValidate_v2(handle.handle, native, response)
+	})
+}
+
+// runDiagnosticRequestWithCall builds the request and returns the response from the supplied call.
+func runDiagnosticRequestWithCall(request DiagnosticRequest, version C.uint, call func(*C.dcgmRunDiag_v10, *C.dcgmDiagResponse_v12) C.dcgmReturn_t) (*C.dcgmDiagResponse_v12, error) {
+	native, err := cDiagnosticRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	native.version = version
 
 	response := new(C.dcgmDiagResponse_v12)
 	response.version = C.dcgmDiagResponse_version12
-	result := C.dcgmActionValidate_v2(handle.handle, &native, response)
-	return newDiagResults(response), diagnosticResult("dcgmActionValidate_v2", result)
+	result := call(&native, response)
+	return response, diagnosticResult("dcgmActionValidate_v2", result)
 }
 
 // StopDiag asks DCGM to stop the active diagnostic. It may run concurrently with
@@ -278,5 +325,12 @@ func runDiagWithCalls(api diagnosticCalls, level DiagType, group GroupHandle) (D
 		return DiagResults{}, err
 	}
 
-	return api.runDiagNative(level, group)
+	if level < DiagQuick || level > DiagExtended {
+		return DiagResults{}, newBadParameterError()
+	}
+	results, err := api.runDiagNative(level, group)
+	if err != nil {
+		return DiagResults{}, err
+	}
+	return results, nil
 }

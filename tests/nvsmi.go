@@ -41,28 +41,15 @@ func Query(id, query string) string {
 	return strings.TrimSpace(out.String())
 }
 
-// DeviceCount returns the number of NVIDIA GPU devices available in the system
-// by executing nvidia-smi with the specified query parameter.
+// DeviceCount counts the output lines from the specified nvidia-smi GPU query.
 //
-// Parameters:
-//   - query: The nvidia-smi query parameter to execute
-//
-// Returns:
-//
-//	The number of GPU devices as an unsigned integer
+// Deprecated: Use dcgm.GetAllDeviceCount for a GPU count that reports errors.
 func DeviceCount(query string) uint {
 	var out bytes.Buffer
-
-	query_arg := queryArg + query
-	cmd := exec.Command(bin, query_arg, formatArg)
+	cmd := exec.Command(bin, queryArg+query, formatArg) //nolint:gosec // The query is one value for the fixed --query-gpu option.
 	cmd.Stdout = &out
-
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		fmt.Printf("nvsmi exec error: %v\n", err)
 	}
-
-	nvSmi := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
-
-	return uint(len(nvSmi))
+	return uint(len(strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")))
 }

@@ -72,7 +72,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		"CSV file containing curated legacy field names (default: output directory)",
 	)
 	if err := flags.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1
@@ -472,30 +472,15 @@ func readLegacyFieldsCSV(path string) (map[string]int, error) {
 	legacyFields := make(map[string]int)
 	for row := 2; ; row++ {
 		record, err := reader.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
 			return nil, fmt.Errorf("legacy fields CSV row %d: %w", row, err)
 		}
-		if len(record) != 2 {
-			return nil, fmt.Errorf("legacy fields CSV row %d: expected 2 columns, got %d", row, len(record))
-		}
-
-		name := strings.TrimSpace(record[0])
-		idText := strings.TrimSpace(record[1])
-		if name == "" {
-			return nil, fmt.Errorf("legacy fields CSV row %d: name is required", row)
-		}
-		if name != strings.ToLower(name) && !dcgmConstNamePattern.MatchString(name) {
-			return nil, fmt.Errorf("legacy fields CSV row %d: %q must be lowercase or a DCGM field constant", row, name)
-		}
-		if idText == "" {
-			return nil, fmt.Errorf("legacy fields CSV row %d: id is required", row)
-		}
-		id, err := strconv.Atoi(idText)
-		if err != nil || id < 0 {
-			return nil, fmt.Errorf("legacy fields CSV row %d: %q is not a valid non-negative integer ID", row, idText)
+		name, id, err := parseLegacyFieldRecord(record[0], record[1], row)
+		if err != nil {
+			return nil, err
 		}
 		if _, exists := legacyFields[name]; exists {
 			return nil, fmt.Errorf("legacy fields CSV row %d: duplicate name %q", row, name)
@@ -504,6 +489,31 @@ func readLegacyFieldsCSV(path string) (map[string]int, error) {
 	}
 
 	return legacyFields, nil
+}
+
+// parseLegacyFieldRecord validates a two-column row after the CSV reader checks its width.
+func parseLegacyFieldRecord(rawName, idText string, row int) (name string, id int, err error) {
+	name = strings.TrimSpace(rawName)
+	switch {
+	case name == "":
+		return "", 0, fmt.Errorf("legacy fields CSV row %d: name is required", row)
+	case name != strings.ToLower(name) && !dcgmConstNamePattern.MatchString(name):
+		return "", 0, fmt.Errorf("legacy fields CSV row %d: %q must be lowercase or a DCGM field constant", row, name)
+	}
+
+	idText = strings.TrimSpace(idText)
+	if idText == "" {
+		return "", 0, fmt.Errorf("legacy fields CSV row %d: id is required", row)
+	}
+
+	id, err = strconv.Atoi(idText)
+	if err != nil {
+		return "", 0, fmt.Errorf("legacy fields CSV row %d: %q is not a valid non-negative integer ID: %w", row, idText, err)
+	}
+	if id < 0 {
+		return "", 0, fmt.Errorf("legacy fields CSV row %d: %q is not a valid non-negative integer ID", row, idText)
+	}
+	return name, id, nil
 }
 
 // curatedFieldAliases returns a Go constant alias for each DCGM_FI_* name in

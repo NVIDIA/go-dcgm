@@ -1,6 +1,9 @@
 package dcgm
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestIsInt32BlankBoundary(t *testing.T) {
 	tests := []struct {
@@ -8,9 +11,10 @@ func TestIsInt32BlankBoundary(t *testing.T) {
 		value int
 		want  bool
 	}{
-		{"below", dcgmInt32Blank - 1, false},
-		{"blank", dcgmInt32Blank, true},
-		{"above", dcgmInt32Blank + 1, true},
+		{"below", int(DCGM_FT_INT32_BLANK) - 1, false},
+		{"blank", int(DCGM_FT_INT32_BLANK), true},
+		{"above", int(DCGM_FT_INT32_BLANK) + 1, true},
+		{"past named markers", int(DCGM_FT_INT32_BLANK) + 4, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -27,14 +31,68 @@ func TestIsInt64BlankBoundary(t *testing.T) {
 		value int64
 		want  bool
 	}{
-		{"below", dcgmInt64Blank - 1, false},
-		{"blank", dcgmInt64Blank, true},
-		{"above", dcgmInt64Blank + 1, true},
+		{"below", DCGM_FT_INT64_BLANK - 1, false},
+		{"blank", DCGM_FT_INT64_BLANK, true},
+		{"above", DCGM_FT_INT64_BLANK + 1, true},
+		{"past named markers", DCGM_FT_INT64_BLANK + 4, true},
+		{"32-bit marker", DCGM_FT_INT32_BLANK, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsInt64Blank(tt.value); got != tt.want {
 				t.Fatalf("IsInt64Blank(%d) = %t, want %t", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsStringBlank(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"blank", DCGM_FT_STR_BLANK, true},
+		{"not found", DCGM_FT_STR_NOT_FOUND, true},
+		{"not supported", DCGM_FT_STR_NOT_SUPPORTED, true},
+		{"not permissioned", DCGM_FT_STR_NOT_PERMISSIONED, true},
+		{"unknown marker", "<<<FUTURE>>>", true},
+		{"trailing text", "<<<FUTURE>>>detail", true},
+		{"empty", "", false},
+		{"ordinary value", "GPU-1234", false},
+		{"later marker", "value<<<NULL>>>", false},
+		{"missing end", "<<<NULL", false},
+		{"NUL before end", "<<<NULL\x00>>>", false},
+		{"NUL after end", "<<<NULL>>>\x00detail", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsStringBlank(tt.value); got != tt.want {
+				t.Errorf("IsStringBlank(%q) = %t, want %t", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsFloat64Blank(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		value float64
+		want  bool
+	}{
+		{"below", math.Nextafter(DCGM_FT_FP64_BLANK, math.Inf(-1)), false},
+		{"blank", DCGM_FT_FP64_BLANK, true},
+		{"not found", DCGM_FT_FP64_NOT_FOUND, true},
+		{"not supported", DCGM_FT_FP64_NOT_SUPPORTED, true},
+		{"not permissioned", DCGM_FT_FP64_NOT_PERMISSIONED, true},
+		{"past named markers", DCGM_FT_FP64_BLANK + 4, true},
+		{"zero", 0, false},
+		{"NaN", math.NaN(), false},
+		{"positive infinity", math.Inf(1), true},
+		{"negative infinity", math.Inf(-1), false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsFloat64Blank(tt.value); got != tt.want {
+				t.Errorf("IsFloat64Blank(%g) = %t, want %t", tt.value, got, tt.want)
 			}
 		})
 	}
