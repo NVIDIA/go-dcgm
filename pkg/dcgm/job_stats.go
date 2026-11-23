@@ -38,7 +38,7 @@ type JobHealthIncident struct {
 
 // GPUJobStats contains job-lifetime measurements for one GPU, or the job summary.
 // Values retain DCGM blank sentinels: use IsInt64Blank and IsInt32Blank for integer fields.
-// Floating-point values at least 140737488355328.0 are DCGM blank sentinels.
+// Use IsFloat64Blank for floating-point fields.
 // Summary min/max values for PCIe bandwidth, utilization and clocks are not applicable.
 type GPUJobStats struct {
 	GPU uint

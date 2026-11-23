@@ -93,9 +93,9 @@ type deviceInfoOps interface {
 	readDeviceAttributes(uint) (deviceAttributes, error)
 	getSupportedDevices() ([]uint, error)
 	getGPUStatus(uint) EntityStatus
-	getCPUAffinity(uint) (string, error)
+	getCPUAffinity(uint) (affinity string, cleanupErr, err error)
 	getDeviceTopology(uint) ([]P2PLink, error)
-	getPciBandwidth(uint) (int64, error)
+	getPciBandwidth(uint) (bandwidth int64, cleanupErr, err error)
 }
 
 // policyReadOps supplies group membership and policy data used to build a PolicyStatus.

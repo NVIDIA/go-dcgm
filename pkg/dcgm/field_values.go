@@ -114,7 +114,7 @@ func appendConvertedValues(dst []FieldValue_v2, entityGroup Field_Entity_Group, 
 		}
 
 		if uint(cfields[i].fieldType) == DCGM_FT_STRING {
-			dst[startLen+i].StringValue = stringPtr((*C.char)(unsafe.Pointer(&cfields[i].value[0])))
+			dst[startLen+i].StringValue = fieldStringPointer(cfields[i].value[:])
 		}
 	}
 
@@ -191,7 +191,7 @@ func GetValuesSince(gpuGroup GroupHandle, fieldGroup FieldHandle, sinceTime time
 		C.dcgmFieldValueEnumeration_f(C.fieldValueEntityCallback),
 		callbackUserData)
 	if result != C.DCGM_ST_OK {
-		return nil, time.Time{}, fmt.Errorf("dcgmGetValuesSince_v2 failed with error code %d", int(result))
+		return nil, time.Time{}, fmt.Errorf("dcgmGetValuesSince_v2: %w", errorString(result))
 	}
 
 	if cbResult.limitExceeded {

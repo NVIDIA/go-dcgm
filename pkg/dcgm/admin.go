@@ -20,7 +20,13 @@ package dcgm
 #cgo linux LDFLAGS: -ldl -Wl,--export-dynamic -Wl,--unresolved-symbols=ignore-in-object-files
 #cgo darwin LDFLAGS: -ldl -Wl,-undefined,dynamic_lookup
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <dlfcn.h>
+#ifdef __linux__
+#include <link.h>
+#endif
 #include <stdio.h>
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
@@ -39,6 +45,17 @@ static void *openLibraryWithReason(const char *name, char *reason, size_t reason
 	}
 
 	return library;
+}
+
+// Return the path from the Linux loader record for this handle.
+static const char *loadedLibraryPath(void *library) {
+#ifdef __linux__
+	struct link_map *object = NULL;
+	if (library != NULL && dlinfo(library, RTLD_DI_LINKMAP, &object) == 0 && object != NULL) {
+		return object->l_name;
+	}
+#endif
+	return NULL;
 }
 */
 import "C"
@@ -65,6 +82,12 @@ const (
 	StartHostengine
 )
 
+// Shared by the embedded, standalone and child-hostengine startup paths.
+const (
+	dcgmInitErrorFormat          = "error initializing DCGM: %w"
+	hostengineConnectErrorFormat = "error connecting to nv-hostengine: %w"
+)
+
 type dcgmHandle struct{ handle C.dcgmHandle_t }
 
 var (
@@ -85,17 +108,23 @@ func initDCGMWithCalls(api sessionCalls, m mode, args ...string) error {
 		return err
 	}
 
-	stopMode = m
+	var err error
 	switch m {
 	case Embedded:
-		return api.startEmbedded()
+		err = api.startEmbedded()
 	case Standalone:
-		return api.connectStandalone(args...)
+		err = api.connectStandalone(args...)
 	case StartHostengine:
-		return api.startHostengine()
+		err = api.startHostengine()
 	default:
-		panic(ErrInvalidMode)
+		err = ErrInvalidMode
 	}
+	if err != nil {
+		api.closeLibrary()
+		return err
+	}
+	stopMode = m
+	return nil
 }
 
 // dcgmLibraryName is the DCGM 4 client library that Init loads.
@@ -139,6 +168,23 @@ func loadLibraryFile(name string) error {
 	return nil
 }
 
+// loadedLibraryPath copies loader-owned data while the caller holds mux.
+func loadedLibraryPath() (string, error) {
+	if dcgmLibHandle == nil {
+		return "", errors.New("DCGM library is not loaded")
+	}
+	path := loadedLibraryPathCString()
+	if path == nil || *path == 0 {
+		return "", errors.New("loaded DCGM library path is unavailable on this platform")
+	}
+	return C.GoString(path), nil
+}
+
+// loadedLibraryPathCString returns loader-owned data. The caller keeps the handle open.
+func loadedLibraryPathCString() *C.char {
+	return C.loadedLibraryPath(dcgmLibHandle)
+}
+
 func shutdown() (err error) {
 	return shutdownWithCalls(cgoAdapter{})
 }
@@ -174,13 +220,13 @@ func (cgoAdapter) closeLibrary() {
 func (cgoAdapter) startEmbedded() (err error) {
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error initializing DCGM: %s", err)
+		return fmt.Errorf(dcgmInitErrorFormat, err)
 	}
 
 	var cHandle C.dcgmHandle_t
 	result = C.dcgmStartEmbedded(C.DCGM_OPERATION_MODE_AUTO, &cHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error starting nv-hostengine: %s", err)
+		return rollbackDCGMInit(fmt.Errorf("error starting nv-hostengine: %w", err), cgoAdapter{}.shutdownDCGM)
 	}
 	handle = dcgmHandle{cHandle}
 	return
@@ -190,12 +236,12 @@ func (cgoAdapter) startEmbedded() (err error) {
 func (cgoAdapter) stopEmbedded() (err error) {
 	result := C.dcgmStopEmbedded(handle.handle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error stopping nv-hostengine: %s", err)
+		return fmt.Errorf("error stopping nv-hostengine: %w", err)
 	}
 
 	result = C.dcgmShutdown()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error shutting down DCGM: %s", err)
+		return fmt.Errorf("error shutting down DCGM: %w", err)
 	}
 	return
 }
@@ -260,7 +306,7 @@ func connectStandaloneV2(address, socketFlag string) (err error) {
 
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error initializing DCGM: %s", err)
+		return fmt.Errorf(dcgmInitErrorFormat, err)
 	}
 
 	addr := C.CString(address)
@@ -271,7 +317,7 @@ func connectStandaloneV2(address, socketFlag string) (err error) {
 
 	result = C.dcgmConnect_v2(addr, &connectParams, &cHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error connecting to nv-hostengine: %s", err)
+		return rollbackDCGMInit(fmt.Errorf(hostengineConnectErrorFormat, err), cgoAdapter{}.shutdownDCGM)
 	}
 
 	handle = dcgmHandle{cHandle}
@@ -291,7 +337,7 @@ func connectStandaloneV3(connectionString string) (err error) {
 
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error initializing DCGM: %s", err)
+		return fmt.Errorf(dcgmInitErrorFormat, err)
 	}
 
 	cConnectionString := C.CString(connectionString)
@@ -300,23 +346,31 @@ func connectStandaloneV3(connectionString string) (err error) {
 
 	result = C.dcgmConnect_v3(cConnectionString, &connectParams, &cHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error connecting to nv-hostengine: %s", err)
+		return rollbackDCGMInit(fmt.Errorf(hostengineConnectErrorFormat, err), cgoAdapter{}.shutdownDCGM)
 	}
 
 	handle = dcgmHandle{cHandle}
 	return nil
 }
 
+// rollbackDCGMInit releases the native initialization after a failed start or connection.
+func rollbackDCGMInit(startErr error, shutdown func() error) error {
+	if err := shutdown(); err != nil {
+		return errors.Join(startErr, fmt.Errorf("error shutting down DCGM after failed startup: %w", err))
+	}
+	return startErr
+}
+
 // disconnectStandalone disconnects from the external hostengine and shuts down DCGM.
 func (cgoAdapter) disconnectStandalone() (err error) {
 	result := C.dcgmDisconnect(handle.handle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error disconnecting from nv-hostengine: %s", err)
+		return fmt.Errorf("error disconnecting from nv-hostengine: %w", err)
 	}
 
 	result = C.dcgmShutdown()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error shutting down DCGM: %s", err)
+		return fmt.Errorf("error shutting down DCGM: %w", err)
 	}
 	return
 }
@@ -368,7 +422,7 @@ func (cgoAdapter) startHostengine() (err error) {
 
 	bin, err := exec.LookPath("nv-hostengine")
 	if err != nil {
-		return fmt.Errorf("error finding nv-hostengine: %s", err)
+		return fmt.Errorf("error finding nv-hostengine: %w", err)
 	}
 	procAttr.Files = []uintptr{
 		uintptr(syscall.Stdin),
@@ -386,12 +440,12 @@ func (cgoAdapter) startHostengine() (err error) {
 	connectArg := "--domain-socket"
 	hostengineAsChildPid, err = syscall.ForkExec(bin, []string{bin, connectArg, socketPath}, &procAttr)
 	if err != nil {
-		return fmt.Errorf("error fork-execing nv-hostengine: %s", err)
+		return fmt.Errorf("error fork-execing nv-hostengine: %w", err)
 	}
 
 	result := C.dcgmInit()
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error initializing DCGM: %s", err)
+		return fmt.Errorf(dcgmInitErrorFormat, err)
 	}
 
 	connectParams.version = makeVersion2(unsafe.Sizeof(connectParams))
@@ -401,7 +455,7 @@ func (cgoAdapter) startHostengine() (err error) {
 	defer freeCString(cSockPath)
 	result = C.dcgmConnect_v2(cSockPath, &connectParams, &cHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error connecting to nv-hostengine: %s", err)
+		return rollbackDCGMInit(fmt.Errorf(hostengineConnectErrorFormat, err), cgoAdapter{}.shutdownDCGM)
 	}
 
 	handle = dcgmHandle{cHandle}
@@ -441,7 +495,7 @@ func (api cgoAdapter) stopHostengine() (err error) {
 	// terminate nv-hostengine
 	cmd := exec.Command("nv-hostengine", "--term")
 	if err = cmd.Run(); err != nil {
-		return fmt.Errorf("error terminating nv-hostengine: %s", err)
+		return fmt.Errorf("error terminating nv-hostengine: %w", err)
 	}
 
 	log.Println("Successfully terminated nv-hostengine.")

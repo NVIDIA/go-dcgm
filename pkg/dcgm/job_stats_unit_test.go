@@ -138,7 +138,7 @@ func TestJobConversion(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, IsInt64Blank(blank.Summary.EnergyConsumed))
 	require.True(t, IsInt32Blank(int(blank.Summary.SMUtilization.Average)))
-	require.GreaterOrEqual(t, blank.Summary.PowerUsage.Average, 140737488355328.0)
+	require.True(t, IsFloat64Blank(blank.Summary.PowerUsage.Average))
 }
 
 func TestJobConversionBounds(t *testing.T) {

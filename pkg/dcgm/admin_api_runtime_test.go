@@ -178,7 +178,8 @@ func TestAdministrationAfterShutdown(t *testing.T) {
 	checkAdministrationWithoutSession(t)
 }
 
-// requireLoadedLibraryWithoutSession retains a failed-init library reference and restores its cleanup state.
+// requireLoadedLibraryWithoutSession checks failed Init cleanup, then loads the
+// library explicitly so tests can distinguish a missing session from a missing symbol.
 func requireLoadedLibraryWithoutSession(t *testing.T) {
 	t.Helper()
 	require.Zero(t, dcgmInitCounter)
@@ -186,16 +187,11 @@ func requireLoadedLibraryWithoutSession(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, cleanup)
 	require.Zero(t, dcgmInitCounter)
-	require.NotNil(t, dcgmLibHandle)
-	failedLibrary := dcgmLibHandle
-	t.Cleanup(func() {
-		// Failed Init retains a library reference; release it after recovery's cleanup.
-		mux.Lock()
-		defer mux.Unlock()
-		require.Zero(t, dcgmInitCounter)
-		dcgmLibHandle = failedLibrary
-		cgoAdapter{}.closeLibrary()
-	})
+	require.Nil(t, dcgmLibHandle)
+
+	api := cgoAdapter{}
+	require.NoError(t, api.loadLibrary())
+	t.Cleanup(api.closeLibrary)
 }
 
 // TestAdministrationAfterFailedInit checks rejection after failed initialization and successful recovery.
@@ -205,6 +201,7 @@ func TestAdministrationAfterFailedInit(t *testing.T) {
 	_, err := ModuleIDToName(ModuleHealth)
 	require.True(t, IsFeatureUnavailable(err), "loaded library without a session must reject administration calls")
 	checkAdministrationWithoutSession(t)
+	cgoAdapter{}.closeLibrary()
 	cleanup, err := InitEmbedded(EmbeddedOptions{Severity: LoggingNone})
 	require.NoError(t, err)
 	t.Cleanup(cleanup)

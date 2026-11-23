@@ -140,7 +140,7 @@ func newPidWatchTestGroup(t *testing.T) dcgm.GroupHandle {
 		t.Fatalf("Failed to get supported devices: %v", err)
 	}
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found")
+		t.Fatal("No supported GPUs found")
 	}
 
 	group, err := dcgm.CreateGroup(fmt.Sprintf("pid-watch-%d", time.Now().UnixNano()))

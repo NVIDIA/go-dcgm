@@ -2,6 +2,7 @@ package dcgm
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -64,90 +65,26 @@ func float64Bytes(value float64) []byte {
 }
 
 func TestFieldValueAllocationPaths(t *testing.T) {
-	t.Run("conversion", func(t *testing.T) {
-		const (
-			defaultFieldID   = Short(100)
-			defaultStatus    = -3
-			defaultTimestamp = int64(1700000000000000)
-		)
+	t.Run("conversion", testFieldValueConversions)
 
-		tests := []struct {
-			name      string
-			fieldID   Short
-			fieldType uint
-			payload   []byte
-			entities  int
-		}{
-			{name: "int64", fieldType: DCGM_FT_INT64, payload: int64Bytes(42), entities: 1},
-			{name: "double-profiling", fieldID: DCGM_FI_PROF_GR_ENGINE_ACTIVE, fieldType: DCGM_FT_DOUBLE, payload: float64Bytes(0.5), entities: 1},
-			{name: "string", fieldType: DCGM_FT_STRING, payload: append([]byte("GPU-test"), 0), entities: 1},
-			{name: "string-blank", fieldType: DCGM_FT_STRING, payload: append([]byte("<<<NULL>>>"), 0), entities: 1},
-			{name: "string-error", fieldType: DCGM_FT_STRING, payload: append([]byte("<<<NOT_SUPPORTED>>>"), 0), entities: 1},
-			{name: "numeric-blank", fieldType: DCGM_FT_INT64, payload: int64Bytes(DCGM_FT_INT64_BLANK), entities: 1},
-			{name: "numeric-error", fieldType: DCGM_FT_INT64, payload: int64Bytes(DCGM_FT_INT64_NOT_SUPPORTED), entities: 1},
-			{name: "timestamp", fieldType: DCGM_FT_TIMESTAMP, payload: int64Bytes(defaultTimestamp), entities: 1},
-			{name: "binary", fieldType: DCGM_FT_BINARY, payload: []byte{0xde, 0xad, 0xbe, 0xef}, entities: 1},
-			{name: "multi-entity", fieldType: DCGM_FT_INT64, payload: int64Bytes(7), entities: 8},
+	t.Run("bounded native string member", func(t *testing.T) {
+		want := strings.Repeat("x", fieldStringCapacity)
+		spec := testFieldValueSpec{
+			fieldID:   DCGM_FI_DEV_PCI_BUS_ID,
+			fieldType: DCGM_FT_STRING,
+			payload:   []byte(want + "outside the string member"),
 		}
+		v1Fields := makeTestCFieldsFromSpec(1, spec)
+		require.Equal(t, want, toFieldValue(v1Fields)[0].String())
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				fieldID := tt.fieldID
-				if fieldID == 0 {
-					fieldID = defaultFieldID
-				}
-				spec := testFieldValueSpec{
-					fieldID:   fieldID,
-					fieldType: tt.fieldType,
-					status:    defaultStatus,
-					timestamp: defaultTimestamp,
-					payload:   tt.payload,
-				}
-				var wantPayload [4096]byte
-				copy(wantPayload[:], tt.payload)
-
-				assertV1 := func(value FieldValue_v1) {
-					assert.NotZero(t, value.Version)
-					assert.Equal(t, fieldID, value.FieldID)
-					assert.Equal(t, tt.fieldType, value.FieldType)
-					assert.Equal(t, defaultStatus, value.Status)
-					assert.Equal(t, defaultTimestamp, value.TS)
-					assert.Equal(t, wantPayload, value.Value)
-					if tt.fieldType == DCGM_FT_STRING {
-						assert.Equal(t, string(tt.payload[:len(tt.payload)-1]), value.String())
-					}
-				}
-				assertV2 := func(value FieldValue_v2, entityID uint, timestamp int64) {
-					assert.NotZero(t, value.Version)
-					assert.Equal(t, FE_GPU, value.EntityGroupId)
-					assert.Equal(t, entityID, value.EntityID)
-					assert.Equal(t, fieldID, value.FieldID)
-					assert.Equal(t, tt.fieldType, value.FieldType)
-					assert.Equal(t, defaultStatus, value.Status)
-					assert.Equal(t, timestamp, value.TS)
-					assert.Equal(t, wantPayload, value.Value)
-					if tt.fieldType == DCGM_FT_STRING {
-						require.NotNil(t, value.StringValue)
-						want := string(tt.payload[:len(tt.payload)-1])
-						assert.Equal(t, want, *value.StringValue)
-						assert.Equal(t, want, value.String())
-					}
-				}
-
-				v1Fields := makeTestCFieldsFromSpec(1, spec)
-				assertV1(toFieldValue(v1Fields)[0])
-				assertV2(dcgmFieldValue_v1ToFieldValue_v2(FE_GPU, 0, v1Fields)[0], 0, defaultTimestamp)
-
-				values := toFieldValue_v2(makeTestCFieldsV2FromSpec(tt.entities, 1, spec))
-				require.Len(t, values, tt.entities)
-				expectedEntityID := uint(0)
-				expectedTimestamp := defaultTimestamp
-				for _, value := range values {
-					assertV2(value, expectedEntityID, expectedTimestamp)
-					expectedEntityID++
-					expectedTimestamp++
-				}
-			})
+		for _, value := range []FieldValue_v2{
+			dcgmFieldValue_v1ToFieldValue_v2(FE_GPU, 0, v1Fields)[0],
+			toFieldValue_v2(makeTestCFieldsV2FromSpec(1, 1, spec))[0],
+			appendConvertedValues(nil, FE_GPU, 0, v1Fields)[0],
+		} {
+			require.Equal(t, want, value.String())
+			require.NotNil(t, value.StringValue)
+			require.Equal(t, want, *value.StringValue)
 		}
 	})
 
@@ -207,24 +144,117 @@ func TestFieldValueAllocationPaths(t *testing.T) {
 		assert.Equal(t, poolCapacityThreshold+1, cap(acquirePooledSlice[int](&pool, poolCapacityThreshold+1).values))
 	})
 
-	t.Run("field-ids", func(t *testing.T) {
-		for _, size := range []int{1, 8, 32, 128} {
-			t.Run(strconv.Itoa(size), func(t *testing.T) {
-				fields := make([]Short, size)
-				fieldID := Short(100)
-				for i := range fields {
-					fields[i] = fieldID
-					fieldID++
-				}
+	t.Run("field-ids", testFieldIDPointerView)
+}
 
-				view := unsafe.Slice(fieldIDPointer(fields), len(fields))
-				fields[0]++
-				for i := range fields {
-					assert.Equal(t, fields[i], Short(view[i]))
-				}
-			})
-		}
-	})
+// testFieldIDPointerView checks that the native pointer sees the Go slice's updates.
+func testFieldIDPointerView(t *testing.T) {
+	for _, size := range []int{1, 8, 32, 128} {
+		t.Run(strconv.Itoa(size), func(t *testing.T) {
+			fields := make([]Short, size)
+			fieldID := Short(100)
+			for i := range fields {
+				fields[i] = fieldID
+				fieldID++
+			}
+
+			view := unsafe.Slice(fieldIDPointer(fields), len(fields))
+			fields[0]++
+			for i := range fields {
+				assert.Equal(t, fields[i], Short(view[i]))
+			}
+		})
+	}
+}
+
+// testFieldValueConversions checks the Go values produced by each native converter.
+func testFieldValueConversions(t *testing.T) {
+	const (
+		defaultFieldID   = Short(100)
+		defaultStatus    = -3
+		defaultTimestamp = int64(1700000000000000)
+	)
+
+	tests := []struct {
+		name      string
+		fieldID   Short
+		fieldType uint
+		payload   []byte
+		entities  int
+	}{
+		{name: "int64", fieldType: DCGM_FT_INT64, payload: int64Bytes(42), entities: 1},
+		{name: "double-profiling", fieldID: DCGM_FI_PROF_GR_ENGINE_ACTIVE, fieldType: DCGM_FT_DOUBLE, payload: float64Bytes(0.5), entities: 1},
+		{name: "string", fieldType: DCGM_FT_STRING, payload: append([]byte("GPU-test"), 0), entities: 1},
+		{name: "string-blank", fieldType: DCGM_FT_STRING, payload: append([]byte("<<<NULL>>>"), 0), entities: 1},
+		{name: "string-error", fieldType: DCGM_FT_STRING, payload: append([]byte("<<<NOT_SUPPORTED>>>"), 0), entities: 1},
+		{name: "numeric-blank", fieldType: DCGM_FT_INT64, payload: int64Bytes(DCGM_FT_INT64_BLANK), entities: 1},
+		{name: "numeric-error", fieldType: DCGM_FT_INT64, payload: int64Bytes(DCGM_FT_INT64_NOT_SUPPORTED), entities: 1},
+		{name: "timestamp", fieldType: DCGM_FT_TIMESTAMP, payload: int64Bytes(defaultTimestamp), entities: 1},
+		{name: "binary", fieldType: DCGM_FT_BINARY, payload: []byte{0xde, 0xad, 0xbe, 0xef}, entities: 1},
+		{name: "multi-entity", fieldType: DCGM_FT_INT64, payload: int64Bytes(7), entities: 8},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fieldID := tt.fieldID
+			if fieldID == 0 {
+				fieldID = defaultFieldID
+			}
+			spec := testFieldValueSpec{
+				fieldID:   fieldID,
+				fieldType: tt.fieldType,
+				status:    defaultStatus,
+				timestamp: defaultTimestamp,
+				payload:   tt.payload,
+			}
+			var wantPayload [4096]byte
+			copy(wantPayload[:], tt.payload)
+
+			v1Fields := makeTestCFieldsFromSpec(1, spec)
+			assertConvertedFieldV1(t, &toFieldValue(v1Fields)[0], spec, &wantPayload)
+			assertConvertedFieldV2(t, &dcgmFieldValue_v1ToFieldValue_v2(FE_GPU, 0, v1Fields)[0],
+				spec, &wantPayload, 0, defaultTimestamp)
+
+			values := toFieldValue_v2(makeTestCFieldsV2FromSpec(tt.entities, 1, spec))
+			require.Len(t, values, tt.entities)
+			for i := range values {
+				assertConvertedFieldV2(t, &values[i], spec, &wantPayload, uint(i), defaultTimestamp+int64(i))
+			}
+		})
+	}
+}
+
+func assertConvertedFieldV1(t *testing.T, value *FieldValue_v1, spec testFieldValueSpec, wantPayload *[4096]byte) {
+	t.Helper()
+	assert.NotZero(t, value.Version)
+	assert.Equal(t, spec.fieldID, value.FieldID)
+	assert.Equal(t, spec.fieldType, value.FieldType)
+	assert.Equal(t, spec.status, value.Status)
+	assert.Equal(t, spec.timestamp, value.TS)
+	assert.Equal(t, *wantPayload, value.Value)
+	if spec.fieldType == DCGM_FT_STRING {
+		assert.Equal(t, string(spec.payload[:len(spec.payload)-1]), value.String())
+	}
+}
+
+func assertConvertedFieldV2(
+	t *testing.T, value *FieldValue_v2, spec testFieldValueSpec, wantPayload *[4096]byte, entityID uint, timestamp int64,
+) {
+	t.Helper()
+	assert.NotZero(t, value.Version)
+	assert.Equal(t, FE_GPU, value.EntityGroupId)
+	assert.Equal(t, entityID, value.EntityID)
+	assert.Equal(t, spec.fieldID, value.FieldID)
+	assert.Equal(t, spec.fieldType, value.FieldType)
+	assert.Equal(t, spec.status, value.Status)
+	assert.Equal(t, timestamp, value.TS)
+	assert.Equal(t, *wantPayload, value.Value)
+	if spec.fieldType == DCGM_FT_STRING {
+		require.NotNil(t, value.StringValue)
+		want := string(spec.payload[:len(spec.payload)-1])
+		assert.Equal(t, want, *value.StringValue)
+		assert.Equal(t, want, value.String())
+	}
 }
 
 func TestTimestampUSECToTime(t *testing.T) {

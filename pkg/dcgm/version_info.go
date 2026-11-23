@@ -17,12 +17,49 @@
 package dcgm
 
 /*
+#include <dlfcn.h>
 #include "dcgm_agent.h"
 #include "dcgm_structs.h"
+
+// Call the client version function from the selected library if it exports the symbol.
+static dcgmReturn_t loadedClientVersion(void *library, dcgmVersionInfo_t *info) {
+    if (library == NULL) {
+        return DCGM_ST_FUNCTION_NOT_FOUND;
+    }
+    typedef dcgmReturn_t (*clientVersionFn)(dcgmVersionInfo_t *);
+    clientVersionFn query = (clientVersionFn)dlsym(library, "dcgmVersionInfo");
+    if (query == NULL) {
+        return DCGM_ST_FUNCTION_NOT_FOUND;
+    }
+    return query(info);
+}
+
+// Query the connected hostengine through the client library that opened the session.
+static dcgmReturn_t loadedHostengineVersion(void *library, dcgmHandle_t handle, dcgmVersionInfo_t *info) {
+    if (library == NULL) {
+        return DCGM_ST_FUNCTION_NOT_FOUND;
+    }
+    typedef dcgmReturn_t (*hostengineVersionFn)(dcgmHandle_t, dcgmVersionInfo_t *);
+    hostengineVersionFn query = (hostengineVersionFn)dlsym(library, "dcgmHostengineVersionInfo");
+    if (query == NULL) {
+        return DCGM_ST_FUNCTION_NOT_FOUND;
+    }
+    return query(handle, info);
+}
+
+// Read status text from the same library as the failed version query.
+static const char *loadedVersionErrorText(void *library, dcgmReturn_t status) {
+    typedef const char *(*errorStringFn)(dcgmReturn_t);
+    errorStringFn describe = (errorStringFn)dlsym(library, "errorString");
+    return describe == NULL ? NULL : describe(status);
+}
 */
 import "C"
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"unsafe"
 )
 
@@ -34,29 +71,41 @@ type VersionInfo struct {
 }
 
 func versionInfo() (VersionInfo, error) {
-	var cVersionInfo C.dcgmVersionInfo_t
-	cVersionInfo.version = makeVersion2(unsafe.Sizeof(cVersionInfo))
-
-	result := C.dcgmVersionInfo(&cVersionInfo)
-	if err := errorString(result); err != nil {
-		return VersionInfo{}, &Error{msg: dcgmErrorText(result), Code: result}
-	}
-
-	return VersionInfo{
-		RawBuildInfoString: C.GoString(&cVersionInfo.rawBuildInfoString[0]),
-	}, nil
+	var info C.dcgmVersionInfo_t
+	info.version = makeVersion2(unsafe.Sizeof(info))
+	status := C.loadedClientVersion(dcgmLibHandle, &info)
+	return versionInfoFromNative(&info, status, "DCGM client version", "dcgmVersionInfo")
 }
 
 func hostengineVersionInfo() (VersionInfo, error) {
-	var cVersionInfo C.dcgmVersionInfo_t
-	cVersionInfo.version = makeVersion2(unsafe.Sizeof(cVersionInfo))
-
-	result := C.dcgmHostengineVersionInfo(handle.handle, &cVersionInfo)
-	if err := errorString(result); err != nil {
-		return VersionInfo{}, &Error{msg: dcgmErrorText(result), Code: result}
+	const symbol = "dcgmHostengineVersionInfo"
+	if dcgmInitCounter <= 0 {
+		return VersionInfo{}, &FeatureUnavailableError{Feature: "DCGM hostengine version (requires an initialized session)", Symbol: symbol}
 	}
+	var info C.dcgmVersionInfo_t
+	info.version = makeVersion2(unsafe.Sizeof(info))
+	status := C.loadedHostengineVersion(dcgmLibHandle, handle.handle, &info)
+	return versionInfoFromNative(&info, status, "DCGM hostengine version", symbol)
+}
 
-	return VersionInfo{
-		RawBuildInfoString: C.GoString(&cVersionInfo.rawBuildInfoString[0]),
-	}, nil
+// versionInfoFromNative converts native status codes and copies the bounded build-info string.
+func versionInfoFromNative(info *C.dcgmVersionInfo_t, status C.dcgmReturn_t, feature, symbol string) (VersionInfo, error) {
+	if status == C.DCGM_ST_FUNCTION_NOT_FOUND {
+		return VersionInfo{}, &FeatureUnavailableError{Feature: feature, Symbol: symbol}
+	}
+	if status != C.DCGM_ST_OK {
+		// Use the same handle as the version query, including in binaries
+		// that do not link DCGM at build time.
+		message := C.GoString(C.loadedVersionErrorText(dcgmLibHandle, status))
+		if message == "" {
+			message = fmt.Sprintf("DCGM version query failed with status %d", status)
+		}
+		return VersionInfo{}, &Error{msg: message, Code: status}
+	}
+	raw := unsafe.Slice((*byte)(unsafe.Pointer(&info.rawBuildInfoString[0])), len(info.rawBuildInfoString))
+	buildInfo, _, terminated := bytes.Cut(raw, []byte{0})
+	if !terminated {
+		return VersionInfo{}, errors.New("DCGM returned an unterminated version string")
+	}
+	return VersionInfo{RawBuildInfoString: string(buildInfo)}, nil
 }

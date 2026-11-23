@@ -86,6 +86,20 @@ information, health checks, policies, diagnostics, and a REST API.
 
 ### Diagnostics
 
+After initialization on Linux, `GetLoadedLibraryPath` returns the path of the
+loaded client library as recorded by the dynamic loader. `GetVersionInfo` reports client build information, and
+`GetHostengineVersionInfo` reports build information for the active connection.
+The `version` key in `RawBuildInfoString` gives the release. Collect available
+metadata before GPU discovery when troubleshooting startup. The path may
+include symlinks, and a comparison of release versions alone cannot establish
+compatibility.
+
+Installed package labels and `ldd` output from a different executable do not
+identify the library your Go process loaded. On Linux, compare a temporary
+launch using `LD_DEBUG=libs` with a launch using a deployment-approved
+`LD_LIBRARY_PATH`. Keep any permanent selection in the application's service
+configuration. The binding does not change loader paths or switch libraries.
+
 `RunDiag` returns hierarchical `DiagResults`. New code should use
 `results.Tests`; each test includes its status, per-entity results, errors,
 information, and extra data. `DiagResults.Software` and `DiagResult` remain

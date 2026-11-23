@@ -75,18 +75,19 @@ task test:race             # same as task test:integration RACE=true
 task test:diagnostics      # diagnostic tests; runs the prereq check first
 ```
 
-CI runs the same tasks with switches that default to off: `test:unit`
+Test tasks take switches that default to off: `test:unit`
 takes `COVERAGE=true` and `REPORTS=true`, and the GPU test tasks take
-`REPORTS=true`. Reports go to `test-reports/`, plus `tests.cov` and
+`REPORTS=true`. GPU test tasks run without cached test results.
+Reports go to `test-reports/`, plus `tests.cov` and
 `coverage.xml` after a coverage run, also when tests fail;
 `task test:reports` writes them again from the last `test:unit`,
 `test:integration`, `test:race` or `test:diagnostics` run.
 
 The test tasks (`test:unit`, `test:error-metadata`, `test:integration`,
 `test:race`, `test:diagnostics`) pass Bazel options given after `--`, such as
-`-- --test_filter=TestDeviceInfo`. `task build` ignores them. In
-`test:integration` and `test:race`, the options reach only the main suite run,
-not the first policy test run.
+`-- --test_filter=TestDeviceInfo`. `task build` ignores them. Integration and
+race pass the options to the sample tests. Diagnostics passes them to both
+the Go binding and sample tests.
 `task fmt` and `task generate` change files. `task bazel:gazelle` and
 `task bazel:tidy` update Bazel files. Docs-only changes need
 `git diff --check` and `pre-commit run --all-files` (markdownlint, yamllint).
@@ -114,12 +115,14 @@ Run containers that write into the checkout with
 
 ## Tests
 
-- `pkg/dcgm` has two Bazel test targets. `dcgm_unit_test` needs no GPU and
-  uses gomock fakes of the native calls. `dcgm_test` links the DCGM runtime.
-  Add each new test file to the right target in `pkg/dcgm/BUILD.bazel`. Files
-  for `dcgm_unit_test` also go in the `gazelle:exclude` list at its top.
-- Everything under `tests/` needs a GPU and DCGM. Many tests call `t.Skip`
-  when a GPU feature or root access is missing; report those as skipped.
+- `pkg/dcgm` has four Bazel test targets. `dcgm_unit_test` needs no GPU and
+  uses gomock in place of calls to the DCGM C library. `dcgm_integration_test`
+  and `dcgm_diagnostics_test` select the Go binding tests that need a GPU. `dcgm_test` is
+  the broader runtime target, including opt-in driver checks. Add each
+  new test file to the targets that need it in `pkg/dcgm/BUILD.bazel`.
+  List unit-only sources in the `gazelle:exclude` directives at the top.
+- The default test suites under `tests/` need a GPU and DCGM. Some tests skip
+  if they need an unavailable GPU feature or root access. Report those skips.
 - Test at the lowest layer that proves the behavior. Do not write unit or
   mock tests for CI files or scripts; run the real command or CI job.
 - Changes to runtime behavior also need `task test:integration` and

@@ -5,7 +5,10 @@ go_library(
     srcs = ["main.go"],
     importpath = "github.com/NVIDIA/go-dcgm/samples/processInfo",
     visibility = ["//visibility:private"],
-    deps = ["//pkg/dcgm"],
+    deps = [
+        "//pkg/dcgm",
+        "//samples/internal/processoutput",
+    ],
 )
 
 go_binary(

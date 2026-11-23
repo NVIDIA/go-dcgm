@@ -26,7 +26,7 @@ func TestHealthCheck(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found for health checking")
+		t.Fatal("No supported GPUs found for health checking")
 	}
 
 	// Monitor health for a few seconds instead of indefinitely
@@ -85,7 +85,7 @@ func TestHealthCheckSingle(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found")
+		t.Fatal("No supported GPUs found")
 	}
 
 	// Test first GPU
@@ -131,7 +131,7 @@ func TestHealthCheckAllGPUs(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found")
+		t.Fatal("No supported GPUs found")
 	}
 
 	healthyGPUs := 0
@@ -222,7 +222,7 @@ func newHealthTestGroup(t *testing.T) dcgm.GroupHandle {
 		t.Fatalf("Failed to get supported devices: %v", err)
 	}
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found for health checking")
+		t.Fatal("No supported GPUs found for health checking")
 	}
 
 	group, err := dcgm.CreateGroup(fmt.Sprintf("health-v3-%d", time.Now().UnixNano()))

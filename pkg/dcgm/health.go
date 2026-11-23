@@ -23,6 +23,7 @@ package dcgm
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -288,7 +289,7 @@ func healthCheckByGpuId(gpuID uint) (deviceHealth DeviceHealth, err error) {
 }
 
 // healthCheckByGPUWithOps checks one GPU using a temporary group.
-// It attempts to destroy the group before returning and ignores cleanup errors.
+// It retains errors from both the health check and temporary-group cleanup.
 func healthCheckByGPUWithOps(api healthGroupOps, gpuID uint) (deviceHealth DeviceHealth, err error) {
 	name := fmt.Sprintf("health%d", rand.Uint64())
 	groupID, err := api.createGroup(name, false)
@@ -296,7 +297,9 @@ func healthCheckByGPUWithOps(api healthGroupOps, gpuID uint) (deviceHealth Devic
 		return
 	}
 	defer func() {
-		_ = api.destroyGroup(groupID)
+		if cleanupErr := api.destroyGroup(groupID); cleanupErr != nil {
+			err = errors.Join(err, fmt.Errorf("destroy health group: %w", cleanupErr))
+		}
 	}()
 
 	err = api.addToGroup(groupID, gpuID)

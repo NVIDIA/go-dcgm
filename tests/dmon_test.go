@@ -22,7 +22,7 @@ func TestDeviceMonitoring(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found for monitoring")
+		t.Fatal("No supported GPUs found for monitoring")
 	}
 
 	t.Log("# gpu   pwr  temp    sm   mem   enc   dec  mclk  pclk")
@@ -80,7 +80,7 @@ func TestDeviceStatusSingle(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found")
+		t.Fatal("No supported GPUs found")
 	}
 
 	// Test first GPU
@@ -130,7 +130,7 @@ func TestDeviceStatusMultipleSamples(t *testing.T) {
 	}
 
 	if len(gpus) == 0 {
-		t.Skip("No supported GPUs found")
+		t.Fatal("No supported GPUs found")
 	}
 
 	// Take samples every 500ms for 3 seconds

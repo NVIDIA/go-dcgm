@@ -20,6 +20,7 @@ package dcgm
 
 import (
 	"math"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -75,6 +76,10 @@ func TestNativeFailuresRetainStatus(t *testing.T) {
 		{"unwatch field value", "error unwatching field value: ", func() error { return UnwatchFieldValue(0, DCGM_FI_DEV_GPU_TEMP, false) }},
 		{"latest values", "error watching fields: ", func() error { _, err := GetLatestValuesForFields(0, []Short{DCGM_FI_DEV_GPU_TEMP}); return err }},
 		{"refresh fields", "", UpdateAllFields},
+		{"values since", "dcgmGetValuesSince_v2: ", func() error {
+			_, _, err := GetValuesSince(GroupHandle{}, FieldHandle{}, time.Time{})
+			return err
+		}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.call()
@@ -85,4 +90,64 @@ func TestNativeFailuresRetainStatus(t *testing.T) {
 			require.Equal(t, tt.prefix+native.Error(), err.Error())
 		})
 	}
+}
+
+// TestNativeErrorConversion checks that native failures retain their status and message.
+func TestNativeErrorConversion(t *testing.T) {
+	require.NoError(t, cgoAdapter{}.loadLibrary())
+	t.Cleanup(func() { cgoAdapter{}.closeLibrary() })
+	require.NoError(t, errorString(DCGM_ST_OK))
+	var native *Error
+	require.ErrorAs(t, errorString(DCGM_ST_CONNECTION_NOT_VALID), &native)
+	require.Equal(t, DCGM_ST_CONNECTION_NOT_VALID, int(native.Code))
+	require.NotEmpty(t, native.Error())
+}
+
+// TestLoadedLibrarySessionLifecycle checks library visibility across failed and reference-counted sessions.
+func TestLoadedLibrarySessionLifecycle(t *testing.T) {
+	t.Run("failed connection leaves no library", func(t *testing.T) {
+		cleanup, err := Init(Standalone, filepath.Join(t.TempDir(), "unused.sock"), "1")
+		var native *Error
+		require.ErrorAs(t, err, &native)
+		require.ErrorContains(t, err, "error connecting to nv-hostengine")
+		require.Nil(t, cleanup)
+		path, err := GetLoadedLibraryPath()
+		require.Error(t, err)
+		require.Empty(t, path)
+		_, err = GetVersionInfo()
+		require.True(t, IsFeatureUnavailable(err))
+	})
+
+	t.Run("hostengine requires an active session", func(t *testing.T) {
+		requireLoadedLibraryWithoutSession(t)
+		_, err := GetHostengineVersionInfo()
+		require.True(t, IsFeatureUnavailable(err))
+	})
+
+	// Release each successful initialization if an assertion stops the test early.
+	t.Cleanup(func() {
+		for dcgmInitCounter > 0 {
+			require.NoError(t, Shutdown())
+		}
+	})
+	for range 2 {
+		_, initErr := Init(Embedded)
+		require.NoError(t, initErr)
+	}
+
+	path, err := GetLoadedLibraryPath()
+	require.NoError(t, err)
+	require.NotEmpty(t, path)
+	_, err = GetHostengineVersionInfo()
+	require.NoError(t, err)
+
+	require.NoError(t, Shutdown())
+	remainingPath, err := GetLoadedLibraryPath()
+	require.NoError(t, err)
+	require.Equal(t, path, remainingPath)
+
+	require.NoError(t, Shutdown())
+	remainingPath, err = GetLoadedLibraryPath()
+	require.Error(t, err)
+	require.Empty(t, remainingPath)
 }

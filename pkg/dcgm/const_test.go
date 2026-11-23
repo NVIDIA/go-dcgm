@@ -7,6 +7,66 @@ import (
 	"testing"
 )
 
+func TestIntegerBlankConstants(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		base   int64
+		values [4]any
+	}{
+		{"INT32", 0x7ffffff0, [4]any{
+			DCGM_FT_INT32_BLANK, DCGM_FT_INT32_NOT_FOUND,
+			DCGM_FT_INT32_NOT_SUPPORTED, DCGM_FT_INT32_NOT_PERMISSIONED,
+		}},
+		{"INT64", 0x7ffffffffffffff0, [4]any{
+			DCGM_FT_INT64_BLANK, DCGM_FT_INT64_NOT_FOUND,
+			DCGM_FT_INT64_NOT_SUPPORTED, DCGM_FT_INT64_NOT_PERMISSIONED,
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			for offset, got := range tt.values {
+				if want := tt.base + int64(offset); got != want {
+					t.Errorf("value %d = %v (%T), want int64 %d", offset, got, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestFloatBlankConstants(t *testing.T) {
+	// The untyped blank constant is assignable to a named float type.
+	type namedFloat float64
+	const doubleBlank namedFloat = DCGM_FT_FP64_BLANK
+	if got := any(DCGM_FT_FP64_BLANK); got != float64(doubleBlank) || doubleBlank != 0x1p47 {
+		t.Errorf("FP64 blank = %v (%T), want float64 2^47", got, got)
+	}
+	for i, got := range []any{DCGM_FT_FP64_NOT_FOUND, DCGM_FT_FP64_NOT_SUPPORTED, DCGM_FT_FP64_NOT_PERMISSIONED} {
+		if want := 0x1p47 + float64(i+1); got != want {
+			t.Errorf("FP64 value %d = %v (%T), want float64 %v", i+1, got, got, want)
+		}
+	}
+}
+
+func TestStringBlankConstants(t *testing.T) {
+	// Untyped string constants are assignable to a named string type.
+	type namedString string
+	for _, test := range []struct {
+		name string
+		got  namedString
+		want namedString
+	}{
+		{"blank", DCGM_FT_STR_BLANK, "<<<NULL>>>"},
+		{"not found", DCGM_FT_STR_NOT_FOUND, "<<<NOT_FOUND>>>"},
+		{"not supported", DCGM_FT_STR_NOT_SUPPORTED, "<<<NOT_SUPPORTED>>>"},
+		{"not permissioned", DCGM_FT_STR_NOT_PERMISSIONED, "<<<NOT_PERM>>>"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.got != test.want {
+				t.Errorf("string constant = %q, want %q", test.got, test.want)
+			}
+		})
+	}
+}
+
 func TestSelectedStatusCodeConstantsMatchCHeader(t *testing.T) {
 	tests := []struct {
 		name string
@@ -103,7 +163,6 @@ func TestSelectedDCGM47HealthErrorConstants(t *testing.T) {
 		{"DCGM_FR_RIST_HEARTBEAT_STALLED", DCGM_FR_RIST_HEARTBEAT_STALLED, 140},
 		{"DCGM_FR_CHILD_SPAWN_FAILED", DCGM_FR_CHILD_SPAWN_FAILED, 141},
 		{"DCGM_FR_GPU_RECOVERY_IMEX_DOMAIN", DCGM_FR_GPU_RECOVERY_IMEX_DOMAIN, 142},
-		{"DCGM_FR_ERROR_SENTINEL", DCGM_FR_ERROR_SENTINEL, 143},
 	}
 
 	for _, tt := range tests {

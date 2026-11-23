@@ -143,7 +143,7 @@ func startEmbeddedOptionsWithCalls(api embeddedStartCalls, options EmbeddedOptio
 		return err
 	}
 	if err := api.startEmbeddedNative(options); err != nil {
-		return errors.Join(err, api.shutdownDCGM())
+		return rollbackDCGMInit(err, api.shutdownDCGM)
 	}
 
 	return nil

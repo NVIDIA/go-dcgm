@@ -36,7 +36,7 @@ func TestLatestValuesForDeviceReportsCleanupFailures(t *testing.T) {
 					if tt.getErr != nil {
 						return nil, tt.getErr
 					}
-					values := make([]FieldValue_v1, len(fields))
+					values := deviceStatusSamples()
 					binary.NativeEndian.PutUint64(values[1].Value[:], 42)
 					return values, nil
 				},

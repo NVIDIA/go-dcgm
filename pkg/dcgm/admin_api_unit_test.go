@@ -108,20 +108,20 @@ func TestEmbeddedInitializationCleanup(t *testing.T) {
 
 // TestEmbeddedNativeRollback checks DCGM rollback when native startup fails.
 func TestEmbeddedNativeRollback(t *testing.T) {
-	failure := errors.New("native failed")
-	cleanupFailure := errors.New("shutdown failed")
-	for _, stage := range []string{"init", "start", "success"} {
+	failure := &Error{msg: "native failed", Code: DCGM_ST_BADPARAM}
+	cleanupFailure := &Error{msg: "shutdown failed", Code: DCGM_ST_GENERIC_ERROR}
+	for _, stage := range []string{"init", "start", "start and rollback fail", "success"} {
 		t.Run(stage, func(t *testing.T) {
 			api := NewMockEmbeddedStartCalls(gomock.NewController(t))
 			options := EmbeddedOptions{}
 			switch stage {
 			case "init":
 				api.EXPECT().initializeDCGM().Return(failure)
-			case "start":
+			case "start", "start and rollback fail":
 				gomock.InOrder(
 					api.EXPECT().initializeDCGM().Return(nil),
 					api.EXPECT().startEmbeddedNative(options).Return(failure),
-					api.EXPECT().shutdownDCGM().Return(cleanupFailure),
+					api.EXPECT().shutdownDCGM().Return(pick[error](stage == "start and rollback fail", cleanupFailure, nil)),
 				)
 			case "success":
 				gomock.InOrder(
@@ -135,8 +135,12 @@ func TestEmbeddedNativeRollback(t *testing.T) {
 			} else {
 				require.ErrorIs(t, err, failure)
 			}
-			if stage == "start" {
+			switch stage {
+			case "start":
+				require.Same(t, failure, err)
+			case "start and rollback fail":
 				require.ErrorIs(t, err, cleanupFailure)
+				require.ErrorContains(t, err, "shutting down DCGM after failed startup")
 			}
 		})
 	}

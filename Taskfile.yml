@@ -14,7 +14,8 @@ vars:
   # Each test task writes Bazel's event log for its runs here, and
   # test:reports reads it to find that run's results.
   BAZEL_EVENTS_DIR: "{{.TASKFILE_DIR}}/.cache/bazel-events"
-  # Bazel options shared by the tests that load the DCGM runtime.
+  # The sample suite took about 27 minutes during testing.
+  DIAGNOSTIC_SAMPLE_TIMEOUT_SECONDS: "2700"
   DCGM_TEST_FLAGS: --config=ci --config=dcgm-runtime --cache_test_results=no
 
 tasks:
@@ -106,99 +107,7 @@ tasks:
   test:reports:
     desc: Write test-reports/*.xml, and tests.cov and coverage.xml after a coverage run, from the last test:unit, test:integration, test:race or test:diagnostics run
     cmds:
-      - |
-        set -euo pipefail
-        rm -rf test-reports tests.cov coverage.xml
-        mkdir -p test-reports
-
-        shopt -s nullglob
-        logs=("{{.BAZEL_EVENTS_DIR}}"/*.json)
-        if [ "${#logs[@]}" -eq 0 ]; then
-          echo "error: no Bazel event log in {{.BAZEL_EVENTS_DIR}}; run a test task first" >&2
-          exit 1
-        fi
-
-        # Read each run's results from Bazel's own record of where they are,
-        # so results of earlier runs in bazel-testlogs are left out. A retried
-        # test keeps its earlier attempts under test_attempts/, so the
-        # test.xml paths are the last attempt of each test or shard.
-        profiles=()
-        coverage_run=false
-        for log in "${logs[@]}"; do
-          coverage_log=false
-          if grep -q '"command":"coverage"' "${log}"; then
-            coverage_log=true
-            coverage_run=true
-          fi
-          # File URIs encode characters such as spaces as %XX; decode them.
-          xmls="$(grep -o '"uri":"file://[^"]*/testlogs/[^"]*/test\.xml"' "${log}" \
-            | sed -e 's|^"uri":"file://||' -e 's|"$||' \
-            | awk '{
-                out = ""
-                while (match($0, /%[0-9A-Fa-f][0-9A-Fa-f]/)) {
-                  hex = tolower(substr($0, RSTART + 1, 2))
-                  code = (index("0123456789abcdef", substr(hex, 1, 1)) - 1) * 16 + index("0123456789abcdef", substr(hex, 2, 1)) - 1
-                  out = out substr($0, 1, RSTART - 1) sprintf("%c", code)
-                  $0 = substr($0, RSTART + 3)
-                }
-                print out $0
-              }' | sort -u || true)"
-          while IFS= read -r xml; do
-            if [ -z "${xml}" ]; then
-              continue
-            fi
-            dir="$(dirname "${xml}")"
-            # The path below testlogs keeps the targets' names apart.
-            target="${dir#*/testlogs/}"
-            cp "${xml}" "test-reports/$(printf '%s' "${target}" | tr / _).xml"
-            if [ "${coverage_log}" = true ]; then
-              if [ -s "${dir}/coverage.dat" ]; then
-                profiles+=("${dir}/coverage.dat")
-              else
-                echo "warning: ${target}: the coverage run wrote no coverage.dat" >&2
-              fi
-            fi
-          done <<< "${xmls}"
-        done
-
-        if [ -z "$(ls -A test-reports)" ]; then
-          echo "error: the Bazel event logs list no test results" >&2
-          exit 1
-        fi
-        if [ "${coverage_run}" = false ]; then
-          exit 0
-        fi
-        if [ "${#profiles[@]}" -eq 0 ]; then
-          echo "error: the coverage run wrote no coverage profiles" >&2
-          exit 1
-        fi
-
-        # Each profile also lists the packages the test only imports, so a
-        # block appears in many profiles: sum its counts, or keep any hit in
-        # set mode.
-        awk '
-          FNR == 1 {
-            if ($0 !~ /^mode: (set|count|atomic)$/) {
-              print "error: " FILENAME ": invalid coverage mode: " $0 > "/dev/stderr"
-              bad = 1
-            }
-            if (mode == "") mode = $0
-            else if ($0 != mode) { print "coverage mode mismatch: " mode " and " $0 > "/dev/stderr"; bad = 1 }
-            next
-          }
-          {
-            key = $1 " " $2
-            if (!(key in hits)) order[++n] = key
-            hits[key] = (mode == "mode: set") ? (hits[key] || $3 > 0) : hits[key] + $3
-          }
-          END {
-            if (bad) exit 1
-            print mode
-            for (i = 1; i <= n; i++) print order[i], hits[order[i]]
-          }
-        ' "${profiles[@]}" > tests.cov
-        go tool cover -func=tests.cov | tail -n 1
-        gocover-cobertura < tests.cov > coverage.xml
+      - bash hack/write-test-reports.sh "{{.BAZEL_EVENTS_DIR}}"
 
   test:reports:failed:
     internal: true
@@ -208,9 +117,12 @@ tasks:
         if: '{{and (ne .FAILED_EXIT_CODE "") (eq .REPORTS "true")}}'
 
   test:error-metadata:
-    desc: Run DCGM runtime error, field metadata, and native status tests
+    desc: Check error codes and field metadata against the installed DCGM library
     cmds:
-      - bazel test --config=ci --config=dcgm-runtime //pkg/dcgm:dcgm_test --test_filter='^(TestSelectedErrorMeta|TestNativeFailuresRetainStatus|TestLinkFieldMetadataInventory|TestGroupAdmissionPreservesNativeStatus)$' --test_output=all --test_arg=-test.v --cache_test_results=no {{.CLI_ARGS}}
+      - >-
+        bazel test --config=ci --config=dcgm-runtime //pkg/dcgm:dcgm_test
+        --test_filter='^(TestSelectedErrorMeta|TestNativeFailuresRetainStatus|TestLinkFieldMetadataInventory|TestGroupAdmissionPreservesNativeStatus|TestNativeErrorConversion|TestLoadedLibrarySessionLifecycle)$'
+        --test_output=all --test_arg=-test.v --cache_test_results=no {{.CLI_ARGS}}
 
   test:gpu:prereqs:
     desc: Check that the DCGM library is installed and DCGM finds a physical GPU
@@ -219,14 +131,16 @@ tasks:
       - ldconfig -p | grep libdcgm.so.4
       # Adds its log to the calling test task's logs; the folder is kept.
       - mkdir -p "{{.BAZEL_EVENTS_DIR}}"
-      - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/preflight.json" //tests:integration_preflight_test
+      - >-
+        bazel test {{.DCGM_TEST_FLAGS}}
+        --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/preflight.json"
+        //tests:integration_preflight_test
 
   test:integration:
     desc: Run GPU and DCGM integration tests; RACE=true adds the race detector and REPORTS=true writes the reports
     vars:
       RACE: '{{.RACE | default "false"}}'
       REPORTS: '{{.REPORTS | default "false"}}'
-      FLAGS: '{{.DCGM_TEST_FLAGS}}{{if eq .RACE "true"}} --config=race{{end}}'
     cmds:
       - task: test:events:reset
       - defer:
@@ -235,20 +149,21 @@ tasks:
             FAILED_EXIT_CODE: "{{.EXIT_CODE}}"
             REPORTS: "{{.REPORTS}}"
       - task: test:gpu:prereqs
-      # The policy tests run on their own, then the suite runs even when
-      # they fail; the policy result is reported first. The diagnostic tests
-      # are skipped here; task test:diagnostics runs them.
+      # Run the Go binding tests first. Run the sample tests even if the
+      # binding tests fail, and return the first failure.
       - |
         set +e
-        bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/policy.json" \
-          //pkg/dcgm:dcgm_test --test_filter='^(TestPolicyErrors|TestFieldPolicyAdapterLifecycle|TestPIDInfoLegacyNativeBoundary|TestRepresentativeMetricCompatibility|TestAdministrationRuntime|TestModuleDenylistIsolated|TestAdministrationNativeErrors|TestAdministrationAfterShutdown|TestAdministrationAfterFailedInit|TestJobStatsAfterFailedInit|TestProfilingPauseResume|TestDiagnosticAPIsAfterFailedInit|TestDiagnosticChildSkipClassification|TestDiagnosticCleanupWaits|TestDiagnosticProcessCancellation|TestDiagnosticGPUSelection|TestFieldPolicyUUIDImport|TestDCGM48ScopeReads|TestDeviceMemoryMiB|TestDCGM48InjectionGate|TestEntityInjectionHelperWithoutInit|TestCountedPolicyImportAfterFailedInit|TestConfigurationAfterFailedInit)$'
-        policy_status=$?
-        bazel test {{.FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/suite.json" \
-          --test_env=DCGM_SKIP_DIAGNOSTICS=1 //tests:tests_test {{.CLI_ARGS}}
+        bazel test {{.DCGM_TEST_FLAGS}}{{if eq .RACE "true"}} --config=race{{end}} \
+          --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/binding-integration.json" \
+          //pkg/dcgm:dcgm_integration_test
+        binding_status=$?
+        bazel test {{.DCGM_TEST_FLAGS}}{{if eq .RACE "true"}} --config=race{{end}} \
+          --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/suite.json" \
+          //tests:tests_test {{.CLI_ARGS}}
         suite_status=$?
         set -e
-        if [ "${policy_status}" -ne 0 ]; then
-          exit "${policy_status}"
+        if [ "${binding_status}" -ne 0 ]; then
+          exit "${binding_status}"
         fi
         exit "${suite_status}"
       - task: test:reports
@@ -266,7 +181,10 @@ tasks:
     desc: Run opt-in policy driver detach/reattach checks on a dedicated GPU host
     cmds:
       - task: test:gpu:prereqs
-      - bazel test --config=ci --config=dcgm-runtime --cache_test_results=no --test_env=DCGM_TEST_POLICY_REDISCOVERY=1 //pkg/dcgm:dcgm_test --test_filter='^TestFieldPolicyRediscovery$' {{.CLI_ARGS}}
+      - >-
+        bazel test --config=ci --config=dcgm-runtime --cache_test_results=no
+        --test_env=DCGM_TEST_POLICY_REDISCOVERY=1 //pkg/dcgm:dcgm_test
+        --test_filter='^TestFieldPolicyRediscovery$' {{.CLI_ARGS}}
 
   test:diagnostics:
     desc: Run hardware-sensitive diagnostic tests; REPORTS=true writes the reports
@@ -286,8 +204,12 @@ tasks:
             dcgmi diag --run 1 --verbose --json || true
           fi
       - task: test:gpu:prereqs
-      - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostic-native.json" --test_env=DCGM_TEST_DIAGNOSTICS=1 //pkg/dcgm:dcgm_test --test_filter='^(TestDiagnosticCancellationAndRestart|TestDiagnosticHeartbeat|TestDiagnosticNamedParameters|TestDiagnosticConnectXRuntime)$' {{.CLI_ARGS}}
-      - bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostics.json" //tests:tests_test --test_filter='^(TestDiagnostics|TestDiagnosticsLong|TestDiagTestNameFormat|TestJobStats)$' {{.CLI_ARGS}}
+      - >-
+        bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/binding-diagnostics.json"
+        --test_env=DCGM_TEST_DIAGNOSTICS=1 //pkg/dcgm:dcgm_diagnostics_test {{.CLI_ARGS}}
+      - >-
+        bazel test {{.DCGM_TEST_FLAGS}} --build_event_json_file="{{.BAZEL_EVENTS_DIR}}/diagnostics.json"
+        --test_timeout={{.DIAGNOSTIC_SAMPLE_TIMEOUT_SECONDS}} //tests:diagnostics_test {{.CLI_ARGS}}
       - task: test:reports
         if: '{{eq .REPORTS "true"}}'
 
@@ -295,7 +217,10 @@ tasks:
     desc: Run opt-in configuration and power-profile checks as root on a dedicated GPU host
     cmds:
       - task: test:gpu:prereqs
-      - bazel test --config=ci --config=dcgm-runtime --cache_test_results=no --test_env=DCGM_ENABLE_CONFIGURATION_TESTS=1 //tests:tests_test --test_filter='^TestConfiguration' {{.CLI_ARGS}}
+      - >-
+        bazel test --config=ci --config=dcgm-runtime --cache_test_results=no
+        --test_env=DCGM_ENABLE_CONFIGURATION_TESTS=1 //tests:tests_test
+        --test_filter='^TestConfiguration' {{.CLI_ARGS}}
 
   lint:
     desc: Run Go lint; LINT_BASE_REV=<rev> reports only issues new since that revision
@@ -311,7 +236,7 @@ tasks:
     cmds:
       # Left unquoted so the shell expands globs in EXTRA_SHELL_SCRIPTS.
       # ShellCheck takes each script's shell from its first line.
-      - shellcheck -x hack/validate-versions.sh hack/script-template.sh scripts/lint/go-mod-tidy.sh {{.EXTRA_SHELL_SCRIPTS}}
+      - shellcheck -x hack/*.sh scripts/lint/go-mod-tidy.sh {{.EXTRA_SHELL_SCRIPTS}}
 
   fmt:
     desc: Format Go sources
@@ -331,7 +256,10 @@ tasks:
   generate:
     desc: Regenerate checked-in code
     cmds:
-      - bazel run //cmd/gen-fields:gen-fields -- --legacy-fields {{.ROOT_DIR}}/pkg/dcgm/legacy_fields.csv {{.ROOT_DIR}}/pkg/dcgm/dcgm_fields.h {{.ROOT_DIR}}/pkg/dcgm/const_fields.go
+      - >-
+        bazel run //cmd/gen-fields:gen-fields --
+        --legacy-fields {{.ROOT_DIR}}/pkg/dcgm/legacy_fields.csv
+        {{.ROOT_DIR}}/pkg/dcgm/dcgm_fields.h {{.ROOT_DIR}}/pkg/dcgm/const_fields.go
       - gofumpt -w {{.ROOT_DIR}}/pkg/dcgm/const_fields.go
       - go generate ./pkg/dcgm
 

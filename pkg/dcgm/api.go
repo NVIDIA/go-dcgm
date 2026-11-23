@@ -20,10 +20,14 @@ var (
 // - Standalone: Connect to an already running nv-hostengine
 // - StartHostengine: Start and connect to nv-hostengine, terminate before exiting
 // Returns a cleanup function on success. On error, cleanup is nil. If the DCGM
-// library cannot be loaded, the error is a *LibraryLoadError.
+// library cannot be loaded, the error is a *LibraryLoadError. Invalid modes
+// return ErrInvalidMode, including during an active session.
 func Init(m mode, args ...string) (cleanup func(), err error) {
 	mux.Lock()
 	defer mux.Unlock()
+	if m != Embedded && m != Standalone && m != StartHostengine {
+		return nil, ErrInvalidMode
+	}
 
 	if dcgmInitCounter < 0 {
 		return nil, fmt.Errorf("shutdown() is called %d times, before init()", -dcgmInitCounter)
@@ -91,7 +95,8 @@ func GetSupportedDevices() ([]uint, error) {
 	return getSupportedDevices()
 }
 
-// GetDeviceInfo returns detailed information about the specified GPU
+// GetDeviceInfo returns detailed information about the specified GPU.
+// A successful read can return a populated Device alongside a temporary-group cleanup error.
 func GetDeviceInfo(gpuID uint) (Device, error) {
 	return getDeviceInfo(gpuID)
 }
@@ -102,8 +107,9 @@ func GetGPUStatus(gpuID uint) EntityStatus {
 }
 
 // GetDeviceStatus returns current status information about the specified GPU.
-// If collection succeeds but temporary DCGM resource cleanup fails, the
-// returned DeviceStatus remains populated and the error reports the failure.
+// Unavailable readings carry DCGM blank markers. Other per-field failures
+// and cleanup failures can return an error alongside the populated status.
+// A malformed field response returns an error.
 func GetDeviceStatus(gpuID uint) (DeviceStatus, error) {
 	return latestValuesForDevice(gpuID)
 }
@@ -163,7 +169,8 @@ func GetProcessInfo(group GroupHandle, pid uint) ([]ProcessInfo, error) {
 	return getProcessInfo(group, pid)
 }
 
-// HealthCheckByGpuId performs a health check on the specified GPU
+// HealthCheckByGpuId performs a health check on the specified GPU.
+// A successful check can return a result alongside a temporary-group cleanup error.
 func HealthCheckByGpuId(gpuID uint) (DeviceHealth, error) {
 	return healthCheckByGpuId(gpuID)
 }
@@ -214,14 +221,32 @@ func Introspect() (Status, error) {
 	return introspect()
 }
 
-// GetVersionInfo returns build environment information for the DCGM client library.
+// GetVersionInfo returns build information for the DCGM client library.
+// If the library or version function is unavailable, IsFeatureUnavailable
+// returns true for the returned error.
 func GetVersionInfo() (VersionInfo, error) {
+	mux.Lock()
+	defer mux.Unlock()
 	return versionInfo()
 }
 
-// GetHostengineVersionInfo returns build environment information for the DCGM host engine.
-// Requires an active connection (Init must have been called).
+// GetLoadedLibraryPath returns the path of the loaded DCGM client library as
+// recorded by the Linux dynamic loader. The path may be relative or contain
+// symlinks. The returned string remains valid after Shutdown.
+// GetLoadedLibraryPath returns an error when the library has not been loaded,
+// after final Shutdown, or when the platform cannot report the path.
+func GetLoadedLibraryPath() (string, error) {
+	mux.Lock()
+	defer mux.Unlock()
+	return loadedLibraryPath()
+}
+
+// GetHostengineVersionInfo returns build information for the active DCGM hostengine session.
+// If the session or version function is unavailable, IsFeatureUnavailable
+// returns true for the returned error.
 func GetHostengineVersionInfo() (VersionInfo, error) {
+	mux.Lock()
+	defer mux.Unlock()
 	return hostengineVersionInfo()
 }
 

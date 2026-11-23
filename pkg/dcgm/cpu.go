@@ -11,13 +11,6 @@ import (
 	"unsafe"
 )
 
-/*
- *See dcgm_structs.h
- *	DCGM_CPU_CORE_BITMASK_COUNT_V1 (DCGM_MAX_NUM_CPU_CORES / sizeof(uint64_t) / CHAR_BIT)
- *	or
- *	1024 / 8 / 8
- */
-
 const (
 	// MAX_NUM_CPU_CORES represents the maximum number of CPU cores supported
 	MAX_NUM_CPU_CORES = uint(C.DCGM_MAX_NUM_CPU_CORES)
@@ -29,7 +22,7 @@ const (
 	CHAR_BIT = uint(C.CHAR_BIT)
 
 	// MAX_CPU_CORE_BITMASK_COUNT represents the maximum count of CPU core bitmasks
-	MAX_CPU_CORE_BITMASK_COUNT = uint(1024 / 8 / 8)
+	MAX_CPU_CORE_BITMASK_COUNT = uint(len(C.dcgmCpuHierarchyOwnedCores_v1{}.bitmask))
 )
 
 // CPUHierarchyCPU_v1 represents information about a single CPU and its owned cores

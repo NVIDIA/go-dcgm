@@ -767,7 +767,7 @@ func setPolicyInternal(groupID GroupHandle, condition C.dcgmPolicyCondition_t, c
 
 	result := C.dcgmPolicySet(handle.handle, groupID.handle, &policy, statusHandle)
 	if err = errorString(result); err != nil {
-		return fmt.Errorf("error setting policies: %s", err)
+		return fmt.Errorf("error setting policies: %w", err)
 	}
 
 	return
@@ -911,7 +911,7 @@ func clearPolicyForGroup(groupID GroupHandle) error {
 
 	result := C.dcgmPolicySet(handle.handle, groupID.handle, &policy, statusHandle)
 	if err := errorString(result); err != nil {
-		return fmt.Errorf("error clearing policies: %s", err)
+		return fmt.Errorf("error clearing policies: %w", err)
 	}
 
 	return nil

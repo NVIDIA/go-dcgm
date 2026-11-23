@@ -4,6 +4,18 @@ package dcgm
 #include "dcgm_agent.h"
 #include <dlfcn.h>
 
+// goConfigGetV2 reads into a v2 buffer. Cast in C because the native
+// declaration uses the current config type.
+static dcgmReturn_t goConfigGetV2(dcgmHandle_t handle, dcgmGpuGrp_t group, dcgmConfigType_t kind,
+                                   int count, dcgmConfig_v2 *configs, dcgmStatus_t status) {
+    return dcgmConfigGet(handle, group, kind, count, (dcgmConfig_t *)configs, status);
+}
+
+// goConfigSetV2 sends a v2 request while keeping the v2 buffer type in Go.
+static dcgmReturn_t goConfigSetV2(dcgmHandle_t handle, dcgmGpuGrp_t group, dcgmConfig_v2 *config, dcgmStatus_t status) {
+    return dcgmConfigSet(handle, group, (dcgmConfig_t *)config, status);
+}
+
 // Resolve the 4.8-only function at runtime even when the binary linked an older libdcgm.
 typedef dcgmReturn_t (*goConfigResetFn)(dcgmHandle_t, dcgmGpuGrp_t, dcgmStatus_t);
 static dcgmReturn_t go_dcgmConfigReset(void *library, dcgmHandle_t handle, dcgmGpuGrp_t group, dcgmStatus_t status) {
@@ -17,6 +29,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"math"
 )
 
 // ConfigType selects the desired target or the live configuration.
@@ -148,7 +161,7 @@ func (e *ConfigError) Unwrap() []error {
 }
 
 // ConfigGet reads current or target configuration. It returns partial results alongside errors.
-// This uses dcgmConfig_v3 (Hz), and requires a compatible client library and hostengine.
+// Clocks remain in Hz across native v2 and v3 layouts. Client and hostengine must be compatible.
 func ConfigGet(group GroupHandle, kind ConfigType) ([]GPUConfig, error) {
 	return configGetWithCalls(cgoAdapter{}, group, kind)
 }
@@ -538,6 +551,12 @@ func configResult(symbol string, code C.dcgmReturn_t) error {
 	return dcgmFeatureResult("DCGM configuration API", symbol, code, dcgmErrorText(code))
 }
 
+// configUsesV2 selects the MHz config layout for DCGM 4.6 and 4.7 clients.
+func configUsesV2(info VersionInfo) bool {
+	version, known := runtimeVersion(info)
+	return known && version[0] == 4 && version[1] >= 6 && version[1] < 8
+}
+
 func (cgoAdapter) configGetNative(group GroupHandle, kind ConfigType, configs []nativeGPUConfig, status configStatusHandle) error {
 	if err := requireConfigSymbol("dcgmConfigGet"); err != nil {
 		return err
@@ -547,6 +566,21 @@ func (cgoAdapter) configGetNative(group GroupHandle, kind ConfigType, configs []
 		return errors.New("invalid configuration buffer size")
 	}
 
+	info, err := versionInfo()
+	if err == nil && configUsesV2(info) {
+		legacy := make([]C.dcgmConfig_v2, len(configs))
+		for i := range configs {
+			legacy[i], err = configToV2(&configs[i])
+			if err != nil {
+				return err
+			}
+		}
+		code := C.goConfigGetV2(handle.handle, group.handle, C.dcgmConfigType_t(kind), C.int(len(legacy)), &legacy[0], status.handle)
+		for i := range configs {
+			configs[i] = configFromV2(&legacy[i])
+		}
+		return configResult("dcgmConfigGet", code)
+	}
 	return configResult("dcgmConfigGet", C.dcgmConfigGet(handle.handle, group.handle, C.dcgmConfigType_t(kind), C.int(len(configs)), &configs[0], status.handle))
 }
 
@@ -555,6 +589,14 @@ func (cgoAdapter) configSetNative(group GroupHandle, config *nativeGPUConfig, st
 		return err
 	}
 
+	info, err := versionInfo()
+	if err == nil && configUsesV2(info) {
+		legacy, err := configToV2(config)
+		if err != nil {
+			return err
+		}
+		return configResult("dcgmConfigSet", C.goConfigSetV2(handle.handle, group.handle, &legacy, status.handle))
+	}
 	return configResult("dcgmConfigSet", C.dcgmConfigSet(handle.handle, group.handle, config, status.handle))
 }
 
@@ -667,4 +709,70 @@ func configFieldErrorFromNative(info C.dcgmErrorInfo_t, message string) ConfigFi
 		FieldID: Short(info.fieldId),
 		Err:     &Error{Code: C.dcgmReturn_t(info.status), msg: message},
 	}
+}
+
+// configToV2 converts clock values from Hz to whole MHz and keeps unavailable values blank.
+func configToV2(config *nativeGPUConfig) (C.dcgmConfig_v2, error) {
+	var legacy C.dcgmConfig_v2
+	legacy.version = C.dcgmConfig_version2
+
+	legacy.gpuId = config.gpuId
+	legacy.eccMode = config.eccMode
+	legacy.computeMode = config.computeMode
+	legacy.perfState.syncBoost = config.perfState.syncBoost
+
+	legacy.perfState.targetClocks.version = C.dcgmClockSet_version1
+	for _, clock := range []struct {
+		name string
+		hz   C.longlong
+		mhz  *C.uint
+	}{
+		{"memory clock", config.perfState.targetClocks.memClock, &legacy.perfState.targetClocks.memClock},
+		{"SM clock", config.perfState.targetClocks.smClock, &legacy.perfState.targetClocks.smClock},
+	} {
+		if clock.hz >= C.DCGM_INT64_BLANK {
+			*clock.mhz = C.uint(C.DCGM_INT32_BLANK + (clock.hz - C.DCGM_INT64_BLANK))
+			continue
+		}
+		if clock.hz < 0 || clock.hz%1000000 != 0 || clock.hz/1000000 >= C.DCGM_INT32_BLANK {
+			return legacy, fmt.Errorf("%s cannot be represented as whole MHz in configuration v2", clock.name)
+		}
+		*clock.mhz = C.uint(clock.hz / 1000000)
+	}
+
+	legacy.powerLimit = config.powerLimit
+	legacy.workloadPowerProfiles = config.workloadPowerProfiles
+
+	return legacy, nil
+}
+
+// configFromV2 converts clock values from MHz to Hz and keeps unavailable values blank.
+func configFromV2(legacy *C.dcgmConfig_v2) nativeGPUConfig {
+	config := blankNativeConfig()
+	config.gpuId = legacy.gpuId
+	config.eccMode = legacy.eccMode
+	config.computeMode = legacy.computeMode
+	config.perfState.syncBoost = legacy.perfState.syncBoost
+
+	for _, clock := range []struct {
+		mhz C.uint
+		hz  *C.longlong
+	}{
+		{legacy.perfState.targetClocks.memClock, &config.perfState.targetClocks.memClock},
+		{legacy.perfState.targetClocks.smClock, &config.perfState.targetClocks.smClock},
+	} {
+		if clock.mhz >= C.DCGM_INT32_BLANK {
+			*clock.hz = C.DCGM_INT64_BLANK
+			if offset := clock.mhz - C.DCGM_INT32_BLANK; offset <= math.MaxInt64-C.DCGM_INT64_BLANK {
+				*clock.hz += C.longlong(offset)
+			}
+		} else {
+			*clock.hz = C.longlong(clock.mhz) * 1000000
+		}
+	}
+
+	config.powerLimit = legacy.powerLimit
+	config.workloadPowerProfiles = legacy.workloadPowerProfiles
+
+	return config
 }

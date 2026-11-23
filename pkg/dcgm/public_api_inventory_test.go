@@ -68,12 +68,20 @@ func inventoryProblems(names []string, entries map[string][]string, calls map[st
 	return problems
 }
 
-// dynamicAPIBridge describes the two optional APIs that must be resolved and called through a typed pointer.
+// dynamicAPIBridge describes optional APIs resolved and called through a typed pointer.
 type dynamicAPIBridge struct {
 	symbol, goFile, cFile, bridge, functionType, parameters, arguments string
 }
 
 var dynamicAPIBridges = []dynamicAPIBridge{
+	{
+		"dcgmVersionInfo", "version_info.go", "version_info.go", "loadedClientVersion", "clientVersionFn",
+		`dcgmVersionInfo_t\s*\*`, "info",
+	},
+	{
+		"dcgmHostengineVersionInfo", "version_info.go", "version_info.go", "loadedHostengineVersion", "hostengineVersionFn",
+		`dcgmHandle_t\s*,\s*dcgmVersionInfo_t\s*\*`, "handle,info",
+	},
 	{
 		"dcgmPolicyImport_v2", "field_policy.go", "field_policy_import.h", "callPolicyImportV2", "policyImportV2Function",
 		`dcgmHandle_t\s*,\s*const\s+char\s*\*\s*,\s*unsigned\s+int\s*\*\s*,\s*unsigned\s+int\s*\*`, "handle,path,parsed,skipped",
@@ -399,6 +407,12 @@ func dynamicBridgeFixtures(bridge dynamicAPIBridge) []dynamicBridgeFixture {
 	parameters := "dcgmHandle_t, const char *, unsigned int *, unsigned int *"
 	if bridge.symbol == "dcgmConfigReset" {
 		parameters = "dcgmHandle_t, dcgmGpuGrp_t, dcgmStatus_t"
+	}
+	if bridge.symbol == "dcgmVersionInfo" {
+		parameters = "dcgmVersionInfo_t *"
+	}
+	if bridge.symbol == "dcgmHostengineVersionInfo" {
+		parameters = "dcgmHandle_t, dcgmVersionInfo_t *"
 	}
 
 	resolver := fmt.Sprintf(`%s resolved = (%s)dlsym(library, %q);`, bridge.functionType, bridge.functionType, bridge.symbol)

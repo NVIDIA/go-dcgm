@@ -1,5 +1,6 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# gazelle:exclude diag_test.go
 # gazelle:exclude preflight_test.go
 
 go_library(
@@ -15,7 +16,6 @@ go_test(
         "configuration_test.go",
         "dcgm_test.go",
         "deviceinfo_test.go",
-        "diag_test.go",
         "dmon_test.go",
         "health_test.go",
         "hostengine_test.go",
@@ -34,7 +34,6 @@ go_test(
     deps = [
         "//pkg/dcgm",
         "@com_github_gorilla_mux//:mux",
-        "@com_github_stretchr_testify//assert",
     ],
 )
 
@@ -46,4 +45,17 @@ go_test(
         "requires-dcgm",
     ],
     deps = ["//pkg/dcgm"],
+)
+
+go_test(
+    name = "diagnostics_test",  # keep
+    srcs = ["diag_test.go"],
+    tags = [
+        "manual",
+        "requires-dcgm",
+    ],
+    deps = [
+        "//pkg/dcgm",
+        "@com_github_stretchr_testify//assert",
+    ],
 )

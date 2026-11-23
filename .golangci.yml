@@ -5,6 +5,7 @@ linters:
     - bodyclose
     - durationcheck
     - errcheck
+    - errorlint
     - gocritic
     - gosec
     - govet
